@@ -8,9 +8,9 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -30,7 +30,6 @@ fun Slider(
     modifier: Modifier,
 ) {
     Column(modifier) {
-        Track(30)
     }
 }
 
@@ -39,13 +38,14 @@ enum class TrackAlignment {
 }
 
 @Composable
-fun Track(
-    count: Int,
+fun <T> Track(
+    trackItems: List<T>,
     modifier: Modifier = Modifier,
     trackAlignment: TrackAlignment = TrackAlignment.Bottom,
     firstGuideline: Dp = 64.dp,
     itemSize: Dp = 200.dp,
     subdivision: Int = 10,
+    itemContent: @Composable (T) -> Unit = { Text(text = "$it") },
 ) {
     val verticalPadding = 16.dp
     val lineColor = MaterialTheme.colorScheme.secondary
@@ -71,26 +71,27 @@ fun Track(
                 }
             }
         ) {
-            items(count) { index ->
+            itemsIndexed(trackItems) { index, item ->
                 Box(
                     modifier = Modifier.width(itemSize).drawBehind {
                         when (trackAlignment) {
                             TrackAlignment.Top -> {
-                                topRulerLines(lineColor, index, count, subdivision)
+                                topRulerLines(lineColor, index, trackItems.size, subdivision)
                             }
 
                             TrackAlignment.Bottom -> {
-                                bottomRulerLines(lineColor, index, count, subdivision)
+                                bottomRulerLines(lineColor, index, trackItems.size, subdivision)
                             }
                         }
                     }
                 ) {
-                    Text(
-                        text = "$index",
+                    Box(
                         modifier = Modifier.graphicsLayer {
                             translationX = -size.width / 2f
                         }
-                    )
+                    ) {
+                        itemContent(item)
+                    }
                 }
             }
         }
@@ -171,19 +172,19 @@ private fun DrawScope.guidelineCircle(
 private fun TrackPreview() {
     Column(Modifier.background(Color.White)) {
         Track(
-            count = 30,
+            trackItems = (1..30).toList(),
             itemSize = 100.dp
         )
         Track(
-            count = 30,
+            trackItems = (1..30).toList(),
             subdivision = 5
         )
         Track(
-            count = 30,
+            trackItems = (1..30).toList(),
             subdivision = 11
         )
         Track(
-            count = 30,
+            trackItems = (1..30).toList(),
             trackAlignment = TrackAlignment.Top,
             subdivision = 11
         )
@@ -194,6 +195,9 @@ private fun TrackPreview() {
 @Composable
 private fun PaceSliderPreview() {
     Column(Modifier.background(Color.White)) {
+        Text("Distance")
+        DistanceSlider()
+        Text("Pace")
         PaceSlider()
     }
 }
@@ -204,10 +208,49 @@ fun PaceSlider(
 ) {
     Column {
         Track(
-            count = 20,
+            trackItems = (1..20).toList(),
             itemSize = 100.dp,
             subdivision = 10,
             modifier = modifier
+        )
+        Track(
+            trackItems = (0..59).map { it.toString() }.toList(),
+            itemSize = 100.dp,
+            trackAlignment = TrackAlignment.Top,
+            subdivision = 10,
+            modifier = modifier,
+            itemContent = {
+                Text(
+                    text = String.format("%02d", it.toInt()),
+                )
+            }
+        )
+    }
+}
+
+
+@Composable
+fun DistanceSlider(
+    modifier: Modifier = Modifier,
+) {
+    Column {
+        Track(
+            trackItems = (0..100).toList(),
+            itemSize = 100.dp,
+            subdivision = 10,
+            modifier = modifier
+        )
+        Track(
+            trackItems = (0..59).map { it.toString() }.toList(),
+            itemSize = 100.dp,
+            trackAlignment = TrackAlignment.Top,
+            subdivision = 10,
+            modifier = modifier,
+            itemContent = {
+                Text(
+                    text = String.format("%02d", it.toInt()),
+                )
+            }
         )
     }
 }
