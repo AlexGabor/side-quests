@@ -19,28 +19,35 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 
 @Composable
 fun Slider(
     modifier: Modifier,
 ) {
-    Column(modifier = modifier.safeDrawingPadding()) {
-        Track()
+    Column(modifier) {
+        Track(30)
     }
+}
+
+enum class TrackAlignment {
+    Top, Bottom,
 }
 
 @Composable
 fun Track(
+    count: Int,
     modifier: Modifier = Modifier,
+    trackAlignment: TrackAlignment = TrackAlignment.Bottom,
     firstGuideline: Dp = 64.dp,
     itemSize: Dp = 200.dp,
     subdivision: Int = 10,
 ) {
+    val verticalPadding = 16.dp
     val lineColor = MaterialTheme.colorScheme.secondary
     BoxWithConstraints(modifier) {
         this.maxWidth
@@ -51,37 +58,32 @@ fun Track(
             contentPadding = PaddingValues(
                 start = firstGuideline,
                 end = this@BoxWithConstraints.maxWidth - firstGuideline - itemSize,
-                top = 16.dp,
-                bottom = 16.dp
+                top = verticalPadding,
+                bottom = verticalPadding
             ),
             flingBehavior = rememberSnapFlingBehavior(
                 lazyListState = listState,
                 snapPosition = SnapPosition.Start
             ),
             modifier = Modifier.fillMaxWidth().drawBehind {
-                val scrollOffset = listState.firstVisibleItemScrollOffset
-                drawCircle(
-                    color = lineColor,
-                    radius = 4.dp.toPx(),
-                    center = Offset(firstGuideline.toPx(), 8.dp.toPx())
-                )
-                val lineCount = size.width / itemSize.toPx() * subdivision
-                repeat(lineCount.roundToInt() + 2) { index ->
-                    val x = index * (itemSize.toPx() / subdivision) + firstGuideline.toPx()
-                    val xScrolled = x - scrollOffset
-                    val height = if (index % subdivision == 0) 10.dp else 4.dp
-                    drawLine(
-                        color = lineColor,
-                        start = Offset(xScrolled, size.height - height.toPx()),
-                        end = Offset(xScrolled, size.height),
-                        strokeWidth = 4.dp.toPx()
-                    )
+                if (trackAlignment == TrackAlignment.Bottom) {
+                    guidelineCircle(lineColor, firstGuideline)
                 }
             }
         ) {
-            items(60) { index ->
+            items(count) { index ->
                 Box(
-                    modifier = Modifier.width(itemSize)
+                    modifier = Modifier.width(itemSize).drawBehind {
+                        when (trackAlignment) {
+                            TrackAlignment.Top -> {
+                                topRulerLines(lineColor, index, count, subdivision)
+                            }
+
+                            TrackAlignment.Bottom -> {
+                                bottomRulerLines(lineColor, index, count, subdivision)
+                            }
+                        }
+                    }
                 ) {
                     Text(
                         text = "$index",
@@ -95,18 +97,117 @@ fun Track(
     }
 }
 
+private fun DrawScope.bottomRulerLines(
+    lineColor: Color,
+    index: Int,
+    count: Int,
+    subdivision: Int,
+) {
+    val verticalPadding = 16.dp
+    val highLineHeight = 10.dp
+    val lowLineHeight = 4.dp
+    drawLine(
+        color = lineColor,
+        start = Offset(0f, size.height + (verticalPadding - highLineHeight).toPx()),
+        end = Offset(0f, size.height + verticalPadding.toPx()),
+        strokeWidth = 4.dp.toPx()
+    )
+    if (index < count - 1) {
+        val distance = size.width / subdivision
+        repeat(subdivision) { index ->
+            val x = distance * index
+            drawLine(
+                color = lineColor,
+                start = Offset(x, size.height + (verticalPadding - lowLineHeight).toPx()),
+                end = Offset(x, size.height + verticalPadding.toPx()),
+                strokeWidth = 4.dp.toPx()
+            )
+        }
+    }
+}
+
+private fun DrawScope.topRulerLines(
+    lineColor: Color,
+    index: Int,
+    count: Int,
+    subdivision: Int,
+) {
+    val verticalPadding = 16.dp
+    val highLineHeight = 10.dp
+    val lowLineHeight = 4.dp
+    drawLine(
+        color = lineColor,
+        start = Offset(0f, -verticalPadding.toPx()),
+        end = Offset(0f, -verticalPadding.toPx() + highLineHeight.toPx()),
+        strokeWidth = 4.dp.toPx()
+    )
+    if (index < count - 1) {
+        val distance = size.width / subdivision
+        repeat(subdivision) { index ->
+            val x = distance * index
+            drawLine(
+                color = lineColor,
+                start = Offset(x, -verticalPadding.toPx()),
+                end = Offset(x, -verticalPadding.toPx() + lowLineHeight.toPx()),
+                strokeWidth = 4.dp.toPx()
+            )
+        }
+    }
+}
+
+private fun DrawScope.guidelineCircle(
+    lineColor: Color,
+    firstGuideline: Dp,
+) {
+    drawCircle(
+        color = lineColor,
+        radius = 4.dp.toPx(),
+        center = Offset(firstGuideline.toPx(), 8.dp.toPx())
+    )
+}
+
 @Preview
 @Composable
-fun Track1Preview() {
+private fun TrackPreview() {
     Column(Modifier.background(Color.White)) {
         Track(
+            count = 30,
             itemSize = 100.dp
         )
         Track(
+            count = 30,
             subdivision = 5
         )
         Track(
+            count = 30,
             subdivision = 11
+        )
+        Track(
+            count = 30,
+            trackAlignment = TrackAlignment.Top,
+            subdivision = 11
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun PaceSliderPreview() {
+    Column(Modifier.background(Color.White)) {
+        PaceSlider()
+    }
+}
+
+@Composable
+fun PaceSlider(
+    modifier: Modifier = Modifier,
+) {
+    Column {
+        Track(
+            count = 20,
+            itemSize = 100.dp,
+            subdivision = 10,
+            modifier = modifier
         )
     }
 }
