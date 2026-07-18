@@ -262,7 +262,7 @@ fun DistanceSlider(
             modifier = modifier
         )
         Track(
-            trackItems = (0..59).map { it.toString() }.toList(),
+            trackItems = (0..99).map { it.toString() }.toList(),
             itemSize = 100.dp,
             trackAlignment = TrackAlignment.Top,
             subdivision = 5,

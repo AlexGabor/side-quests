@@ -34,7 +34,9 @@ private class SubdivisionFlingBehavior(
     private val subdivisionSize: Float = itemSizePx / subdivision
 
     override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
-        decayFling(initialVelocity)
+        if (abs(initialVelocity) > 800) {
+            decayFling(initialVelocity)
+        }
         return snapFling()
     }
 
