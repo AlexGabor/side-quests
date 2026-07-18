@@ -1,14 +1,14 @@
 package com.alexgabor.pacer
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.snapping.SnapPosition
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -31,9 +31,13 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun Slider(
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
 ) {
-    Column(modifier) {
+    Column(modifier.background(Color.White)) {
+        Text("Distance")
+        DistanceSlider()
+        Text("Pace")
+        PaceSlider()
     }
 }
 
@@ -53,6 +57,8 @@ fun <T> Track(
 ) {
     val verticalPadding = 16.dp
     val lineColor = MaterialTheme.colorScheme.secondary
+    val density = LocalDensity.current
+    val itemSizePx = with(density) { itemSize.toPx() }
     BoxWithConstraints(modifier) {
         this.maxWidth
 
@@ -65,9 +71,10 @@ fun <T> Track(
                 top = verticalPadding,
                 bottom = verticalPadding
             ),
-            flingBehavior = rememberSnapFlingBehavior(
+            flingBehavior = rememberSubdivisionFlingBehavior(
                 lazyListState = listState,
-                snapPosition = SnapPosition.Start
+                itemSizePx = itemSizePx,
+                subdivision = subdivision
             ),
             modifier = Modifier.fillMaxWidth().drawBehind {
                 if (trackAlignment == TrackAlignment.Bottom) {
@@ -258,7 +265,7 @@ fun DistanceSlider(
             trackItems = (0..59).map { it.toString() }.toList(),
             itemSize = 100.dp,
             trackAlignment = TrackAlignment.Top,
-            subdivision = 10,
+            subdivision = 5,
             modifier = modifier,
             itemContent = {
                 Text(

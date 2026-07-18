@@ -28,6 +28,6 @@ import kotlin.math.roundToInt
 @Preview
 fun App() {
     MaterialTheme {
-
+        Slider(Modifier.safeDrawingPadding())
     }
 }
