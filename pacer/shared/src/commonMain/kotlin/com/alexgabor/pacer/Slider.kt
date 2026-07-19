@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -30,7 +29,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun Slider(
+fun Sliders(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.background(Color.White)) {
@@ -258,7 +257,7 @@ fun DistanceSlider(
         Track(
             trackItems = (0..100).toList(),
             itemSize = 100.dp,
-            subdivision = 10,
+            subdivision = 1,
             modifier = modifier
         )
         Track(
