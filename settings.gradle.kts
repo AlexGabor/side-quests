@@ -34,3 +34,4 @@ dependencyResolutionManagement {
 
 include(":pacer:androidApp")
 include(":pacer:shared")
+include(":design:riso")
