@@ -15,8 +15,11 @@ fun Sliders(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.background(Color.White)) {
-        Text("Distance")
-        DistanceSlider()
+        val distanceState = rememberDistanceSliderState()
+        Text("Distance ${distanceState.selectedDistance.kilometers}.${distanceState.selectedDistance.fraction}")
+        DistanceSlider(
+            state = distanceState
+        )
 
         val paceState = rememberPaceSliderState()
         Text("Pace ${paceState.selectedPace.minutes}:${paceState.selectedPace.seconds}")
@@ -33,35 +36,6 @@ fun Sliders(
 @Composable
 private fun SlidersPreview() {
     Sliders()
-}
-
-@Composable
-fun DistanceSlider(
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier) {
-        Track(
-            state = rememberTrackState((1..800).toList(), 1, rememberLazyListState()),
-            itemSize = 100.dp,
-            modifier = Modifier,
-            itemContent = { item, _ ->
-                Text(
-                    text = item.toString(),
-                )
-            }
-        )
-        Track(
-            state = rememberTrackState((0..100 step 5).toList(), 5, rememberLazyListState()),
-            itemSize = 100.dp,
-            trackAlignment = TrackAlignment.Top,
-            modifier = Modifier,
-            itemContent = { item, subdivision ->
-                Text(
-                    text = String.format("%02d", item + subdivision),
-                )
-            }
-        )
-    }
 }
 
 @Composable
