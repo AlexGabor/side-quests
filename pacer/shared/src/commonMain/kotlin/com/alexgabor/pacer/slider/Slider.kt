@@ -1,7 +1,6 @@
 package com.alexgabor.pacer.slider
 
 import androidx.compose.foundation.background
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -9,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -17,13 +17,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -48,24 +51,21 @@ enum class TrackAlignment {
 
 @Composable
 fun <T> Track(
-    trackItems: List<T>,
+    state: TrackSate<T>,
     modifier: Modifier = Modifier,
+    itemSize: Dp = 200.dp,
     trackAlignment: TrackAlignment = TrackAlignment.Bottom,
     firstGuideline: Dp = 64.dp,
-    itemSize: Dp = 200.dp,
-    subdivision: Int = 10,
     itemContent: @Composable (item: T, subdivision: Int) -> Unit = { item, subdivision -> Text(text = "$item.$subdivision") },
 ) {
     val verticalPadding = 16.dp
     val lineColor = MaterialTheme.colorScheme.secondary
     val density = LocalDensity.current
-    val itemSizePx = with(density) { itemSize.toPx() }
-    BoxWithConstraints(modifier) {
-        this.maxWidth
+    state.itemSizePx = with(density) { itemSize.toPx() }
 
-        val listState = rememberLazyListState()
+    BoxWithConstraints(modifier) {
         LazyRow(
-            state = listState,
+            state = state.listState,
             contentPadding = PaddingValues(
                 start = firstGuideline,
                 end = this@BoxWithConstraints.maxWidth - firstGuideline - itemSize,
@@ -73,9 +73,9 @@ fun <T> Track(
                 bottom = verticalPadding
             ),
             flingBehavior = rememberSubdivisionFlingBehavior(
-                lazyListState = listState,
-                itemSizePx = itemSizePx,
-                subdivision = subdivision
+                lazyListState = state.listState,
+                itemSizePx = state.itemSizePx,
+                subdivision = state.subdivisions
             ),
             modifier = Modifier.fillMaxWidth().drawBehind {
                 if (trackAlignment == TrackAlignment.Bottom) {
@@ -83,16 +83,26 @@ fun <T> Track(
                 }
             }
         ) {
-            itemsIndexed(trackItems) { index, item ->
+            itemsIndexed(state.trackItems) { index, item ->
                 Box(
                     modifier = Modifier.width(itemSize).drawBehind {
                         when (trackAlignment) {
                             TrackAlignment.Top -> {
-                                topRulerLines(lineColor, index, trackItems.size, subdivision)
+                                topRulerLines(
+                                    lineColor,
+                                    index,
+                                    state.trackItems.size,
+                                    state.subdivisions
+                                )
                             }
 
                             TrackAlignment.Bottom -> {
-                                bottomRulerLines(lineColor, index, trackItems.size, subdivision)
+                                bottomRulerLines(
+                                    lineColor,
+                                    index,
+                                    state.trackItems.size,
+                                    state.subdivisions
+                                )
                             }
                         }
                     }
@@ -114,10 +124,31 @@ fun <T> Track(
                 }
                 .background(Color.White)
         ) {
-            val index by remember { derivedStateOf {  listState.firstVisibleItemIndex } }
-            val subdivision by remember { derivedStateOf { (listState.firstVisibleItemScrollOffset / (itemSizePx / subdivision)).toInt() } }
-            itemContent(trackItems[index], subdivision)
+            itemContent(state.selectedItem, state.selectedSubdivision)
         }
+    }
+}
+
+@Composable
+fun <T> rememberTrackState(
+    trackItems: List<T>,
+    subdivision: Int,
+    listState: LazyListState,
+) = remember(trackItems, subdivision, listState) {
+    TrackSate(trackItems, subdivision, listState)
+}
+
+class TrackSate<T>(
+    val trackItems: List<T>,
+    val subdivisions: Int,
+    internal val listState: LazyListState,
+) {
+    var itemSizePx by mutableFloatStateOf(0f)
+    val selectedItem by derivedStateOf { trackItems[listState.firstVisibleItemIndex] }
+    val selectedSubdivision by derivedStateOf { (listState.firstVisibleItemScrollOffset / (itemSizePx / subdivisions)).toInt() }
+
+    suspend fun animateToIndex(index: Int) {
+        listState.animateScrollToItem(index)
     }
 }
 
@@ -195,21 +226,18 @@ private fun DrawScope.guidelineCircle(
 private fun TrackPreview() {
     Column(Modifier.background(Color.White)) {
         Track(
-            trackItems = (1..30).toList(),
+            state = rememberTrackState((1..30).toList(), 1, rememberLazyListState()),
             itemSize = 100.dp
         )
         Track(
-            trackItems = (1..30).toList(),
-            subdivision = 5
+            state = rememberTrackState((1..30).toList(), 5, rememberLazyListState()),
         )
         Track(
-            trackItems = (1..30).toList(),
-            subdivision = 11
+            state = rememberTrackState((1..30).toList(), 11, rememberLazyListState()),
         )
         Track(
-            trackItems = (1..30).toList(),
+            state = rememberTrackState((1..30).toList(), 11, rememberLazyListState()),
             trackAlignment = TrackAlignment.Top,
-            subdivision = 11
         )
     }
 }
@@ -217,12 +245,7 @@ private fun TrackPreview() {
 @Preview
 @Composable
 private fun PaceSliderPreview() {
-    Column(Modifier.background(Color.White)) {
-        Text("Distance")
-        DistanceSlider()
-        Text("Pace")
-        PaceSlider()
-    }
+    Sliders()
 }
 
 @Composable
@@ -231,9 +254,8 @@ fun PaceSlider(
 ) {
     Column {
         Track(
-            trackItems = (1..20).toList(),
+            state = rememberTrackState((1..20).toList(), 1, rememberLazyListState()),
             itemSize = 100.dp,
-            subdivision = 1,
             modifier = modifier,
             itemContent = { item, _ ->
                 Text(
@@ -242,10 +264,9 @@ fun PaceSlider(
             }
         )
         Track(
-            trackItems = (0..60 step 10).toList(),
+            state = rememberTrackState((1..60 step 10).toList(), 10, rememberLazyListState()),
             itemSize = 200.dp,
             trackAlignment = TrackAlignment.Top,
-            subdivision = 10,
             modifier = modifier,
             itemContent = { item, subdivision ->
                 Text(
@@ -262,9 +283,8 @@ fun DistanceSlider(
 ) {
     Column {
         Track(
-            trackItems = (0..100).toList(),
+            state = rememberTrackState((1..100).toList(), 1, rememberLazyListState()),
             itemSize = 100.dp,
-            subdivision = 1,
             modifier = modifier,
             itemContent = { item, _ ->
                 Text(
@@ -273,10 +293,9 @@ fun DistanceSlider(
             }
         )
         Track(
-            trackItems = (0..100 step 5).toList(),
+            state = rememberTrackState((1..100 step 5).toList(), 5, rememberLazyListState()),
             itemSize = 100.dp,
             trackAlignment = TrackAlignment.Top,
-            subdivision = 5,
             modifier = modifier,
             itemContent = { item, subdivision ->
                 Text(
@@ -293,10 +312,9 @@ fun TimeSlider(
 ) {
     Column {
         Track(
-            trackItems = (0..120).toList(),
+            state = rememberTrackState((1..120).toList(), 1, rememberLazyListState()),
             itemSize = 200.dp,
             trackAlignment = TrackAlignment.Top,
-            subdivision = 1,
             modifier = modifier,
             itemContent = { item, _ ->
                 Text(
@@ -305,9 +323,8 @@ fun TimeSlider(
             }
         )
         Track(
-            trackItems = (0..60).toList(),
+            state = rememberTrackState((1..60).toList(), 1, rememberLazyListState()),
             itemSize = 100.dp,
-            subdivision = 1,
             modifier = modifier,
             itemContent = { item, _ ->
                 Text(
@@ -316,10 +333,9 @@ fun TimeSlider(
             }
         )
         Track(
-            trackItems = (0..60 step 5).toList(),
+            state = rememberTrackState((1..60 step 5).toList(), 5, rememberLazyListState()),
             itemSize = 100.dp,
             trackAlignment = TrackAlignment.Top,
-            subdivision = 5,
             modifier = modifier,
             itemContent = { item, subdivision ->
                 Text(
