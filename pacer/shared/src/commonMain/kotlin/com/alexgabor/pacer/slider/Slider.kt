@@ -37,6 +37,8 @@ fun Sliders(
         DistanceSlider()
         Text("Pace")
         PaceSlider()
+        Text("Time")
+        TimeSlider()
     }
 }
 
@@ -254,7 +256,6 @@ fun PaceSlider(
     }
 }
 
-
 @Composable
 fun DistanceSlider(
     modifier: Modifier = Modifier,
@@ -273,6 +274,49 @@ fun DistanceSlider(
         )
         Track(
             trackItems = (0..100 step 5).toList(),
+            itemSize = 100.dp,
+            trackAlignment = TrackAlignment.Top,
+            subdivision = 5,
+            modifier = modifier,
+            itemContent = { item, subdivision ->
+                Text(
+                    text = String.format("%02d", item + subdivision),
+                )
+            }
+        )
+    }
+}
+
+@Composable
+fun TimeSlider(
+    modifier: Modifier = Modifier,
+) {
+    Column {
+        Track(
+            trackItems = (0..120).toList(),
+            itemSize = 200.dp,
+            trackAlignment = TrackAlignment.Top,
+            subdivision = 1,
+            modifier = modifier,
+            itemContent = { item, _ ->
+                Text(
+                    text = item.toString(),
+                )
+            }
+        )
+        Track(
+            trackItems = (0..60).toList(),
+            itemSize = 100.dp,
+            subdivision = 1,
+            modifier = modifier,
+            itemContent = { item, _ ->
+                Text(
+                    text = item.toString(),
+                )
+            }
+        )
+        Track(
+            trackItems = (0..60 step 5).toList(),
             itemSize = 100.dp,
             trackAlignment = TrackAlignment.Top,
             subdivision = 5,
