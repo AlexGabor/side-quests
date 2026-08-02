@@ -1,4 +1,4 @@
-package com.alexgabor.pacer
+package com.alexgabor.pacer.slider
 
 import androidx.compose.foundation.background
 import androidx.compose.ui.platform.LocalDensity
