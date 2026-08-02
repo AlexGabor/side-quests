@@ -252,11 +252,11 @@ private fun PaceSliderPreview() {
 fun PaceSlider(
     modifier: Modifier = Modifier,
 ) {
-    Column {
+    Column(modifier) {
         Track(
             state = rememberTrackState((1..20).toList(), 1, rememberLazyListState()),
             itemSize = 100.dp,
-            modifier = modifier,
+            modifier = Modifier,
             itemContent = { item, _ ->
                 Text(
                     text = item.toString(),
@@ -264,10 +264,10 @@ fun PaceSlider(
             }
         )
         Track(
-            state = rememberTrackState((1..60 step 10).toList(), 10, rememberLazyListState()),
+            state = rememberTrackState((0..60 step 10).toList(), 10, rememberLazyListState()),
             itemSize = 200.dp,
             trackAlignment = TrackAlignment.Top,
-            modifier = modifier,
+            modifier = Modifier,
             itemContent = { item, subdivision ->
                 Text(
                     text = String.format("%02d", item + subdivision),
@@ -281,11 +281,11 @@ fun PaceSlider(
 fun DistanceSlider(
     modifier: Modifier = Modifier,
 ) {
-    Column {
+    Column(modifier) {
         Track(
-            state = rememberTrackState((1..100).toList(), 1, rememberLazyListState()),
+            state = rememberTrackState((1..800).toList(), 1, rememberLazyListState()),
             itemSize = 100.dp,
-            modifier = modifier,
+            modifier = Modifier,
             itemContent = { item, _ ->
                 Text(
                     text = item.toString(),
@@ -293,10 +293,10 @@ fun DistanceSlider(
             }
         )
         Track(
-            state = rememberTrackState((1..100 step 5).toList(), 5, rememberLazyListState()),
+            state = rememberTrackState((0..100 step 5).toList(), 5, rememberLazyListState()),
             itemSize = 100.dp,
             trackAlignment = TrackAlignment.Top,
-            modifier = modifier,
+            modifier = Modifier,
             itemContent = { item, subdivision ->
                 Text(
                     text = String.format("%02d", item + subdivision),
@@ -310,12 +310,12 @@ fun DistanceSlider(
 fun TimeSlider(
     modifier: Modifier = Modifier,
 ) {
-    Column {
+    Column(modifier) {
         Track(
             state = rememberTrackState((1..120).toList(), 1, rememberLazyListState()),
             itemSize = 200.dp,
             trackAlignment = TrackAlignment.Top,
-            modifier = modifier,
+            modifier = Modifier,
             itemContent = { item, _ ->
                 Text(
                     text = item.toString(),
@@ -323,9 +323,9 @@ fun TimeSlider(
             }
         )
         Track(
-            state = rememberTrackState((1..60).toList(), 1, rememberLazyListState()),
+            state = rememberTrackState((0..59).toList(), 1, rememberLazyListState()),
             itemSize = 100.dp,
-            modifier = modifier,
+            modifier = Modifier,
             itemContent = { item, _ ->
                 Text(
                     text = item.toString(),
@@ -333,10 +333,10 @@ fun TimeSlider(
             }
         )
         Track(
-            state = rememberTrackState((1..60 step 5).toList(), 5, rememberLazyListState()),
+            state = rememberTrackState((0..60 step 5).toList(), 5, rememberLazyListState()),
             itemSize = 100.dp,
             trackAlignment = TrackAlignment.Top,
-            modifier = modifier,
+            modifier = Modifier,
             itemContent = { item, subdivision ->
                 Text(
                     text = String.format("%02d", item + subdivision),
