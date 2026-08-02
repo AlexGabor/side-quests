@@ -52,7 +52,7 @@ fun <T> Track(
     firstGuideline: Dp = 64.dp,
     itemSize: Dp = 200.dp,
     subdivision: Int = 10,
-    itemContent: @Composable (T) -> Unit = { Text(text = "$it") },
+    itemContent: @Composable (item: T, subdivision: Int) -> Unit = { item, subdivision -> Text(text = "$item.$subdivision") },
 ) {
     val verticalPadding = 16.dp
     val lineColor = MaterialTheme.colorScheme.secondary
@@ -100,7 +100,7 @@ fun <T> Track(
                             translationX = -size.width / 2f
                         }
                     ) {
-                        itemContent(item)
+                        itemContent(item, 0)
                     }
                 }
             }
@@ -113,7 +113,8 @@ fun <T> Track(
                 .background(Color.White)
         ) {
             val index by remember { derivedStateOf {  listState.firstVisibleItemIndex } }
-            itemContent(trackItems[index])
+            val subdivision by remember { derivedStateOf { (listState.firstVisibleItemScrollOffset / (itemSizePx / subdivision)).toInt() } }
+            itemContent(trackItems[index], subdivision)
         }
     }
 }
@@ -230,18 +231,23 @@ fun PaceSlider(
         Track(
             trackItems = (1..20).toList(),
             itemSize = 100.dp,
-            subdivision = 10,
-            modifier = modifier
+            subdivision = 1,
+            modifier = modifier,
+            itemContent = { item, _ ->
+                Text(
+                    text = item.toString(),
+                )
+            }
         )
         Track(
-            trackItems = (0..59).map { it.toString() }.toList(),
-            itemSize = 100.dp,
+            trackItems = (0..60 step 10).toList(),
+            itemSize = 200.dp,
             trackAlignment = TrackAlignment.Top,
             subdivision = 10,
             modifier = modifier,
-            itemContent = {
+            itemContent = { item, subdivision ->
                 Text(
-                    text = String.format("%02d", it.toInt()),
+                    text = String.format("%02d", item + subdivision),
                 )
             }
         )
@@ -258,17 +264,22 @@ fun DistanceSlider(
             trackItems = (0..100).toList(),
             itemSize = 100.dp,
             subdivision = 1,
-            modifier = modifier
+            modifier = modifier,
+            itemContent = { item, _ ->
+                Text(
+                    text = item.toString(),
+                )
+            }
         )
         Track(
-            trackItems = (0..99).map { it.toString() }.toList(),
+            trackItems = (0..100 step 5).toList(),
             itemSize = 100.dp,
             trackAlignment = TrackAlignment.Top,
             subdivision = 5,
             modifier = modifier,
-            itemContent = {
+            itemContent = { item, subdivision ->
                 Text(
-                    text = String.format("%02d", it.toInt()),
+                    text = String.format("%02d", item + subdivision),
                 )
             }
         )
