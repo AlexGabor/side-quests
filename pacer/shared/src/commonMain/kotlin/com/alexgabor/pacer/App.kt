@@ -5,12 +5,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.alexgabor.pacer.slider.Sliders
+import com.alexgabor.pacer.slider.PaceCalculator
 
 @Composable
 @Preview
 fun App() {
     MaterialTheme {
-        Sliders(Modifier.safeDrawingPadding())
+        PaceCalculator(Modifier.safeDrawingPadding())
     }
 }

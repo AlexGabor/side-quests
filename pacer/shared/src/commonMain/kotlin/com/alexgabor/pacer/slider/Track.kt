@@ -156,8 +156,8 @@ class TrackSate<T>(
     val selectedItem by derivedStateOf { trackItems[listState.firstVisibleItemIndex] }
     val selectedSubdivision by derivedStateOf { (listState.firstVisibleItemScrollOffset / (itemSizePx / subdivisions)).toInt() }
 
-    suspend fun animateToIndex(index: Int) {
-        listState.animateScrollToItem(index)
+    suspend fun animateToIndex(index: Int, subdivision: Int = 0) {
+        listState.animateScrollToItem(index, subdivision * (itemSizePx / subdivisions).roundToInt())
     }
 }
 
