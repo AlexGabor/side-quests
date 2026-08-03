@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -53,8 +55,10 @@ class PaceSliderState(
     suspend fun animateToPace(pace: Pace) {
         val minuteIndex = minuteTrackState.trackItems.indexOf(pace.minutes)
         if (minuteIndex < 0) return
-        minuteTrackState.animateToIndex(minuteIndex)
-        secondTrackState.animateToIndex(pace.seconds / 10, pace.seconds % 10)
+        coroutineScope {
+            launch { minuteTrackState.animateToIndex(minuteIndex) }
+            launch { secondTrackState.animateToIndex(pace.seconds / 10, pace.seconds % 10) }
+        }
     }
 }
 

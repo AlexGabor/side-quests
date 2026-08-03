@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun rememberDistanceSliderState(): DistanceSliderState {
@@ -49,8 +51,14 @@ class DistanceSliderState(
     }
 
     suspend fun animateToDistance(distance: Distance) {
-        kilometerTrackState.animateToIndex(distance.kilometers)
-        fractionTrackState.animateToIndex(distance.fraction / 5, distance.fraction % 5)
+        coroutineScope {
+            launch {
+                kilometerTrackState.animateToIndex(distance.kilometers)
+            }
+            launch {
+                fractionTrackState.animateToIndex(distance.fraction / 5, distance.fraction % 5)
+            }
+        }
     }
 }
 

@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun rememberTimeSliderState(): TimeSliderState {
@@ -60,9 +62,11 @@ class TimeSliderState(
     }
 
     suspend fun animateToTime(time: Time) {
-        hourTrackState.animateToIndex(time.hours)
-        minuteTrackState.animateToIndex(time.minutes)
-        secondTrackState.animateToIndex(time.seconds / 5, time.seconds % 5)
+        coroutineScope {
+            launch { hourTrackState.animateToIndex(time.hours) }
+            launch { minuteTrackState.animateToIndex(time.minutes) }
+            launch { secondTrackState.animateToIndex(time.seconds / 5, time.seconds % 5) }
+        }
     }
 }
 
