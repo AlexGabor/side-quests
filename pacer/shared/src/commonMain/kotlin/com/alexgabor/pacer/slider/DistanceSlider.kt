@@ -15,8 +15,16 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun rememberDistanceSliderState(): DistanceSliderState {
-    val kilometerTrackState: TrackSate<Int> = rememberTrackState((0..800).toList(), 1, rememberLazyListState())
-    val fractionTrackState: TrackSate<Int> = rememberTrackState((0..100 step 5).toList(), 5, rememberLazyListState())
+    val kilometerTrackState: TrackSate<Int> = rememberTrackState(
+        trackItems = (0..800).toList(),
+        subdivision = 1,
+        listState = rememberLazyListState(initialFirstVisibleItemIndex = 42)
+    )
+    val fractionTrackState: TrackSate<Int> = rememberTrackState(
+        trackItems = (0..100 step 5).toList(),
+        subdivision = 5,
+        listState = rememberLazyListState(initialFirstVisibleItemIndex = 4)
+    )
     return remember(kilometerTrackState, fractionTrackState) {
         DistanceSliderState(kilometerTrackState, fractionTrackState)
     }

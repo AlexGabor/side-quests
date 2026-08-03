@@ -15,9 +15,21 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun rememberTimeSliderState(): TimeSliderState {
-    val hourTrackState = rememberTrackState((0..120).toList(), 1, rememberLazyListState())
-    val minuteTrackState = rememberTrackState((0..59).toList(), 1, rememberLazyListState())
-    val secondTrackState = rememberTrackState((0..60 step 5).toList(), 5, rememberLazyListState())
+    val hourTrackState = rememberTrackState(
+        trackItems = (0..120).toList(),
+        subdivision = 1,
+        listState = rememberLazyListState(initialFirstVisibleItemIndex = 4)
+    )
+    val minuteTrackState = rememberTrackState(
+        trackItems = (0..59).toList(),
+        subdivision = 1,
+        listState = rememberLazyListState()
+    )
+    val secondTrackState = rememberTrackState(
+        trackItems = (0..60 step 5).toList(),
+        subdivision = 5,
+        listState = rememberLazyListState()
+    )
     return remember(hourTrackState, minuteTrackState, secondTrackState) {
         TimeSliderState(hourTrackState, minuteTrackState, secondTrackState)
     }
@@ -38,13 +50,19 @@ class TimeSliderState(
         val hours = hourTrackState.selectedItem + hourTrackState.selectedSubdivision
         val minutes = minuteTrackState.selectedItem + minuteTrackState.selectedSubdivision
         val seconds = secondTrackState.selectedItem + secondTrackState.selectedSubdivision
-        
+
         val totalSeconds = hours * 3600 + minutes * 60 + seconds
         Time(
             hours = totalSeconds / 3600,
             minutes = (totalSeconds % 3600) / 60,
             seconds = totalSeconds % 60
         )
+    }
+
+    suspend fun animateToTime(time: Time) {
+        hourTrackState.animateToIndex(time.hours)
+        minuteTrackState.animateToIndex(time.minutes)
+        secondTrackState.animateToIndex(time.seconds / 5, time.seconds % 5)
     }
 }
 

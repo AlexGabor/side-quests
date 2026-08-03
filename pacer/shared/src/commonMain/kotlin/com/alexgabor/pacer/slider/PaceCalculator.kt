@@ -45,6 +45,38 @@ class PaceCalculatorState(
             fraction = hundredths % 100,
         )
     }
+
+    val computedPace: Pace? by derivedStateOf {
+        if (selectedMetric != Metric.Pace) return@derivedStateOf null
+        val time = timeSliderState.selectedTime
+        val distance = distanceSliderState.selectedDistance
+
+        val totalSeconds = time.hours * 3600 + time.minutes * 60 + time.seconds
+        val hundredths = distance.kilometers * 100 + distance.fraction
+        if (hundredths <= 0) return@derivedStateOf null
+
+        val paceSecondsPerKilometer = totalSeconds * 100 / hundredths
+        Pace(
+            minutes = paceSecondsPerKilometer / 60,
+            seconds = paceSecondsPerKilometer % 60,
+        )
+    }
+
+    val computedTime: Time? by derivedStateOf {
+        if (selectedMetric != Metric.Time) return@derivedStateOf null
+        val distance = distanceSliderState.selectedDistance
+        val pace = paceSliderState.selectedPace
+
+        val hundredths = distance.kilometers * 100 + distance.fraction
+        val paceSecondsPerKilometer = pace.minutes * 60 + pace.seconds
+
+        val totalSeconds = hundredths * paceSecondsPerKilometer / 100
+        Time(
+            hours = totalSeconds / 3600,
+            minutes = (totalSeconds % 3600) / 60,
+            seconds = totalSeconds % 60,
+        )
+    }
 }
 
 @Composable
@@ -75,6 +107,18 @@ fun PaceCalculator(
         snapshotFlow { state.computedDistance }
             .filterNotNull()
             .collectLatest { distanceState.animateToDistance(it) }
+    }
+
+    LaunchedEffect(state) {
+        snapshotFlow { state.computedPace }
+            .filterNotNull()
+            .collectLatest { paceState.animateToPace(it) }
+    }
+
+    LaunchedEffect(state) {
+        snapshotFlow { state.computedTime }
+            .filterNotNull()
+            .collectLatest { timeState.animateToTime(it) }
     }
 
     Column(modifier.background(Color.White)) {

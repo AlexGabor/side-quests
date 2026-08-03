@@ -16,8 +16,17 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun rememberPaceSliderState(): PaceSliderState {
-    val minuteTrackSate: TrackSate<Int> = rememberTrackState((1..20).toList(), 1, rememberLazyListState())
-    val secondTrackSate: TrackSate<Int> = rememberTrackState((0..60 step 10).toList(), 10, rememberLazyListState())
+    val minuteTrackSate: TrackSate<Int> = rememberTrackState(
+        trackItems = (2..20).toList(),
+        subdivision = 1,
+        listState = rememberLazyListState(initialFirstVisibleItemIndex = 4)
+    )
+    val secondTrackSate: TrackSate<Int> =
+        rememberTrackState(
+            trackItems = (0..60 step 10).toList(),
+            subdivision = 10,
+            listState = rememberLazyListState()
+        )
     return remember(minuteTrackSate) {
         PaceSliderState(minuteTrackSate, secondTrackSate)
     }
@@ -39,6 +48,13 @@ class PaceSliderState(
             minutes = minutes + seconds / 60,
             seconds = seconds % 60,
         )
+    }
+
+    suspend fun animateToPace(pace: Pace) {
+        val minuteIndex = minuteTrackState.trackItems.indexOf(pace.minutes)
+        if (minuteIndex < 0) return
+        minuteTrackState.animateToIndex(minuteIndex)
+        secondTrackState.animateToIndex(pace.seconds / 10, pace.seconds % 10)
     }
 }
 
