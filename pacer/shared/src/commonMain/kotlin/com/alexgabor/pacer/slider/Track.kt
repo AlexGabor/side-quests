@@ -30,12 +30,21 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 
+private val verticalPadding = 16.dp
+private val highLineHeight = 10.dp
+private val lowLineHeight = 4.dp
+private val lineWidth = 4.dp
 
 enum class TrackAlignment {
     Top, Bottom,
 }
 
+/**
+ * @param tickUnit the shared pixel grid every track snaps to. It must divide
+ * `itemSize / subdivisions` of every track displayed together, otherwise their ticks won't line up.
+ */
 @Composable
 fun <T> Track(
     state: TrackSate<T>,
@@ -43,19 +52,28 @@ fun <T> Track(
     itemSize: Dp = 200.dp,
     trackAlignment: TrackAlignment = TrackAlignment.Bottom,
     firstGuideline: Dp = 64.dp,
+    tickUnit: Dp = 20.dp,
     itemContent: @Composable (item: T, subdivision: Int) -> Unit = { item, subdivision -> Text(text = "$item.$subdivision") },
 ) {
-    val verticalPadding = 16.dp
     val lineColor = MaterialTheme.colorScheme.secondary
     val density = LocalDensity.current
-    state.itemSizePx = with(density) { itemSize.toPx() }
+
+    // Lay items out on a whole-pixel grid shared by every track. Compose rounds `Modifier.width` to
+    // whole pixels, so on fractional densities (Pixel 9 is 2.625 px/dp) an unquantised item width
+    // drifts by a fraction of a pixel per item, and tracks with different item sizes drift apart.
+    val unitPx = with(density) { tickUnit.toPx() }.roundToInt().coerceAtLeast(1)
+    val itemWidthPx = unitPx * (with(density) { itemSize.toPx() } / unitPx).roundToInt()
+    val itemWidth = with(density) { itemWidthPx.toDp() }
+    val subdivisionPx = itemWidthPx.toFloat() / state.subdivisions
+    val strokeWidth = with(density) { (lineWidth.toPx() / 2f).roundToInt() * 2f }
+    state.itemSizePx = itemWidthPx.toFloat()
 
     BoxWithConstraints(modifier) {
         LazyRow(
             state = state.listState,
             contentPadding = PaddingValues(
                 start = firstGuideline,
-                end = this@BoxWithConstraints.maxWidth - firstGuideline - itemSize,
+                end = this@BoxWithConstraints.maxWidth - firstGuideline - itemWidth,
                 top = verticalPadding,
                 bottom = verticalPadding
             ),
@@ -72,14 +90,16 @@ fun <T> Track(
         ) {
             itemsIndexed(state.trackItems) { index, item ->
                 Box(
-                    modifier = Modifier.width(itemSize).drawBehind {
+                    modifier = Modifier.width(itemWidth).drawBehind {
                         when (trackAlignment) {
                             TrackAlignment.Top -> {
                                 topRulerLines(
                                     lineColor,
                                     index,
                                     state.trackItems.size,
-                                    state.subdivisions
+                                    state.subdivisions,
+                                    subdivisionPx,
+                                    strokeWidth
                                 )
                             }
 
@@ -88,7 +108,9 @@ fun <T> Track(
                                     lineColor,
                                     index,
                                     state.trackItems.size,
-                                    state.subdivisions
+                                    state.subdivisions,
+                                    subdivisionPx,
+                                    strokeWidth
                                 )
                             }
                         }
@@ -144,25 +166,23 @@ private fun DrawScope.bottomRulerLines(
     index: Int,
     count: Int,
     subdivision: Int,
+    subdivisionPx: Float,
+    strokeWidth: Float,
 ) {
-    val verticalPadding = 16.dp
-    val highLineHeight = 10.dp
-    val lowLineHeight = 4.dp
     drawLine(
         color = lineColor,
         start = Offset(0f, size.height + (verticalPadding - highLineHeight).toPx()),
         end = Offset(0f, size.height + verticalPadding.toPx()),
-        strokeWidth = 4.dp.toPx()
+        strokeWidth = strokeWidth
     )
     if (index < count - 1) {
-        val distance = size.width / subdivision
         repeat(subdivision) { index ->
-            val x = distance * index
+            val x = subdivisionPx * index
             drawLine(
                 color = lineColor,
                 start = Offset(x, size.height + (verticalPadding - lowLineHeight).toPx()),
                 end = Offset(x, size.height + verticalPadding.toPx()),
-                strokeWidth = 4.dp.toPx()
+                strokeWidth = strokeWidth
             )
         }
     }
@@ -173,25 +193,23 @@ private fun DrawScope.topRulerLines(
     index: Int,
     count: Int,
     subdivision: Int,
+    subdivisionPx: Float,
+    strokeWidth: Float,
 ) {
-    val verticalPadding = 16.dp
-    val highLineHeight = 10.dp
-    val lowLineHeight = 4.dp
     drawLine(
         color = lineColor,
         start = Offset(0f, -verticalPadding.toPx()),
         end = Offset(0f, -verticalPadding.toPx() + highLineHeight.toPx()),
-        strokeWidth = 4.dp.toPx()
+        strokeWidth = strokeWidth
     )
     if (index < count - 1) {
-        val distance = size.width / subdivision
         repeat(subdivision) { index ->
-            val x = distance * index
+            val x = subdivisionPx * index
             drawLine(
                 color = lineColor,
                 start = Offset(x, -verticalPadding.toPx()),
                 end = Offset(x, -verticalPadding.toPx() + lowLineHeight.toPx()),
-                strokeWidth = 4.dp.toPx()
+                strokeWidth = strokeWidth
             )
         }
     }
@@ -204,7 +222,7 @@ private fun DrawScope.guidelineCircle(
     drawCircle(
         color = lineColor,
         radius = 4.dp.toPx(),
-        center = Offset(firstGuideline.toPx(), 8.dp.toPx())
+        center = Offset(firstGuideline.toPx().roundToInt().toFloat(), 8.dp.toPx())
     )
 }
 
@@ -226,6 +244,7 @@ private fun TrackPreview() {
         Track(
             state = rememberTrackState((1..30).toList(), 11, rememberLazyListState()),
             trackAlignment = TrackAlignment.Top,
+            itemSize = 100.dp
         )
     }
 }
