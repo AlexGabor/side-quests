@@ -36,6 +36,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.NamedInk
 import com.alexgabor.design.riso.attributes.RisoColors
 import com.alexgabor.design.riso.paper.paperTexture
@@ -120,7 +121,7 @@ fun RisoPrintDemo(modifier: Modifier = Modifier) {
         // a press that is not carrying yellow renders the yellow swatch as whatever it can hit.
         Column(Modifier.padding(horizontal = 16.dp)) {
             SectionTitle("Inks — pick up to $MAX_INKS")
-            InkPicker(palette, selected, params.paper, ::select)
+            InkPicker(palette, selected, ::select)
         }
 
         LazyColumn(
@@ -188,7 +189,6 @@ fun RisoPrintDemo(modifier: Modifier = Modifier) {
 private fun InkPicker(
     palette: List<NamedInk>,
     selected: List<Int>,
-    paper: Color,
     onSelect: (Int) -> Unit,
 ) {
     palette.chunked(6).forEachIndexed { rowIndex, row ->
@@ -211,7 +211,7 @@ private fun InkPicker(
                         Text(
                             text = "${slot + 1}",
                             style = MaterialTheme.typography.titleMedium,
-                            color = paper,
+                            color = RisoTheme.colors.content,
                         )
                     }
                 }
