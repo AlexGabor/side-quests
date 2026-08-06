@@ -70,7 +70,7 @@ private const val VENN_SPREAD = 0.62f
  * full set of controls for the press itself.
  */
 @Composable
-fun RisoPrintDemo(modifier: Modifier = Modifier) {
+private fun RisoPrintDemo(modifier: Modifier = Modifier) {
     val palette = RisoColors.inks.all
     var selected by remember { mutableStateOf(listOf(0, 7)) }
     var params by remember {

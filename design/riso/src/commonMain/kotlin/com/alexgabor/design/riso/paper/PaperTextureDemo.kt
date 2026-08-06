@@ -40,7 +40,7 @@ private val colorPresets = listOf(
 )
 
 @Composable
-fun PaperTextureDemoScreen(
+private fun PaperTextureDemoScreen(
     modifier: Modifier = Modifier,
 ) {
     var params by remember { mutableStateOf(PaperTextureParams()) }
