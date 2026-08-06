@@ -46,6 +46,7 @@ data class RisoPrintParams(
     val inks: List<RisoInk> = listOf(
         RisoInk(RisoColors.inks.fluorescentPink, offsetX = -1.2f, offsetY = 0.8f, screenAngle = 15f),
         RisoInk(RisoColors.inks.blue, offsetX = 0.9f, offsetY = -0.5f, screenAngle = 75f),
+        RisoInk(RisoColors.inks.vintageBlack, offsetX = 1f, offsetY = -0.6f, screenAngle = 15f),
     ),
     /**
      * How inks mix where they overlap (0..1).
