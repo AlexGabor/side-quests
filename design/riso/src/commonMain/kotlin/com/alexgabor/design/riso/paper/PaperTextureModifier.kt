@@ -19,15 +19,15 @@ expect fun Modifier.paperTexture(params: PaperTextureParams = PaperTextureParams
  */
 data class PaperTextureParams(
     val colorFront: Color = Color(0xFFFBF9F3),
-    val colorBack: Color = Color.White,
+    val colorBack: Color = Color(0xFFFBF9F3),
     /** Sharper vs smoother color transitions (0..1). */
     val contrast: Float = 0.12f,
     /** Pixel noise intensity (0..1). */
-    val roughness: Float = 0.28f,
+    val roughness: Float = 0.12f,
     /** Curly-shaped fiber noise intensity (0..1). */
-    val fiber: Float = 0.17f,
+    val fiber: Float = 0.1f,
     /** Curly-shaped fiber noise scale (0..1). */
-    val fiberSize: Float = 0.11f,
+    val fiberSize: Float = 0.29f,
     /** Cell-based crumple pattern intensity (0..1). */
     val crumples: Float = 0f,
     /** Cell-based crumple pattern scale (0..1). */

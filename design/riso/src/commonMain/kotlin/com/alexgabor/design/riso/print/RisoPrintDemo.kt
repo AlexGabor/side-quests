@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alexgabor.design.riso.attributes.NamedInk
 import com.alexgabor.design.riso.attributes.RisoColors
+import com.alexgabor.design.riso.paper.paperTexture
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -104,12 +105,13 @@ fun RisoPrintDemo(modifier: Modifier = Modifier) {
         selected = next
     }
 
-    Column(modifier.fillMaxSize().background(params.paper).safeDrawingPadding()) {
+    Column(modifier.fillMaxSize().safeDrawingPadding()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(if (showMixer) 2f else 4 / 3f)
-                .risoPrint(params),
+                .paperTexture()
+                .risoPrint(params)
         ) {
             if (showMixer) ColorMixerChart(params) else TypeArtwork(params)
         }
@@ -122,7 +124,7 @@ fun RisoPrintDemo(modifier: Modifier = Modifier) {
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize().risoPrint(params),
+            modifier = Modifier.fillMaxSize().paperTexture().risoPrint(params),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {

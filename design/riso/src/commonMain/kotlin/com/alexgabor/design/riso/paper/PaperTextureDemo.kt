@@ -40,7 +40,7 @@ private val colorPresets = listOf(
 )
 
 @Composable
-private fun PaperTextureDemoScreen(
+fun PaperTextureDemoScreen(
     modifier: Modifier = Modifier,
 ) {
     var params by remember { mutableStateOf(PaperTextureParams()) }
@@ -70,7 +70,7 @@ private fun PaperTextureDemoScreen(
                         Text(
                             text = "Paper Texture",
                             style = MaterialTheme.typography.headlineMedium,
-                            color = params.colorFront,
+                            color = RisoTheme.colors.content,
                         )
                     }
                 }
