@@ -41,7 +41,7 @@ data class RisoInk(
 /** Parameters for [risoPrint]. */
 data class RisoPrintParams(
     /** Stock colour the inks are printed onto. */
-    val paper: Color = Color(0xFFFBF9F3),
+    val paper: Color = Color(0x00FFFFFF),
     /** One entry per drum, in printing order. Only the first [MAX_INKS] are used. */
     val inks: List<RisoInk> = listOf(
         RisoInk(RisoColors.inks.fluorescentPink, offsetX = -1.2f, offsetY = 0.8f, screenAngle = 15f),

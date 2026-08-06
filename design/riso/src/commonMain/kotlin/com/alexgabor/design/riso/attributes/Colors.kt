@@ -10,10 +10,10 @@ val RisoColors = Colors()
 
 @Immutable
 data class Colors(
-    val surface: Color = Color(0xFFFBF9F3),
-    val content: Color = Color(0xFF383226),
-    val accent: Color = Color(0xFFD1D2B3),
     val inks: Inks = Inks(),
+    val paper: Color = Color(0xFFefebe1),
+    val content: Color = inks.vintageBlack,
+    val accent: Color = inks.purple,
 )
 
 /**
@@ -36,7 +36,7 @@ data class Inks(
     val federalBlue: Color = Color(0xFF3D5588),
     val purple: Color = Color(0xFF765BA7),
     val burgundy: Color = Color(0xFF914E72),
-    val black: Color = Color(0xFF000000),
+    val vintageBlack: Color = Color(0xFF383226),
 ) {
     /** Every ink with its RISO name, in colour-wheel order — for pickers and swatch charts. */
     val all: List<NamedInk> = listOf(
@@ -51,7 +51,7 @@ data class Inks(
         NamedInk("Federal Blue", federalBlue),
         NamedInk("Purple", purple),
         NamedInk("Burgundy", burgundy),
-        NamedInk("Black", black),
+        NamedInk("Black", vintageBlack),
     )
 }
 

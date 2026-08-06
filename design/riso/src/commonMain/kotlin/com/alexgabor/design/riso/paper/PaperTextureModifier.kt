@@ -2,6 +2,7 @@ package com.alexgabor.design.riso.paper
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.alexgabor.design.riso.attributes.RisoColors
 
 /**
  * Applies a static, procedural paper/cardboard texture on top of whatever the composable draws,
@@ -18,8 +19,8 @@ expect fun Modifier.paperTexture(params: PaperTextureParams = PaperTextureParams
  * WebGL shader (https://shaders.paper.design/paper-texture).
  */
 data class PaperTextureParams(
-    val colorFront: Color = Color(0xFFFBF9F3),
-    val colorBack: Color = Color(0xFFFBF9F3),
+    val colorFront: Color = RisoColors.paper,
+    val colorBack: Color = Color(0xFFFFFFFF),
     /** Sharper vs smoother color transitions (0..1). */
     val contrast: Float = 0.12f,
     /** Pixel noise intensity (0..1). */
