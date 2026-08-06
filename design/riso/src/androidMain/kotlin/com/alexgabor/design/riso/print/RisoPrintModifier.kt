@@ -15,6 +15,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.ln
 
 /**
@@ -73,12 +74,24 @@ private fun RuntimeShader.applyRisoParams(
     val paper = params.paper.transmittance()
     setFloatUniform("u_paper", paper[0], paper[1], paper[2])
     setFloatUniform("u_minTransmittance", MIN_TRANSMITTANCE)
-    setInkUniforms("A", params.inkA, density)
-    setInkUniforms("B", params.inkB, density)
 
-    val (sepA, sepB) = separationRows(params.inkA.color, params.inkB.color)
-    setFloatUniform("u_sepA", sepA)
-    setFloatUniform("u_sepB", sepB)
+    val inks = params.inks.take(MAX_INKS)
+    val separation = separationRows(inks.map { it.color })
+    repeat(MAX_INKS) { slot ->
+        val ink = inks.getOrNull(slot)
+        // Unused drums are given white ink and a zeroed separation row, so they resolve to zero
+        // coverage and drop out of both the stacked and the juxtaposed composite.
+        val transmittance = ink?.color?.transmittance() ?: floatArrayOf(1f, 1f, 1f)
+        setFloatUniform("u_ink$slot", transmittance[0], transmittance[1], transmittance[2])
+        setFloatUniform("u_sep$slot", separation.getOrElse(slot) { FloatArray(3) })
+        setFloatUniform(
+            "u_offset$slot",
+            (ink?.offsetX ?: 0f) * density,
+            (ink?.offsetY ?: 0f) * density,
+        )
+        setFloatUniform("u_angle$slot", ((ink?.screenAngle ?: 0f) * PI / 180.0).toFloat())
+    }
+    setFloatUniform("u_inkCount", inks.size.toFloat())
 
     setFloatUniform("u_overprint", params.overprint.coerceIn(0f, 1f))
     setFloatUniform("u_screen", params.screen.coerceIn(0f, 1f))
@@ -91,21 +104,6 @@ private fun RuntimeShader.applyRisoParams(
     setFloatUniform("u_spread", params.spread.coerceIn(0f, 1f))
     setFloatUniform("u_seed", params.seed)
 }
-
-private fun RuntimeShader.setInkUniforms(suffix: String, ink: RisoInk, density: Float) {
-    val t = ink.color.transmittance()
-    setFloatUniform("u_ink$suffix", t[0], t[1], t[2])
-    setFloatUniform("u_offset$suffix", ink.offsetX * density, ink.offsetY * density)
-    setFloatUniform("u_angle$suffix", (ink.screenAngle * PI / 180.0).toFloat())
-}
-
-/**
- * Lower bound on a transmittance. A channel that transmits nothing has infinite density, so pure
- * black is clamped to a very dark — but finite — ink. The shader floors pixel transmittance at the
- * same value (`u_minTransmittance`); if the two disagreed, the darkest colours would separate into
- * more ink than the inks themselves can lay down.
- */
-private const val MIN_TRANSMITTANCE = 0.02f
 
 /** The colour as a per-channel transmittance, i.e. what full coverage of it does to white paper. */
 private fun Color.transmittance() = floatArrayOf(
@@ -123,29 +121,68 @@ private fun densityOf(color: Color): FloatArray {
 private fun dot3(a: FloatArray, b: FloatArray) = a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 
 /**
- * Builds the colour separation as two row vectors, such that a pixel's ink coverages are
- * `cA = dot(rowA, density)` and `cB = dot(rowB, density)` where `density = -ln(pixel / paper)`.
+ * Builds the colour separation as one row vector per ink, such that ink `i`'s coverage at a pixel
+ * is `dot(row[i], density)` where `density = -ln(pixel / paper)`.
  *
  * Densities add when inks stack, so recovering the coverages is a least-squares fit of the pixel's
- * density against the two ink densities — the rows are the pseudo-inverse of that 3x2 system,
- * which only depends on the ink colours and so is solved once here rather than per pixel.
+ * density against the ink densities. The rows are the pseudo-inverse of that 3xN system, which
+ * depends only on the ink colours and so is solved once here rather than per pixel.
  */
-private fun separationRows(inkA: Color, inkB: Color): Pair<FloatArray, FloatArray> {
-    val dA = densityOf(inkA)
-    val dB = densityOf(inkB)
-    val aa = dot3(dA, dA)
-    val ab = dot3(dA, dB)
-    val bb = dot3(dB, dB)
-    val det = aa * bb - ab * ab
+private fun separationRows(inks: List<Color>): List<FloatArray> {
+    if (inks.isEmpty()) return emptyList()
+    val densities = inks.map(::densityOf)
+    val n = densities.size
 
-    // Near-collinear inks (e.g. two greys) make the fit ambiguous: drive the first ink alone.
-    if (det < 1e-4f) {
-        val scale = if (aa > 1e-4f) 1f / aa else 0f
-        return FloatArray(3) { dA[it] * scale } to FloatArray(3)
+    // Normal equations of the fit, D^T D.
+    val normal = Array(n) { i -> FloatArray(n) { j -> dot3(densities[i], densities[j]) } }
+
+    // A ridge term proportional to the system's own scale, so that near-collinear inks (two blues,
+    // say) share coverage between them instead of the inverse blowing up. It is small enough that
+    // a well-separated palette still round-trips to within half a percent.
+    var trace = 0f
+    repeat(n) { trace += normal[it][it] }
+    val ridge = 1e-3f * trace / n
+    repeat(n) { normal[it][it] += ridge }
+
+    val inverse = invert(normal) ?: return inks.map { FloatArray(3) }
+    return List(n) { i ->
+        FloatArray(3) { channel ->
+            var sum = 0f
+            repeat(n) { j -> sum += inverse[i][j] * densities[j][channel] }
+            sum
+        }
     }
+}
 
-    return FloatArray(3) { (bb * dA[it] - ab * dB[it]) / det } to
-        FloatArray(3) { (aa * dB[it] - ab * dA[it]) / det }
+/** Gauss-Jordan inverse of a small square matrix, or null if it is singular. */
+private fun invert(matrix: Array<FloatArray>): Array<FloatArray>? {
+    val n = matrix.size
+    // Augment with the identity and reduce the left half to it.
+    val work = Array(n) { i ->
+        FloatArray(2 * n).also { row ->
+            matrix[i].copyInto(row)
+            row[n + i] = 1f
+        }
+    }
+    for (col in 0 until n) {
+        var pivot = col
+        for (row in col + 1 until n) {
+            if (abs(work[row][col]) > abs(work[pivot][col])) pivot = row
+        }
+        if (abs(work[pivot][col]) < 1e-6f) return null
+        work[col] = work[pivot].also { work[pivot] = work[col] }
+
+        val scale = work[col][col]
+        for (k in 0 until 2 * n) work[col][k] /= scale
+        for (row in 0 until n) {
+            if (row == col) continue
+            val factor = work[row][col]
+            if (factor != 0f) {
+                for (k in 0 until 2 * n) work[row][k] -= factor * work[col][k]
+            }
+        }
+    }
+    return Array(n) { i -> FloatArray(n) { j -> work[i][n + j] } }
 }
 
 // language=AGSL
@@ -158,17 +195,23 @@ uniform shader u_image;
 
 uniform float3 u_paper;
 uniform float u_minTransmittance;
-uniform float3 u_inkA;
-uniform float3 u_inkB;
+uniform float u_inkCount;
+
+uniform float3 u_ink0;
+uniform float3 u_ink1;
+uniform float3 u_ink2;
 
 // Rows of the density pseudo-inverse: coverage = dot(row, density). See separationRows().
-uniform float3 u_sepA;
-uniform float3 u_sepB;
+uniform float3 u_sep0;
+uniform float3 u_sep1;
+uniform float3 u_sep2;
 
-uniform float2 u_offsetA;
-uniform float2 u_offsetB;
-uniform float u_angleA;
-uniform float u_angleB;
+uniform float2 u_offset0;
+uniform float2 u_offset1;
+uniform float2 u_offset2;
+uniform float u_angle0;
+uniform float u_angle1;
+uniform float u_angle2;
 
 uniform float u_overprint;
 uniform float u_screen;
@@ -228,7 +271,7 @@ float2 inkSample(float2 uv, float2 offsetPx, float3 sepRow, float phase) {
     float3 rgb = alpha > 0.001 ? float3(src.rgb) / alpha : float3(1.0);
 
     // How much darker than bare paper this pixel is, per channel. Lighter than paper reads as
-    // no ink at all — a two-drum press cannot print white.
+    // no ink at all — a press cannot print white.
     float3 density = -log(clamp(rgb / u_paper, u_minTransmittance, 1.0));
     return float2(clamp(dot(sepRow, density), 0.0, 1.0) * alpha, alpha);
 }
@@ -253,36 +296,48 @@ float screenDots(float coverage, float2 fragCoord, float angle) {
     return mix(coverage, clamp((t - field) / w + 0.5, 0.0, 1.0), u_screen);
 }
 
+/**
+ * One drum end to end: ink gain first, so dots grow the way ink spreads once it hits the paper,
+ * then the screen, then blotching last — otherwise the grain punches holes through the dots
+ * instead of mottling a solid.
+ */
+float inkPass(float coverage, float2 fragCoord, float angle, float phase) {
+    if (coverage <= 0.0) return 0.0;
+    coverage = pow(coverage, 1.0 / (1.0 + u_spread));
+    coverage = screenDots(coverage, fragCoord, angle);
+    return inkTexture(coverage, fragCoord, phase);
+}
+
 half4 main(float2 fragCoord) {
     float2 uv = fragCoord / u_resolution;
 
-    float2 sampleA = inkSample(uv, u_offsetA, u_sepA, u_seed);
-    float2 sampleB = inkSample(uv, u_offsetB, u_sepB, u_seed + 13.7);
+    // Unused drums are skipped rather than sampled: their separation row is zeroed, so they would
+    // contribute nothing anyway.
+    float2 sample0 = inkSample(uv, u_offset0, u_sep0, u_seed);
+    float2 sample1 = float2(0.0);
+    float2 sample2 = float2(0.0);
+    if (u_inkCount > 1.5) sample1 = inkSample(uv, u_offset1, u_sep1, u_seed + 13.7);
+    if (u_inkCount > 2.5) sample2 = inkSample(uv, u_offset2, u_sep2, u_seed + 27.1);
 
-    // Ink gain first, so that dots grow the way ink spreads once it hits the paper...
-    float cA = pow(sampleA.x, 1.0 / (1.0 + u_spread));
-    float cB = pow(sampleB.x, 1.0 / (1.0 + u_spread));
-
-    cA = screenDots(cA, fragCoord, u_angleA);
-    cB = screenDots(cB, fragCoord, u_angleB);
-
-    // ...and blotch last, so an unscreened solid mottles instead of the grain punching holes
-    // through the dots.
-    cA = inkTexture(cA, fragCoord, u_seed);
-    cB = inkTexture(cB, fragCoord, u_seed + 41.3);
+    float c0 = inkPass(sample0.x, fragCoord, u_angle0, u_seed);
+    float c1 = inkPass(sample1.x, fragCoord, u_angle1, u_seed + 41.3);
+    float c2 = inkPass(sample2.x, fragCoord, u_angle2, u_seed + 63.9);
 
     // Stacked ink: the passes multiply, so overlaps go dark.
-    float3 stacked = u_paper * mix(float3(1.0), u_inkA, cA) * mix(float3(1.0), u_inkB, cB);
+    float3 stacked = u_paper
+        * mix(float3(1.0), u_ink0, c0)
+        * mix(float3(1.0), u_ink1, c1)
+        * mix(float3(1.0), u_ink2, c2);
 
-    // Juxtaposed ink: dots land side by side rather than on top of each other, so the overlap
-    // averages the two inks instead of subtracting twice.
-    float total = cA + cB;
+    // Juxtaposed ink: dots land side by side rather than on top of each other, so an overlap
+    // averages the inks instead of subtracting once per pass.
+    float total = c0 + c1 + c2;
     float3 juxtaposed = total > 0.001
-        ? mix(u_paper, (cA * u_inkA + cB * u_inkB) / total, min(total, 1.0))
+        ? mix(u_paper, (c0 * u_ink0 + c1 * u_ink1 + c2 * u_ink2) / total, min(total, 1.0))
         : u_paper;
 
     float3 color = mix(stacked, juxtaposed, u_overprint);
-    float opacity = max(sampleA.y, sampleB.y);
+    float opacity = max(sample0.y, max(sample1.y, sample2.y));
     return half4(half3(color * opacity), half(opacity));
 }
 """.trimIndent()

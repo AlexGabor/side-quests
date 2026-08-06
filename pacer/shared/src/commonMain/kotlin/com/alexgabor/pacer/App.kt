@@ -6,12 +6,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.paper.paperTexture
+import com.alexgabor.design.riso.print.RisoPrintDemo
 import com.alexgabor.pacer.slider.PaceCalculator
 
 @Composable
 @Preview
 fun App() {
     RisoTheme {
-        PaceCalculator(Modifier.paperTexture().safeDrawingPadding())
+        RisoPrintDemo()
     }
 }

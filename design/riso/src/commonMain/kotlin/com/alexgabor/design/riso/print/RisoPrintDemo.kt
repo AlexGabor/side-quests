@@ -2,6 +2,7 @@ package com.alexgabor.design.riso.print
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,8 +11,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
@@ -20,61 +21,104 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.alexgabor.design.riso.attributes.NamedInk
+import com.alexgabor.design.riso.attributes.RisoColors
+import kotlin.math.min
 import kotlin.math.roundToInt
 
-private data class InkPreset(val label: String, val a: Color, val b: Color)
+private data class Registration(val offsetX: Float, val offsetY: Float, val screenAngle: Float)
 
-private val inkPresets = listOf(
-    InkPreset("Fluo pink + blue", RisoInk.FluorescentPink, RisoInk.Blue),
-    InkPreset("Fluo pink + federal blue", RisoInk.FluorescentPink, RisoInk.FederalBlue),
-    InkPreset("Yellow + blue", RisoInk.Yellow, RisoInk.Blue),
-    InkPreset("Fluo pink + black", RisoInk.FluorescentPink, RisoInk.Black),
+/** Registration error and screen angle each drum starts with, by printing order. */
+private val defaultRegistration = listOf(
+    Registration(-1.2f, 0.8f, 15f),
+    Registration(0.9f, -0.5f, 75f),
+    Registration(0.4f, 1.1f, 45f),
 )
 
+/** Keeps a drum's registration when only its colour changes; defaults it when one is added. */
+private fun inkForSlot(slot: Int, color: Color, existing: RisoInk?): RisoInk {
+    val default = defaultRegistration[slot]
+    return existing?.copy(color = color)
+        ?: RisoInk(color, default.offsetX, default.offsetY, default.screenAngle)
+}
+
+/** Tint steps down each axis of the mixer grid, as on a press's tint scale. */
+private const val GRID_STEPS = 10
+
+/** How far each Venn circle sits from the cluster's centre, in radii. */
+private const val VENN_SPREAD = 0.62f
+
 /**
- * Playground for [risoPrint]: a fixed piece of artwork printed with the current params, over a
- * full set of controls. The controls themselves are deliberately left un-printed so they stay
- * legible while you dial the registration in.
+ * Playground for [risoPrint]: pick up to [MAX_INKS] of the RISO inks and see how they mix, over a
+ * full set of controls for the press itself.
  */
 @Composable
 fun RisoPrintDemo(modifier: Modifier = Modifier) {
-    var params by remember { mutableStateOf(RisoPrintParams()) }
-    var presetIndex by remember { mutableIntStateOf(0) }
-    var showRegistrationTest by remember { mutableStateOf(true) }
+    val palette = RisoColors.inks.all
+    var selected by remember { mutableStateOf(listOf(0, 7)) }
+    var params by remember {
+        mutableStateOf(
+            RisoPrintParams(
+                inks = selected.mapIndexed { slot, index ->
+                    inkForSlot(slot, palette[index].color, null)
+                },
+            ),
+        )
+    }
+    var showMixer by remember { mutableStateOf(true) }
 
-    fun updateInkA(block: RisoInk.() -> RisoInk) {
-        params = params.copy(inkA = params.inkA.block())
+    fun updateInk(slot: Int, block: RisoInk.() -> RisoInk) {
+        params = params.copy(
+            inks = params.inks.mapIndexed { index, ink -> if (index == slot) ink.block() else ink },
+        )
     }
 
-    fun updateInkB(block: RisoInk.() -> RisoInk) {
-        params = params.copy(inkB = params.inkB.block())
+    fun select(paletteIndex: Int) {
+        val next = when {
+            paletteIndex in selected -> selected - paletteIndex
+            selected.size < MAX_INKS -> selected + paletteIndex
+            else -> return
+        }
+        // At least one drum has to be loaded for there to be a print at all.
+        if (next.isEmpty()) return
+        params = params.copy(
+            inks = next.mapIndexed { slot, index ->
+                inkForSlot(slot, palette[index].color, params.inks.getOrNull(slot))
+            },
+        )
+        selected = next
     }
 
-    Column(modifier.fillMaxSize().background(params.paper)) {
+    Column(modifier.fillMaxSize().background(params.paper).safeDrawingPadding()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(4 / 3f)
+                .aspectRatio(if (showMixer) 2f else 4 / 3f)
                 .risoPrint(params),
         ) {
-            if (showRegistrationTest) {
-                RegistrationTestArtwork(params)
-            } else {
-                TypeArtwork(params)
-            }
+            if (showMixer) ColorMixerChart(params) else TypeArtwork(params)
+        }
+
+        // Deliberately outside the print: a swatch has to show the ink you are about to load, and
+        // a press that is not carrying yellow renders the yellow swatch as whatever it can hit.
+        Column(Modifier.padding(horizontal = 16.dp)) {
+            SectionTitle("Inks — pick up to $MAX_INKS")
+            InkPicker(palette, selected, params.paper, ::select)
         }
 
         LazyColumn(
@@ -84,42 +128,21 @@ fun RisoPrintDemo(modifier: Modifier = Modifier) {
         ) {
             item {
                 LabeledSwitch(
-                    label = "Registration test artwork",
-                    checked = showRegistrationTest,
-                    onCheckedChange = { showRegistrationTest = it },
+                    label = "Colour mixer chart",
+                    checked = showMixer,
+                    onCheckedChange = { showMixer = it },
                 )
             }
 
             item {
-                SectionTitle("Inks")
-                inkPresets.forEachIndexed { index, preset ->
-                    LabeledSwitch(
-                        label = preset.label,
-                        checked = presetIndex == index,
-                        onCheckedChange = {
-                            presetIndex = index
-                            params = params.copy(
-                                inkA = params.inkA.copy(color = preset.a),
-                                inkB = params.inkB.copy(color = preset.b),
-                            )
-                        },
-                    )
-                }
-            }
-
-            item {
                 SectionTitle("Registration")
-                ParamSlider("Ink A offset X", params.inkA.offsetX, -6f, 6f) {
-                    updateInkA { copy(offsetX = it) }
-                }
-                ParamSlider("Ink A offset Y", params.inkA.offsetY, -6f, 6f) {
-                    updateInkA { copy(offsetY = it) }
-                }
-                ParamSlider("Ink B offset X", params.inkB.offsetX, -6f, 6f) {
-                    updateInkB { copy(offsetX = it) }
-                }
-                ParamSlider("Ink B offset Y", params.inkB.offsetY, -6f, 6f) {
-                    updateInkB { copy(offsetY = it) }
+                params.inks.forEachIndexed { slot, ink ->
+                    ParamSlider("Ink ${slot + 1} offset X", ink.offsetX, -6f, 6f) {
+                        updateInk(slot) { copy(offsetX = it) }
+                    }
+                    ParamSlider("Ink ${slot + 1} offset Y", ink.offsetY, -6f, 6f) {
+                        updateInk(slot) { copy(offsetY = it) }
+                    }
                 }
                 ParamSlider("Wobble", params.wobble, 0f, 4f) { params = params.copy(wobble = it) }
             }
@@ -148,11 +171,10 @@ fun RisoPrintDemo(modifier: Modifier = Modifier) {
                 ParamSlider("Dot size", params.dotSize, 1f, 12f) {
                     params = params.copy(dotSize = it)
                 }
-                ParamSlider("Ink A angle", params.inkA.screenAngle, 0f, 90f) {
-                    updateInkA { copy(screenAngle = it) }
-                }
-                ParamSlider("Ink B angle", params.inkB.screenAngle, 0f, 90f) {
-                    updateInkB { copy(screenAngle = it) }
+                params.inks.forEachIndexed { slot, ink ->
+                    ParamSlider("Ink ${slot + 1} angle", ink.screenAngle, 0f, 90f) {
+                        updateInk(slot) { copy(screenAngle = it) }
+                    }
                 }
                 ParamSlider("Seed", params.seed, 0f, 20f) { params = params.copy(seed = it) }
             }
@@ -160,43 +182,146 @@ fun RisoPrintDemo(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * Two overlapping shapes plus swatches: shows the registration error on the edges and the
- * overprint colour where the inks cross.
- *
- * The second shape is drawn with [BlendMode.Multiply] rather than painted over the first. That
- * matters: the modifier separates whatever colour reaches it, so an opaque shape simply knocks the
- * ink underneath it out of the artwork and there is nothing left to overprint.
- */
 @Composable
-private fun RegistrationTestArtwork(params: RisoPrintParams) {
-    Box(Modifier.fillMaxSize().background(params.paper), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val radius = 75.dp.toPx()
-            val shift = 30.dp.toPx()
-            drawCircle(
-                color = params.inkA.color,
-                radius = radius,
-                center = center.copy(x = center.x - shift),
-            )
-            drawRoundRect(
-                color = params.inkB.color,
-                topLeft = Offset(center.x + shift - radius, center.y - radius),
-                size = Size(2 * radius, 2 * radius),
-                cornerRadius = CornerRadius(24.dp.toPx()),
-//                blendMode = BlendMode.Multiply,
-            )
-        }
+private fun InkPicker(
+    palette: List<NamedInk>,
+    selected: List<Int>,
+    paper: Color,
+    onSelect: (Int) -> Unit,
+) {
+    palette.chunked(6).forEachIndexed { rowIndex, row ->
         Row(
-            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Box(Modifier.size(28.dp).background(params.inkA.color))
-            Box(Modifier.size(28.dp).background(params.inkB.color))
-            Box(Modifier.size(28.dp).background(Color.Black))
-            Box(Modifier.size(28.dp).background(Color.Gray))
+            row.forEachIndexed { columnIndex, ink ->
+                val index = rowIndex * 6 + columnIndex
+                val slot = selected.indexOf(index)
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(ink.color)
+                        .clickable { onSelect(index) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    // The drum number, so the registration sliders below are unambiguous.
+                    if (slot >= 0) {
+                        Text(
+                            text = "${slot + 1}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = paper,
+                        )
+                    }
+                }
+            }
         }
     }
+    Text(
+        text = selected.mapIndexed { slot, index -> "${slot + 1}. ${palette[index].name}" }
+            .joinToString("   "),
+        style = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.padding(top = 4.dp),
+    )
+}
+
+/**
+ * The standard riso colour mixer: a Venn of the selected inks at full coverage, beside a grid of
+ * every tint combination — ink 1 falling across the columns, ink 2 falling and ink 3 rising down
+ * the rows.
+ *
+ * Every patch is authored with [risoOverprint], which is the exact inverse of the shader's
+ * separation, so a cell labelled 60/40 really does come back off the press as 60% of one drum and
+ * 40% of the other. Eyeballing a blend instead would separate into something else entirely.
+ */
+@Composable
+private fun ColorMixerChart(params: RisoPrintParams) {
+    val inks = params.inks.take(MAX_INKS)
+    val measurer = rememberTextMeasurer()
+    val labelStyle = TextStyle(fontSize = 7.sp)
+
+    Canvas(Modifier.fillMaxSize().background(params.paper)) {
+        val margin = 12.dp.toPx()
+        // Room for the percentage scales along the grid's top, left and right.
+        val gutter = 20.dp.toPx()
+        val gridSide = min(
+            size.height - 2 * margin - gutter,
+            (size.width - 3 * margin) / 2f - gutter,
+        )
+        val gridLeft = size.width - margin - gutter - gridSide
+        val gridTop = (size.height - gridSide) / 2f
+        val cell = gridSide / GRID_STEPS
+
+        // --- Venn: one circle per ink, multiplied together so the overlaps overprint ---
+        val vennWidth = gridLeft - gutter - margin
+        val vennCenter = Offset(margin + vennWidth / 2f, size.height / 2f)
+        // Circles sit VENN_SPREAD radii off centre, so the cluster spans 2 * (1 + spread) radii.
+        val radius = min(vennWidth, size.height - 2 * margin) / (2f * (1f + VENN_SPREAD))
+        vennCenters(inks.size, vennCenter, radius * VENN_SPREAD).forEachIndexed { index, center ->
+            drawCircle(
+                color = inks[index].color,
+                radius = radius,
+                center = center,
+                // The first pass lands on bare paper; every later one prints over what is there.
+                blendMode = if (index == 0) BlendMode.SrcOver else BlendMode.Multiply,
+            )
+        }
+
+        // --- Grid: every tint combination of the selected inks ---
+        for (column in 0 until GRID_STEPS) {
+            for (row in 0 until GRID_STEPS) {
+                val coverages = listOf(
+                    (GRID_STEPS - column) / GRID_STEPS.toFloat(),
+                    (GRID_STEPS - row) / GRID_STEPS.toFloat(),
+                    (row + 1) / GRID_STEPS.toFloat(),
+                )
+                drawRect(
+                    color = risoOverprint(params.paper, inks, coverages),
+                    topLeft = Offset(gridLeft + column * cell, gridTop + row * cell),
+                    // Overdraw by a hair: exact edges leave paper-coloured seams between cells.
+                    size = Size(cell + 1f, cell + 1f),
+                )
+            }
+        }
+
+        // --- Percentage scales, each in its own ink, as on the reference chart ---
+        fun label(text: String, color: Color, x: Float, y: Float) {
+            val laid = measurer.measure(text, labelStyle.copy(color = color))
+            drawText(laid, topLeft = Offset(x - laid.size.width / 2f, y - laid.size.height / 2f))
+        }
+
+        for (step in 0 until GRID_STEPS) {
+            val percent = "${(GRID_STEPS - step) * 10}%"
+            val rising = "${(step + 1) * 10}%"
+            inks.getOrNull(0)?.let {
+                label(percent, it.color, gridLeft + (step + 0.5f) * cell, gridTop - gutter / 2f)
+            }
+            inks.getOrNull(1)?.let {
+                label(percent, it.color, gridLeft - gutter / 2f, gridTop + (step + 0.5f) * cell)
+            }
+            inks.getOrNull(2)?.let {
+                label(
+                    rising,
+                    it.color,
+                    gridLeft + gridSide + gutter / 2f,
+                    gridTop + (step + 0.5f) * cell,
+                )
+            }
+        }
+    }
+}
+
+/** Circle centres for a 1-, 2- or 3-way Venn, spread [spread] from [center]. */
+private fun vennCenters(count: Int, center: Offset, spread: Float): List<Offset> = when (count) {
+    1 -> listOf(center)
+    2 -> listOf(
+        center.copy(x = center.x - spread),
+        center.copy(x = center.x + spread),
+    )
+    else -> listOf(
+        Offset(center.x, center.y - spread),
+        Offset(center.x - spread * 0.87f, center.y + spread * 0.5f),
+        Offset(center.x + spread * 0.87f, center.y + spread * 0.5f),
+    )
 }
 
 /** Type set in each ink, where misregistration is most visible. */
@@ -209,19 +334,19 @@ private fun TypeArtwork(params: RisoPrintParams) {
         Text(
             text = "RISO",
             style = MaterialTheme.typography.displayLarge,
-            color = params.inkB.color,
+            color = params.inks.last().color,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
         )
         Text(
-            text = "two drums, one pass each",
+            text = "${params.inks.size} drums, one pass each",
             style = MaterialTheme.typography.titleMedium,
-            color = params.inkA.color,
+            color = params.inks.first().color,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
         )
         Text(
-            text = "where the passes overlap, a third colour is made",
+            text = "where the passes overlap, a new colour is made",
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Black,
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
