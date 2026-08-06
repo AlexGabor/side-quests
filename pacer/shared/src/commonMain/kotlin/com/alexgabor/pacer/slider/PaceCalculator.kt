@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -13,9 +12,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import com.alexgabor.design.riso.RisoTheme
+import com.alexgabor.design.riso.attributes.Text
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 
@@ -122,34 +124,43 @@ fun PaceCalculator(
     }
 
     Column(modifier.background(Color.White)) {
-        Row {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = state.selectedMetric == Metric.Distance,
                 onCheckedChange = { state.selectedMetric = Metric.Distance }
             )
-            Text("Distance ${distanceState.selectedDistance.kilometers}.${distanceState.selectedDistance.fraction}")
+            Text(
+                text = "Distance ${distanceState.selectedDistance.kilometers}.${distanceState.selectedDistance.fraction}",
+                textStyle = RisoTheme.typography.heading3,
+            )
         }
         DistanceSlider(
             state = distanceState
         )
 
-        Row {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = state.selectedMetric == Metric.Pace,
                 onCheckedChange = { state.selectedMetric = Metric.Pace }
             )
-            Text("Pace ${paceState.selectedPace.minutes}:${paceState.selectedPace.seconds}")
+            Text(
+                text = "Pace ${paceState.selectedPace.minutes}:${paceState.selectedPace.seconds}",
+                textStyle = RisoTheme.typography.heading3,
+            )
         }
         PaceSlider(
             state = paceState
         )
 
-        Row {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = state.selectedMetric == Metric.Time,
                 onCheckedChange = { state.selectedMetric = Metric.Time }
             )
-            Text("Time ${timeState.selectedTime.hours}:${timeState.selectedTime.minutes}:${timeState.selectedTime.seconds}")
+            Text(
+                text = "Time ${timeState.selectedTime.hours}:${timeState.selectedTime.minutes}:${timeState.selectedTime.seconds}",
+                textStyle = RisoTheme.typography.heading3,
+            )
         }
         TimeSlider(
             state = timeState

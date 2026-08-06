@@ -3,7 +3,6 @@ package com.alexgabor.pacer.slider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -12,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.alexgabor.design.riso.RisoTheme
+import com.alexgabor.design.riso.attributes.Text
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
@@ -84,6 +85,7 @@ fun TimeSlider(
             itemContent = { item, _ ->
                 Text(
                     text = item.toString(),
+                    textStyle = RisoTheme.typography.body
                 )
             }
         )
@@ -94,6 +96,7 @@ fun TimeSlider(
             itemContent = { item, _ ->
                 Text(
                     text = item.toString(),
+                    textStyle = RisoTheme.typography.body
                 )
             }
         )
@@ -105,6 +108,7 @@ fun TimeSlider(
             itemContent = { item, subdivision ->
                 Text(
                     text = String.format("%02d", item + subdivision),
+                    textStyle = RisoTheme.typography.body
                 )
             }
         )
@@ -116,7 +120,10 @@ fun TimeSlider(
 private fun TimeSliderPreview() {
     Column(Modifier.background(Color.White)) {
         val timeState = rememberTimeSliderState()
-        Text("Time ${timeState.selectedTime.hours}:${timeState.selectedTime.minutes}:${timeState.selectedTime.seconds}")
+        Text(
+            text = "Time ${timeState.selectedTime.hours}:${timeState.selectedTime.minutes}:${timeState.selectedTime.seconds}",
+            textStyle = RisoTheme.typography.body,
+        )
         TimeSlider(
             state = timeState
         )

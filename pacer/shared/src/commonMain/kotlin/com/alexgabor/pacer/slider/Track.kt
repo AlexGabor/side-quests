@@ -12,8 +12,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -30,6 +28,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.alexgabor.design.riso.RisoTheme
+import com.alexgabor.design.riso.attributes.Text
 import kotlin.math.roundToInt
 
 private val verticalPadding = 16.dp
@@ -53,9 +53,11 @@ fun <T> Track(
     trackAlignment: TrackAlignment = TrackAlignment.Bottom,
     firstGuideline: Dp = 64.dp,
     tickUnit: Dp = 20.dp,
-    itemContent: @Composable (item: T, subdivision: Int) -> Unit = { item, subdivision -> Text(text = "$item.$subdivision") },
+    itemContent: @Composable (item: T, subdivision: Int) -> Unit = { item, subdivision ->
+        Text(text = "$item.$subdivision", textStyle = RisoTheme.typography.body)
+    },
 ) {
-    val lineColor = MaterialTheme.colorScheme.secondary
+    val lineColor = RisoTheme.colors.content
     val density = LocalDensity.current
 
     // Lay items out on a whole-pixel grid shared by every track. Compose rounds `Modifier.width` to

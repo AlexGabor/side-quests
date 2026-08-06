@@ -3,7 +3,6 @@ package com.alexgabor.pacer.slider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -12,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.alexgabor.design.riso.RisoTheme
+import com.alexgabor.design.riso.attributes.Text
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
@@ -75,6 +76,7 @@ fun PaceSlider(
             itemContent = { item, _ ->
                 Text(
                     text = item.toString(),
+                    textStyle = RisoTheme.typography.body
                 )
             }
         )
@@ -86,6 +88,7 @@ fun PaceSlider(
             itemContent = { item, subdivision ->
                 Text(
                     text = String.format("%02d", item + subdivision),
+                    textStyle = RisoTheme.typography.body
                 )
             }
         )
@@ -98,7 +101,10 @@ fun PaceSlider(
 private fun PaceSliderPreview() {
     Column(Modifier.background(Color.White)) {
         val paceState = rememberPaceSliderState()
-        Text("Pace ${paceState.selectedPace.minutes}:${paceState.selectedPace.seconds}")
+        Text(
+            text = "Pace ${paceState.selectedPace.minutes}:${paceState.selectedPace.seconds}",
+            textStyle = RisoTheme.typography.body,
+        )
         PaceSlider(
             state = paceState
         )
