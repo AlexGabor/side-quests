@@ -5,7 +5,8 @@ import androidx.compose.ui.graphics.Color
 import com.alexgabor.design.riso.attributes.RisoColors
 
 /**
- * Re-prints whatever the composable draws as a Risograph print of up to [MAX_INKS] spot colours.
+ * Re-prints whatever the composable draws as a Risograph print of as many spot colours as there are
+ * drums in [RisoPrintParams.inks].
  *
  * The content is separated into one ink coverage map per drum, each pass is sampled with its own
  * registration error (the pink/blue fringes of a real riso), and the passes are recombined
@@ -42,12 +43,13 @@ data class RisoInk(
 data class RisoPrintParams(
     /** Stock colour the inks are printed onto. */
     val paper: Color = Color(0x00FFFFFF),
-    /** One entry per drum, in printing order. Only the first [MAX_INKS] are used. */
-    val inks: List<RisoInk> = listOf(
-        RisoInk(RisoColors.inks.fluorescentPink, offsetX = -1.2f, offsetY = 0.8f, screenAngle = 15f),
-        RisoInk(RisoColors.inks.blue, offsetX = 0.9f, offsetY = -0.5f, screenAngle = 75f),
-        RisoInk(RisoColors.inks.vintageBlack, offsetX = 1f, offsetY = -0.6f, screenAngle = 15f),
-    ),
+    /**
+     * One entry per drum, in printing order. Every ink costs a pass — a content sample and a screen
+     * — so a long palette buys colour fidelity with per-frame work.
+     */
+    val inks: List<RisoInk> = RisoColors.inks.all.mapIndexed { slot, ink ->
+        risoInkForSlot(slot, ink.color)
+    },
     /**
      * How inks mix where they overlap (0..1).
      *
