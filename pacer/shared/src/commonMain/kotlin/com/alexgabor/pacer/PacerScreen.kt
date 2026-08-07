@@ -35,6 +35,10 @@ import com.alexgabor.design.riso.attributes.Heading1
 import com.alexgabor.design.riso.layout.WindowHeightSizeClass
 import com.alexgabor.design.riso.layout.WindowWidthSizeClass
 import com.alexgabor.design.riso.layout.computeWindowSizeClass
+import com.alexgabor.pacer.slider.MetricCards
+import com.alexgabor.pacer.slider.PaceCalculator
+import com.alexgabor.pacer.slider.UnitSelector
+import com.alexgabor.pacer.slider.rememberPaceCalculatorState
 
 
 private val ContentMaxWidth = 600.dp
@@ -47,7 +51,7 @@ private const val RightPaneWeight = 0.6f
 fun PacerScreen(
     modifier: Modifier = Modifier,
 ) {
-    val state = _root_ide_package_.com.alexgabor.pacer.slider.rememberPaceCalculatorState()
+    val state = rememberPaceCalculatorState()
     val listState = rememberLazyListState()
     val leftPaneScrollState = rememberScrollState()
 
@@ -114,7 +118,7 @@ private fun BoxScope.PacerSinglePane(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.BottomCenter,
         ) {
-            _root_ide_package_.com.alexgabor.pacer.slider.PaceCalculator(
+            PaceCalculator(
                 state = state,
                 listState = listState,
                 contentPadding = listContentPadding(
@@ -143,7 +147,7 @@ private fun BoxScope.PacerTwoPane(
             scrollState = leftPaneScrollState,
         )
 
-        _root_ide_package_.com.alexgabor.pacer.slider.MetricCards(
+        MetricCards(
             state = state,
             modifier = Modifier.weight(RightPaneWeight).fillMaxHeight(),
             listState = listState,
@@ -172,7 +176,7 @@ private fun RowScope.LeftPane(
     ) {
         PacerHeader()
 
-        _root_ide_package_.com.alexgabor.pacer.slider.UnitSelector(
+        UnitSelector(
             state = state,
             modifier = Modifier.align(Alignment.End)
                 .padding(RisoTheme.dimens.screenPadding),

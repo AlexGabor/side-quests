@@ -15,11 +15,13 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -57,10 +59,12 @@ class PaceCalculatorState(
     val paceSliderState: PaceSliderState,
     val timeSliderState: TimeSliderState,
     val coroutineScope: CoroutineScope,
+    selectedMetricState: MutableState<Metric> = mutableStateOf(Metric.Pace),
+    selectedUnitState: MutableState<DistanceUnit> = mutableStateOf(DistanceUnit.Kilometers),
 ) {
-    var selectedMetric by mutableStateOf(Metric.Pace)
+    var selectedMetric by selectedMetricState
 
-    var selectedUnit by mutableStateOf(DistanceUnit.Kilometers)
+    var selectedUnit by selectedUnitState
         private set
 
     val computedDistance: Distance? by derivedStateOf {
@@ -206,12 +210,21 @@ fun rememberPaceCalculatorState(): PaceCalculatorState {
     val timeState = rememberTimeSliderState()
     val coroutineScope = rememberCoroutineScope()
 
+    val selectedMetric = rememberSaveable {
+        mutableStateOf(Metric.Pace)
+    }
+    val selectedUnit = rememberSaveable {
+        mutableStateOf(DistanceUnit.Kilometers)
+    }
+
     val state = remember {
         PaceCalculatorState(
             distanceState,
             paceState,
             timeState,
             coroutineScope,
+            selectedMetric,
+            selectedUnit,
         )
     }
 
