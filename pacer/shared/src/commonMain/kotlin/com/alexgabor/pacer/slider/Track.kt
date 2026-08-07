@@ -92,7 +92,10 @@ fun <T> Track(
             state = state.listState,
             contentPadding = PaddingValues(
                 start = firstGuideline,
-                end = this@BoxWithConstraints.maxWidth - firstGuideline - itemWidth,
+                // A track narrower than firstGuideline + itemSize can't scroll its last item onto
+                // the guideline. Clamping degrades to an unreachable tail instead of throwing.
+                end = (this@BoxWithConstraints.maxWidth - firstGuideline - itemWidth)
+                    .coerceAtLeast(0.dp),
                 top = verticalPadding,
                 bottom = verticalPadding
             ),

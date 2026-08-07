@@ -8,7 +8,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -21,6 +25,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Heading3
@@ -28,6 +33,7 @@ import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.ButtonGroupItem
 import com.alexgabor.design.riso.components.Card
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -168,6 +174,31 @@ class PaceCalculatorState(
     }
 }
 
+/**
+ * Drives the metric that isn't being edited towards whatever the other two describe. Lives with the
+ * state rather than with the layout so that reflowing the screen — rotating into two panes, say —
+ * doesn't tear the sync down and re-animate all three sliders.
+ */
+private suspend fun PaceCalculatorState.syncSliders() = coroutineScope {
+    launch {
+        snapshotFlow { computedDistance }
+            .filterNotNull()
+            .collectLatest { distanceSliderState.animateToDistance(it) }
+    }
+
+    launch {
+        snapshotFlow { computedPace }
+            .filterNotNull()
+            .collectLatest { paceSliderState.animateToPace(it) }
+    }
+
+    launch {
+        snapshotFlow { computedTime }
+            .filterNotNull()
+            .collectLatest { timeSliderState.animateToTime(it) }
+    }
+}
+
 @Composable
 fun rememberPaceCalculatorState(): PaceCalculatorState {
     val distanceState = rememberDistanceSliderState()
@@ -175,7 +206,7 @@ fun rememberPaceCalculatorState(): PaceCalculatorState {
     val timeState = rememberTimeSliderState()
     val coroutineScope = rememberCoroutineScope()
 
-    return remember {
+    val state = remember {
         PaceCalculatorState(
             distanceState,
             paceState,
@@ -183,116 +214,163 @@ fun rememberPaceCalculatorState(): PaceCalculatorState {
             coroutineScope,
         )
     }
+
+    LaunchedEffect(state) { state.syncSliders() }
+
+    return state
 }
 
+@Composable
+fun UnitSelector(
+    state: PaceCalculatorState,
+    modifier: Modifier = Modifier,
+) {
+    ButtonGroup(
+        selected = state.selectedUnit,
+        *DistanceUnit.entries.toTypedArray(),
+        modifier = modifier,
+        onSelect = { state.selectUnit(it) },
+    )
+}
+
+@Composable
+private fun MetricCard(
+    title: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    slider: @Composable () -> Unit,
+) {
+    Card(
+        selected = selected,
+        modifier = modifier.clickable(onClick = onClick),
+    ) {
+        Column {
+            Heading3(
+                text = title,
+                modifier = Modifier.padding(horizontal = 16.dp)
+                    .padding(top = 16.dp, bottom = 16.dp)
+            )
+            slider()
+        }
+    }
+}
+
+/**
+ * widthIn before fillMaxWidth: constraints flow outwards in, so the fill has to resolve against the
+ * already capped maximum. The other order would make the cap a no-op.
+ */
+@Composable
+private fun cardModifier(maxCardWidth: Dp): Modifier =
+    Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
+        .widthIn(max = maxCardWidth)
+        .fillMaxWidth()
+
+/**
+ * The three metric cards, so a caller can drop them into a list of its own.
+ *
+ * @param maxCardWidth caps how wide a card grows on a roomy window; a card is centred within
+ * whatever is left over. [Dp.Unspecified] lets them fill the list.
+ */
+fun LazyListScope.metricCardItems(
+    state: PaceCalculatorState,
+    maxCardWidth: Dp = Dp.Unspecified,
+) {
+    item("time") {
+        MetricCard(
+            title = "Time = ${state.displayedTime}",
+            selected = state.selectedMetric == Metric.Time,
+            onClick = { state.selectedMetric = Metric.Time },
+            modifier = cardModifier(maxCardWidth),
+        ) {
+            TimeSlider(
+                state = state.timeSliderState,
+                userScrollEnabled = state.selectedMetric != Metric.Time
+            )
+        }
+    }
+
+    item("distance") {
+        MetricCard(
+            title = "Distance = ${state.displayedDistance}",
+            selected = state.selectedMetric == Metric.Distance,
+            onClick = { state.selectedMetric = Metric.Distance },
+            modifier = cardModifier(maxCardWidth),
+        ) {
+            DistanceSlider(
+                state = state.distanceSliderState,
+                userScrollEnabled = state.selectedMetric != Metric.Distance
+            )
+        }
+    }
+
+    item("pace") {
+        MetricCard(
+            title = "Pace = ${state.displayedPace}",
+            selected = state.selectedMetric == Metric.Pace,
+            onClick = { state.selectedMetric = Metric.Pace },
+            modifier = cardModifier(maxCardWidth),
+        ) {
+            PaceSlider(
+                state = state.paceSliderState,
+                userScrollEnabled = state.selectedMetric != Metric.Pace
+            )
+        }
+    }
+}
+
+/** The cards on their own, for a layout that places the unit selector somewhere else. */
+@Composable
+fun MetricCards(
+    state: PaceCalculatorState,
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState(),
+    contentPadding: PaddingValues = PaddingValues(vertical = RisoTheme.dimens.screenPadding),
+    maxCardWidth: Dp = Dp.Unspecified,
+) {
+    LazyColumn(
+        modifier = modifier,
+        state = listState,
+        contentPadding = contentPadding,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        metricCardItems(state, maxCardWidth)
+    }
+}
+
+/** The unit selector and the cards in a single column. */
 @Composable
 fun PaceCalculator(
     modifier: Modifier = Modifier,
     state: PaceCalculatorState = rememberPaceCalculatorState(),
+    listState: LazyListState = rememberLazyListState(),
+    contentPadding: PaddingValues = PaddingValues(vertical = RisoTheme.dimens.screenPadding),
+    maxCardWidth: Dp = Dp.Unspecified,
 ) {
-    val distanceState = state.distanceSliderState
-    val paceState = state.paceSliderState
-    val timeState = state.timeSliderState
-
-    LaunchedEffect(state) {
-        snapshotFlow { state.computedDistance }
-            .filterNotNull()
-            .collectLatest { distanceState.animateToDistance(it) }
-    }
-
-    LaunchedEffect(state) {
-        snapshotFlow { state.computedPace }
-            .filterNotNull()
-            .collectLatest { paceState.animateToPace(it) }
-    }
-
-    LaunchedEffect(state) {
-        snapshotFlow { state.computedTime }
-            .filterNotNull()
-            .collectLatest { timeState.animateToTime(it) }
-    }
-
     LazyColumn(
         modifier = modifier,
+        state = listState,
+        contentPadding = contentPadding,
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(vertical = RisoTheme.dimens.screenPadding)
     ) {
         item("unit") {
             Box(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.widthIn(max = maxCardWidth).fillMaxWidth(),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                ButtonGroup(
-                    selected = state.selectedUnit,
-                    *DistanceUnit.entries.toTypedArray(),
+                UnitSelector(
+                    state = state,
                     modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding),
-                    onSelect = { state.selectUnit(it) },
                 )
             }
         }
-        item("time") {
-            Card(
-                selected = state.selectedMetric == Metric.Time,
-                modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
-                    .clickable(onClick = { state.selectedMetric = Metric.Time })
-            ) {
-                Column {
-                    Heading3(
-                        text = "Time = ${state.displayedTime}",
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                            .padding(top = 16.dp)
-                    )
-                    TimeSlider(
-                        state = timeState,
-                        userScrollEnabled = state.selectedMetric != Metric.Time
-                    )
-                }
-            }
-        }
-
-        item("distance") {
-            Card(
-                selected = state.selectedMetric == Metric.Distance,
-                modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
-                    .clickable(onClick = { state.selectedMetric = Metric.Distance })
-            ) {
-                Column {
-                    Heading3(
-                        text = "Distance = ${state.displayedDistance}",
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                            .padding(top = 16.dp, bottom = 16.dp)
-                    )
-                    DistanceSlider(
-                        state = distanceState,
-                        userScrollEnabled = state.selectedMetric != Metric.Distance
-                    )
-                }
-            }
-        }
-
-        item("pace") {
-            Card(
-                selected = state.selectedMetric == Metric.Pace,
-                modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
-                    .clickable(onClick = { state.selectedMetric = Metric.Pace })
-            ) {
-                Column {
-                    Heading3(
-                        text = "Pace = ${state.displayedPace}",
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                            .padding(top = 16.dp, bottom = 16.dp)
-                    )
-                    PaceSlider(
-                        state = paceState,
-                        userScrollEnabled = state.selectedMetric != Metric.Pace
-                    )
-                }
-            }
-        }
+        metricCardItems(state, maxCardWidth)
     }
 }
 
-@Preview
+@Preview(widthDp = 411, heightDp = 891)
 @Composable
 private fun PaceCalculatorPreview() {
     RisoTheme {

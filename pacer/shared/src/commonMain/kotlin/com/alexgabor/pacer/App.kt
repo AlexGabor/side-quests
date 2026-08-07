@@ -1,6 +1,5 @@
 package com.alexgabor.pacer
 
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -17,7 +16,6 @@ fun App() {
             modifier = Modifier
                 .paperTexture()
                 .risoPrint()
-                .safeDrawingPadding()
         )
     }
 }
