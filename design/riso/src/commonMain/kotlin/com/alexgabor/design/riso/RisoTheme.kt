@@ -9,8 +9,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import com.alexgabor.design.riso.attributes.LocalColors
 import com.alexgabor.design.riso.attributes.Colors
+import com.alexgabor.design.riso.attributes.Dimens
+import com.alexgabor.design.riso.attributes.LocalDimens
+import com.alexgabor.design.riso.attributes.LocalShapes
 import com.alexgabor.design.riso.attributes.LocalTypography
 import com.alexgabor.design.riso.attributes.RisoColors
+import com.alexgabor.design.riso.attributes.RisoDimens
+import com.alexgabor.design.riso.attributes.RisoShapes
+import com.alexgabor.design.riso.attributes.Shapes
 import com.alexgabor.design.riso.attributes.Typography
 import com.alexgabor.design.riso.attributes.firaCodeFamily
 
@@ -24,12 +30,24 @@ object RisoTheme {
         @Composable
         @ReadOnlyComposable
         get() = LocalTypography.current
+
+    val dimens: Dimens
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalDimens.current
+
+    val shapes: Shapes
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalShapes.current
 }
 
 @Composable
 fun RisoTheme(content: @Composable () -> Unit) {
     CompositionLocalProvider(
         LocalColors provides RisoColors,
+        LocalDimens provides RisoDimens,
+        LocalShapes provides RisoShapes,
         LocalTypography provides Typography(fontFamily = firaCodeFamily()),
         LocalIndication provides ripple(), // provides the material ripple.
         LocalTextSelectionColors provides TextSelectionColors(

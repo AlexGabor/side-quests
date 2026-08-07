@@ -277,7 +277,7 @@ private fun ColorMixerChart(params: RisoPrintParams) {
                     (row + 1) / GRID_STEPS.toFloat(),
                 )
                 drawRect(
-                    color = risoOverprint(params.paper, inks, coverages),
+                    color = risoOverprint(params.paper, inks.map { it.color }, coverages),
                     topLeft = Offset(gridLeft + column * cell, gridTop + row * cell),
                     // Overdraw by a hair: exact edges leave paper-coloured seams between cells.
                     size = Size(cell + 1f, cell + 1f),

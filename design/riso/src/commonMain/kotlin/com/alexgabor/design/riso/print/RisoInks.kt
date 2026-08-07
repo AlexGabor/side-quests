@@ -25,16 +25,16 @@ internal const val MIN_TRANSMITTANCE = 0.02f
  * of them. Use it for tint ramps and overprint charts, where eyeballing a blend would land on a
  * colour that separates back into something else entirely.
  */
-fun risoOverprint(paper: Color, inks: List<RisoInk>, coverages: List<Float>): Color {
+fun risoOverprint(paper: Color = Color(0x00FFFFFF), inks: List<Color>, coverages: List<Float>): Color {
     var red = paper.red
     var green = paper.green
     var blue = paper.blue
     inks.take(MAX_INKS).forEachIndexed { index, ink ->
         val coverage = coverages.getOrElse(index) { 0f }.coerceIn(0f, 1f)
         if (coverage > 0f) {
-            red *= ink.color.red.coerceAtLeast(MIN_TRANSMITTANCE).pow(coverage)
-            green *= ink.color.green.coerceAtLeast(MIN_TRANSMITTANCE).pow(coverage)
-            blue *= ink.color.blue.coerceAtLeast(MIN_TRANSMITTANCE).pow(coverage)
+            red *= ink.red.coerceAtLeast(MIN_TRANSMITTANCE).pow(coverage)
+            green *= ink.green.coerceAtLeast(MIN_TRANSMITTANCE).pow(coverage)
+            blue *= ink.blue.coerceAtLeast(MIN_TRANSMITTANCE).pow(coverage)
         }
     }
     return Color(red, green, blue)
