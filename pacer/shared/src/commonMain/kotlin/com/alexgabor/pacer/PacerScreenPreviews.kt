@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.slider
+package com.alexgabor.pacer
 
 import androidx.compose.foundation.background
 import androidx.compose.runtime.Composable

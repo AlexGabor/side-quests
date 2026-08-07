@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.slider
+package com.alexgabor.pacer
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Box
@@ -47,7 +47,7 @@ private const val RightPaneWeight = 0.6f
 fun PacerScreen(
     modifier: Modifier = Modifier,
 ) {
-    val state = rememberPaceCalculatorState()
+    val state = _root_ide_package_.com.alexgabor.pacer.slider.rememberPaceCalculatorState()
     val listState = rememberLazyListState()
     val leftPaneScrollState = rememberScrollState()
 
@@ -93,7 +93,7 @@ private fun PacerHeader(modifier: Modifier = Modifier) {
 
 @Composable
 private fun BoxScope.PacerSinglePane(
-    state: PaceCalculatorState,
+    state: com.alexgabor.pacer.slider.PaceCalculatorState,
     listState: LazyListState,
 ) {
     Column(
@@ -114,7 +114,7 @@ private fun BoxScope.PacerSinglePane(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.BottomCenter,
         ) {
-            PaceCalculator(
+            _root_ide_package_.com.alexgabor.pacer.slider.PaceCalculator(
                 state = state,
                 listState = listState,
                 contentPadding = listContentPadding(
@@ -128,7 +128,7 @@ private fun BoxScope.PacerSinglePane(
 
 @Composable
 private fun BoxScope.PacerTwoPane(
-    state: PaceCalculatorState,
+    state: com.alexgabor.pacer.slider.PaceCalculatorState,
     listState: LazyListState,
     leftPaneScrollState: ScrollState,
 ) {
@@ -143,7 +143,7 @@ private fun BoxScope.PacerTwoPane(
             scrollState = leftPaneScrollState,
         )
 
-        MetricCards(
+        _root_ide_package_.com.alexgabor.pacer.slider.MetricCards(
             state = state,
             modifier = Modifier.weight(RightPaneWeight).fillMaxHeight(),
             listState = listState,
@@ -157,7 +157,7 @@ private fun BoxScope.PacerTwoPane(
 
 @Composable
 private fun RowScope.LeftPane(
-    state: PaceCalculatorState,
+    state: com.alexgabor.pacer.slider.PaceCalculatorState,
     scrollState: ScrollState,
 ) {
     Column(
@@ -172,7 +172,7 @@ private fun RowScope.LeftPane(
     ) {
         PacerHeader()
 
-        UnitSelector(
+        _root_ide_package_.com.alexgabor.pacer.slider.UnitSelector(
             state = state,
             modifier = Modifier.align(Alignment.End)
                 .padding(RisoTheme.dimens.screenPadding),

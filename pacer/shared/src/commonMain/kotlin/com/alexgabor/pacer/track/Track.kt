@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.slider
+package com.alexgabor.pacer.track
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.DragInteraction

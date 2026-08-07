@@ -6,7 +6,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.paper.paperTexture
 import com.alexgabor.design.riso.print.risoPrint
-import com.alexgabor.pacer.slider.PacerScreen
+import com.alexgabor.pacer.PacerScreen
 
 @Composable
 @Preview
