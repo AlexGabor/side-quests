@@ -44,8 +44,8 @@ data class RisoPrintParams(
     /** Stock colour the inks are printed onto. */
     val paper: Color = Color(0x00FFFFFF),
     /**
-     * One entry per drum, in printing order. Every ink costs a pass — a content sample and a screen
-     * — so a long palette buys colour fidelity with per-frame work.
+     * One entry per drum, in printing order. Loading the whole rack is close to free: a colour is
+     * separated onto the few drums that can print it, and the rest are never sampled.
      */
     val inks: List<RisoInk> = RisoColors.inks.all.mapIndexed { slot, ink ->
         risoInkForSlot(slot, ink.color)

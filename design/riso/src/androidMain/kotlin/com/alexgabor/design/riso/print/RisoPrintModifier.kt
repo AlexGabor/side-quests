@@ -34,9 +34,10 @@ import kotlin.math.sqrt
  *
  * ### Performance
  * Unlike `paperTexture`, nothing can be baked here: the separation depends on the live content, so
- * the whole effect runs per frame. The per-pixel cost is one content sample and one screened,
- * mottled pass per loaded drum, so it scales with the length of [RisoPrintParams.inks] — a
- * two-drum press is cheap, the full twelve-ink palette is not.
+ * the whole effect runs per frame. What it costs is set by how many drums a *pixel* prints with,
+ * not by how many are loaded: the colour is separated once, and only the drums it actually calls
+ * for are sampled, screened and mottled. Most of a screen is paper or flat artwork and prints on
+ * one drum, so a twelve-ink rack costs about what a two-ink one does.
  */
 actual fun Modifier.risoPrint(params: RisoPrintParams): Modifier = composed {
     val density = LocalDensity.current.density
@@ -151,6 +152,11 @@ private fun RuntimeShader.applyRisoParams(
     setFloatUniform("u_wedgeCount", (fan?.wedges?.size ?: 0).toFloat())
     setFloatUniform("u_fanAnchor", fan?.anchor?.get(0) ?: 0f, fan?.anchor?.get(1) ?: 0f)
     setFloatUniform("u_fanBase", fan?.base ?: 0f)
+
+    // How far a pass can land from where it was drawn, which is how far a blank pixel has to look to
+    // find the artwork whose ink might drift onto it.
+    val drift = inks.maxOfOrNull { maxOf(abs(it.offsetX), abs(it.offsetY)) } ?: 0f
+    setFloatUniform("u_probeRadius", (drift + abs(params.wobble)) * density)
 
     setFloatUniform("u_overprint", params.overprint.coerceIn(0f, 1f))
     setFloatUniform("u_screen", params.screen.coerceIn(0f, 1f))
@@ -356,14 +362,13 @@ private fun invert(matrix: Array<FloatArray>): Array<FloatArray>? {
 }
 
 /**
- * Uniform-array capacity for [count] drums: the next power of two, at least 4. Bucketing keeps a
- * picker that loads and pulls drums from recompiling the shader on every change.
+ * Uniform-array capacity for [count] drums, rounded up to a multiple of four. Bucketing keeps a
+ * picker that loads and pulls drums from recompiling the shader on every change, and the step is
+ * kept small because every unused slot is uniform storage the shader pays for whether it runs a
+ * drum or not.
  */
-internal fun inkCapacity(count: Int): Int {
-    var capacity = MIN_INK_CAPACITY
-    while (capacity < count) capacity *= 2
-    return capacity
-}
+internal fun inkCapacity(count: Int): Int =
+    MIN_INK_CAPACITY * ((maxOf(count, 1) + MIN_INK_CAPACITY - 1) / MIN_INK_CAPACITY)
 
 private const val MIN_INK_CAPACITY = 4
 
@@ -374,9 +379,17 @@ private const val MIN_INK_CAPACITY = 4
 internal fun risoPrintAgsl(capacity: Int, inkCapacity: Int): String =
     bypassAgsl(capacity) + "\n" + risoPrintBodyAgsl(inkCapacity)
 
+
 // language=AGSL
 internal fun risoPrintBodyAgsl(inkCapacity: Int): String = """
 const float PI = 3.14159265359;
+
+/**
+ * Coverage below which a drum is not worth a pass of its own. A little over one percent of an ink
+ * moves a channel by about two levels out of 255 — less than its own grain would — so the ink is
+ * laid flat instead of sampled, screened and mottled.
+ */
+const float FAINT_COVERAGE = 0.012;
 
 uniform float2 u_resolution;
 uniform float2 u_imageSize;
@@ -403,6 +416,7 @@ uniform float4 u_wedgeRow2[$inkCapacity];
 uniform float u_wedgeCount;
 uniform float2 u_fanAnchor;
 uniform float u_fanBase;
+uniform float u_probeRadius;
 
 uniform float u_overprint;
 uniform float u_screen;
@@ -466,44 +480,53 @@ float4 inkSample(float2 uv, float2 offsetPx, float phase) {
     return float4(-log(clamp(rgb / u_paper, u_minTransmittance, 1.0)), alpha);
 }
 
+/** How much darker than bare paper a sample is. A press cannot print white, so lighter reads as 0. */
+float3 densityOf(half4 src) {
+    float alpha = float(src.a);
+    float3 rgb = alpha > 0.001 ? float3(src.rgb) / alpha : float3(1.0);
+    return -log(clamp(rgb / u_paper, u_minTransmittance, 1.0));
+}
+
+float weightOf(float3 density) {
+    return density.x + density.y + density.z;
+}
+
+/** The artwork's own density at a point, with no registration error. */
+float3 probeAt(float2 fragCoord) {
+    return densityOf(u_image.eval(clamp(fragCoord, float2(0.0), u_imageSize)));
+}
+
+/** Whichever of two densities is the darker, i.e. carries the more ink. */
+float3 darker(float3 a, float3 b) {
+    return weightOf(a) >= weightOf(b) ? a : b;
+}
+
 /**
- * How much of drum [slot] a sampled density calls for.
- *
- * The density picks out the wedge of the rack its hue falls in, and that wedge's three drums print
- * it exactly between them — so a drum outside the wedge stays in the rack rather than taking a thin
- * share of a colour it has no business in. [sepRow] is the least-squares fallback, used when the
- * rack is too small or too collinear to fan out.
+ * Which wedge of the rack a colour falls in, as the three drums that print it in [slots] and their
+ * three coverage rows. See separationFan().
  */
-float inkCoverage(int slot, float3 density, float3 sepRow) {
-    float total = density.x + density.y + density.z;
-    if (total <= 0.0001) return 0.0;
-    if (u_wedgeCount < 1.0) return clamp(dot(sepRow, density), 0.0, 1.0);
+void selectWedge(float3 density, out float3 slots, out float3 row0, out float3 row1, out float3 row2) {
+    slots = u_wedge[0].xyz;
+    row0 = u_wedgeRow0[0].xyz;
+    row1 = u_wedgeRow1[0].xyz;
+    row2 = u_wedgeRow2[0].xyz;
+
+    float total = weightOf(density);
+    if (total <= 0.0001) return;
 
     float2 hue = density.xy / total - u_fanAnchor;
     float angle = mod(atan(hue.y, hue.x) - u_fanBase, 2.0 * PI);
 
-    // Wedges ascend from zero, so the last one starting at or before this hue is the one it is in.
-    float4 wedge = u_wedge[0];
-    float3 row0 = u_wedgeRow0[0].xyz;
-    float3 row1 = u_wedgeRow1[0].xyz;
-    float3 row2 = u_wedgeRow2[0].xyz;
+    // Wedges ascend from zero, so the last one starting at or before this hue is the one it is in —
+    // and the first one starting after it ends the search.
     for (int w = 1; w < $inkCapacity; w++) {
         if (float(w) >= u_wedgeCount) break;
-        if (u_wedge[w].w <= angle) {
-            wedge = u_wedge[w];
-            row0 = u_wedgeRow0[w].xyz;
-            row1 = u_wedgeRow1[w].xyz;
-            row2 = u_wedgeRow2[w].xyz;
-        }
+        if (u_wedge[w].w > angle) break;
+        slots = u_wedge[w].xyz;
+        row0 = u_wedgeRow0[w].xyz;
+        row1 = u_wedgeRow1[w].xyz;
+        row2 = u_wedgeRow2[w].xyz;
     }
-
-    float3 row = float3(0.0);
-    if (slot == int(wedge.x)) row = row0;
-    else if (slot == int(wedge.y)) row = row1;
-    else if (slot == int(wedge.z)) row = row2;
-    else return 0.0;
-
-    return clamp(dot(row, density), 0.0, 1.0);
 }
 
 /** The blotchiness and speckle of ink actually laid down on paper. */
@@ -538,6 +561,16 @@ float inkPass(float coverage, float2 fragCoord, float angle, float phase) {
     return inkTexture(coverage, fragCoord, phase);
 }
 
+/**
+ * One drum end to end: the content under its registration error, separated onto that drum by [row],
+ * then screened and laid down. Returns (coverage, source alpha).
+ */
+float2 runDrum(float2 uv, float2 fragCoord, float4 pass, float3 row, float phase) {
+    float4 sampled = inkSample(uv, pass.xy, phase);
+    float laid = clamp(dot(row, sampled.xyz), 0.0, 1.0) * sampled.w;
+    return float2(inkPass(laid, fragCoord, pass.z, phase + 41.3), sampled.w);
+}
+
 half4 main(float2 fragCoord) {
     // A bypassed region is a window onto the layer: its pixels are fetched 1:1 and handed back
     // untouched, so content that must not be separated survives the press exactly. Well inside one
@@ -547,6 +580,30 @@ half4 main(float2 fragCoord) {
     if (bypass >= 1.0) return source;
 
     float2 uv = fragCoord / u_resolution;
+    float opacity = float(source.a);
+
+    // Which drums to run is decided once, from the artwork as drawn, because a colour separates onto
+    // at most the three of a wedge — mounting all twelve for every pixel would cost a content sample
+    // and a noise field each to lay down nothing.
+    float3 probe = densityOf(source);
+    if (u_wedgeCount >= 1.0 && weightOf(probe) <= 0.0005) {
+        // Bare paper. The only ink that can reach here is a neighbouring pass drifting in on its
+        // registration error, so the rack is chosen from the nearest thing within that drift — and
+        // if there is nothing to drift in, the sheet stays blank and no drum runs at all.
+        float r = u_probeRadius;
+        probe = darker(probeAt(fragCoord + float2(-r, -r)), probeAt(fragCoord + float2(r, -r)));
+        probe = darker(probe, probeAt(fragCoord + float2(-r, r)));
+        probe = darker(probe, probeAt(fragCoord + float2(r, r)));
+        if (weightOf(probe) <= 0.0005) {
+            return mix(half4(half3(u_paper * opacity), half(opacity)), source, half(bypass));
+        }
+    }
+
+    float3 slots;
+    float3 row0;
+    float3 row1;
+    float3 row2;
+    selectWedge(probe, slots, row0, row1, row2);
 
     // Stacked ink: the passes multiply, so overlaps go dark.
     float3 stacked = u_paper;
@@ -555,29 +612,66 @@ half4 main(float2 fragCoord) {
     // sum of the inks, divided through once the run of drums is done.
     float3 mixed = float3(0.0);
     float total = 0.0;
-    float opacity = 0.0;
 
-    // Drums past the count are skipped rather than sampled: each one costs a content fetch, and
-    // their zeroed separation rows would contribute nothing anyway. Of the ones that do run, only
-    // the two or three the colour separates onto get as far as the screen and the grain — inkPass()
-    // drops out at zero coverage, which is what keeps a full rack affordable.
-    for (int i = 0; i < $inkCapacity; i++) {
-        if (float(i) >= u_inkCount) break;
+    if (u_wedgeCount >= 1.0) {
+        // The wedge names its drums by slot, and a uniform array can only be read at a slot the
+        // compiler knows, so the rack is gathered off the loop counter first and printed after.
+        float4 passA = float4(0.0);
+        float4 passB = float4(0.0);
+        float4 passC = float4(0.0);
+        float3 inkA = float3(1.0);
+        float3 inkB = float3(1.0);
+        float3 inkC = float3(1.0);
+        for (int i = 0; i < $inkCapacity; i++) {
+            if (float(i) >= u_inkCount) break;
+            if (float(i) == slots.x) { passA = u_pass[i]; inkA = u_ink[i].xyz; }
+            else if (float(i) == slots.y) { passB = u_pass[i]; inkB = u_ink[i].xyz; }
+            else if (float(i) == slots.z) { passC = u_pass[i]; inkC = u_ink[i].xyz; }
+        }
+
+        // A drum the colour barely calls for does not get a pass of its own. Its ink still reaches
+        // the sheet — laid flat, straight off the probe — but sampling, screening and mottling a
+        // coverage this faint is work the print cannot show. Laying the ink down rather than
+        // dropping it keeps the colour continuous, so nothing pops as a drum crosses the threshold.
+        //
+        // This is what a full rack costs, and where it gets the cost back: a wedge names three drums
+        // for every pixel, but paper and flat artwork only ever put one of them on the press.
+        float wantA = clamp(dot(row0, probe), 0.0, 1.0);
+        float wantB = clamp(dot(row1, probe), 0.0, 1.0);
+        float wantC = clamp(dot(row2, probe), 0.0, 1.0);
+        float alpha = float(source.a);
 
         // Each drum lays down its own noise field, so the mottling of one pass does not line up
         // with the next.
-        float phase = u_seed + float(i) * 13.7;
-        float3 ink = u_ink[i].xyz;
-        float4 pass = u_pass[i];
+        float2 a = wantA > FAINT_COVERAGE
+            ? runDrum(uv, fragCoord, passA, row0, u_seed + slots.x * 13.7)
+            : float2(wantA * alpha, 0.0);
+        float2 b = wantB > FAINT_COVERAGE
+            ? runDrum(uv, fragCoord, passB, row1, u_seed + slots.y * 13.7)
+            : float2(wantB * alpha, 0.0);
+        float2 c = wantC > FAINT_COVERAGE
+            ? runDrum(uv, fragCoord, passC, row2, u_seed + slots.z * 13.7)
+            : float2(wantC * alpha, 0.0);
 
-        float4 sampled = inkSample(uv, pass.xy, phase);
-        float laid = inkCoverage(i, sampled.xyz, u_sep[i].xyz) * sampled.w;
-        float coverage = inkPass(laid, fragCoord, pass.z, phase + 41.3);
+        stacked *= mix(float3(1.0), inkA, a.x) * mix(float3(1.0), inkB, b.x) * mix(float3(1.0), inkC, c.x);
+        mixed = a.x * inkA + b.x * inkB + c.x * inkC;
+        total = a.x + b.x + c.x;
+        opacity = max(opacity, max(a.y, max(b.y, c.y)));
+    } else {
+        // No fan — too few inks, or a rack all of one hue — so every drum runs off its own row.
+        for (int i = 0; i < $inkCapacity; i++) {
+            if (float(i) >= u_inkCount) break;
 
-        stacked *= mix(float3(1.0), ink, coverage);
-        mixed += coverage * ink;
-        total += coverage;
-        opacity = max(opacity, sampled.w);
+            float phase = u_seed + float(i) * 13.7;
+            float3 ink = u_ink[i].xyz;
+            float4 pass = u_pass[i];
+
+            float2 laid = runDrum(uv, fragCoord, pass, u_sep[i].xyz, phase);
+            stacked *= mix(float3(1.0), ink, laid.x);
+            mixed += laid.x * ink;
+            total += laid.x;
+            opacity = max(opacity, laid.y);
+        }
     }
 
     float3 juxtaposed = total > 0.001
