@@ -23,6 +23,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
+import com.alexgabor.design.riso.bypass.RisoBypassHost
+import com.alexgabor.design.riso.bypass.applyBypass
+import com.alexgabor.design.riso.bypass.bypassAgsl
+import com.alexgabor.design.riso.bypass.bypassCapacity
+import com.alexgabor.design.riso.bypass.risoBypassHost
 import kotlin.collections.getOrPut
 import kotlin.random.Random
 
@@ -43,34 +48,49 @@ import kotlin.random.Random
  */
 actual fun Modifier.paperTexture(params: PaperTextureParams): Modifier = composed {
     val density = LocalDensity.current.density
-    val compositeShader = remember { RuntimeShader(PAPER_COMPOSITE_AGSL) }
     var size by remember { mutableStateOf(IntSize.Zero) }
+    val host = remember { RisoBypassHost() }
 
-    val effect = remember(params, size, density) {
+    // Only the *number* of bypassed regions is read here: it fixes the shader's uniform array
+    // lengths, so it has to be known at compile time. Where those regions are is read at draw time
+    // instead, below.
+    val capacity = bypassCapacity(host.peakRegionCount)
+    val compositeShader = remember(capacity) { RuntimeShader(paperCompositeAgsl(capacity)) }
+
+    val ready = remember(compositeShader, params, size, density) {
         val w = size.width
         val h = size.height
         if (w <= 0 || h <= 0) {
-            null
+            false
         } else {
+            // Keyed on params and size only, so regions moving never re-bake the paper surface.
             val paperMap = PaperMapCache.get(PaperMapKey(params, w, h, density)) {
                 bakePaperMap(params, w, h, density)
             }
             val paperShader = BitmapShader(paperMap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
                 .apply { setFilterMode(BitmapShader.FILTER_MODE_LINEAR) }
             compositeShader.applyCompositeParams(params, w.toFloat(), h.toFloat(), paperShader)
-            RenderEffect
-                .createRuntimeShaderEffect(compositeShader, "u_image")
-                .asComposeRenderEffect()
+            true
         }
     }
 
-    val withEffect = if (effect != null) {
-        Modifier.graphicsLayer(renderEffect = effect, clip = true)
+    // The render effect is rebuilt in the draw block rather than in composition, because a
+    // RenderEffect bakes in its shader's uniforms and the bypass bounds move with every layout
+    // pass. Going through a recomposition would land them a frame late, and a bypassed child would
+    // visibly trail its own window on a fling.
+    val withEffect = if (ready) {
+        Modifier.graphicsLayer {
+            clip = true
+            compositeShader.applyBypass(host.regions, capacity)
+            renderEffect = RenderEffect
+                .createRuntimeShaderEffect(compositeShader, "u_image")
+                .asComposeRenderEffect()
+        }
     } else {
         Modifier
     }
 
-    onSizeChanged { size = it }.then(withEffect)
+    onSizeChanged { size = it }.then(Modifier.risoBypassHost(host)).then(withEffect)
 }
 
 /**
@@ -596,6 +616,13 @@ half4 main(float2 fragCoord) {
 """.trimIndent()
 
 /**
+ * The composite shader, built for [capacity] bypassed regions. See [bypassAgsl] for why the
+ * capacity is part of the source rather than a uniform.
+ */
+private fun paperCompositeAgsl(capacity: Int): String =
+    bypassAgsl(capacity) + "\n" + PAPER_COMPOSITE_AGSL
+
+/**
  * Composite pass: the lightweight per-frame shader. It reads the pre-baked paper map, reconstructs
  * the distortion vector and lighting term, samples the live content (`u_image`, bound by the
  * render effect), and blends exactly like [PAPER_TEXTURE_AGSL]'s image path. The negligible
@@ -627,14 +654,19 @@ half4 main(float2 fragCoord) {
     float2 normalImage = (float2(paper.r, paper.g) - 0.5) / 0.25;
     float res = float(paper.b) * 2.0 - 1.0;
 
+    // Inside a bypassed region the sheet stops acting on the content: it is neither pushed around
+    // by the folds nor shaded by the paper's lighting, so its pixels arrive exactly as drawn. The
+    // paper behind it is composited as usual, which is what shows through anything translucent.
+    float bypass = bypassMask(fragCoord);
+
     float2 imageUV = fragCoord / u_resolution;
-    imageUV += 0.02 * normalImage;
+    imageUV += 0.02 * normalImage * (1.0 - bypass);
     float frame = getUvFrame(imageUV);
     half4 image = u_image.eval(clamp(imageUV, 0.0, 1.0) * u_imageSize);
     if (image.a > 0.0) {
         image.rgb /= image.a;
     }
-    image.rgb += half3(0.6 * pow(u_contrast, 0.4) * (res - 0.7));
+    image.rgb += half3((1.0 - bypass) * 0.6 * pow(u_contrast, 0.4) * (res - 0.7));
     frame *= float(image.a);
 
     float3 fgColor = u_colorFront.rgb * u_colorFront.a;

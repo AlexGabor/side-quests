@@ -14,47 +14,74 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
+import com.alexgabor.design.riso.bypass.RisoBypassHost
+import com.alexgabor.design.riso.bypass.applyBypass
+import com.alexgabor.design.riso.bypass.bypassAgsl
+import com.alexgabor.design.riso.bypass.bypassCapacity
+import com.alexgabor.design.riso.bypass.risoBypassHost
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.ln
+import kotlin.math.sqrt
 
 /**
- * Re-prints whatever the composable draws as a two-colour Risograph print.
+ * Re-prints whatever the composable draws as a Risograph print.
  *
- * The content is separated into two ink coverage maps, each pass is sampled with its own
+ * The content is separated into one ink coverage map per drum, each pass is sampled with its own
  * registration error (the pink/blue fringes of a real riso), and the passes are recombined
- * subtractively so overlaps produce a third colour instead of one ink hiding the other.
+ * subtractively so overlaps produce a new colour instead of one ink hiding the other.
  *
  * ### Performance
  * Unlike `paperTexture`, nothing can be baked here: the separation depends on the live content, so
- * the whole effect runs per frame. It stays cheap because the per-pixel work is two content samples
- * plus a handful of noise octaves — no voronoi or fold loops.
+ * the whole effect runs per frame. The per-pixel cost is one content sample and one screened,
+ * mottled pass per loaded drum, so it scales with the length of [RisoPrintParams.inks] — a
+ * two-drum press is cheap, the full twelve-ink palette is not.
  */
 actual fun Modifier.risoPrint(params: RisoPrintParams): Modifier = composed {
     val density = LocalDensity.current.density
-    val shader = remember { RuntimeShader(RISO_PRINT_AGSL) }
     var size by remember { mutableStateOf(IntSize.Zero) }
+    val host = remember { RisoBypassHost() }
 
-    val effect = remember(params, size, density) {
+    // Only the *number* of bypassed regions is read here: it fixes the shader's uniform array
+    // lengths, so it has to be known at compile time. Where those regions are is read at draw time
+    // instead, below.
+    val capacity = bypassCapacity(host.peakRegionCount)
+    // The drum count sizes uniform arrays the same way, so it is bucketed too: loading or pulling a
+    // drum in a picker mostly reuses the shader it already compiled.
+    val inkCapacity = inkCapacity(params.inks.size)
+    val shader = remember(capacity, inkCapacity) {
+        RuntimeShader(risoPrintAgsl(capacity, inkCapacity))
+    }
+
+    val ready = remember(shader, params, size, density) {
         val w = size.width
         val h = size.height
         if (w <= 0 || h <= 0) {
-            null
+            false
         } else {
-            shader.applyRisoParams(params, w.toFloat(), h.toFloat(), density)
-            RenderEffect
-                .createRuntimeShaderEffect(shader, "u_image")
-                .asComposeRenderEffect()
+            shader.applyRisoParams(params, inkCapacity, w.toFloat(), h.toFloat(), density)
+            true
         }
     }
 
-    val withEffect = if (effect != null) {
-        Modifier.graphicsLayer(renderEffect = effect, clip = true)
+    // The render effect is rebuilt in the draw block rather than in composition, because a
+    // RenderEffect bakes in its shader's uniforms and the bypass bounds move with every layout
+    // pass. Going through a recomposition would land them a frame late, and a bypassed child would
+    // visibly trail its own window on a fling.
+    val withEffect = if (ready) {
+        Modifier.graphicsLayer {
+            clip = true
+            shader.applyBypass(host.regions, capacity)
+            renderEffect = RenderEffect
+                .createRuntimeShaderEffect(shader, "u_image")
+                .asComposeRenderEffect()
+        }
     } else {
         Modifier
     }
 
-    onSizeChanged { size = it }.then(withEffect)
+    onSizeChanged { size = it }.then(Modifier.risoBypassHost(host)).then(withEffect)
 }
 
 /**
@@ -64,6 +91,7 @@ actual fun Modifier.risoPrint(params: RisoPrintParams): Modifier = composed {
  */
 private fun RuntimeShader.applyRisoParams(
     params: RisoPrintParams,
+    capacity: Int,
     width: Float,
     height: Float,
     density: Float,
@@ -75,23 +103,54 @@ private fun RuntimeShader.applyRisoParams(
     setFloatUniform("u_paper", paper[0], paper[1], paper[2])
     setFloatUniform("u_minTransmittance", MIN_TRANSMITTANCE)
 
-    val inks = params.inks.take(MAX_INKS)
+    // Drums past what the compiled shader can hold are left in the rack. The clamp only bites in
+    // the frame between the palette growing past a bucket and the wider shader landing.
+    val inks = params.inks.take(capacity)
     val separation = separationRows(inks.map { it.color })
-    repeat(MAX_INKS) { slot ->
-        val ink = inks.getOrNull(slot)
-        // Unused drums are given white ink and a zeroed separation row, so they resolve to zero
-        // coverage and drop out of both the stacked and the juxtaposed composite.
-        val transmittance = ink?.color?.transmittance() ?: floatArrayOf(1f, 1f, 1f)
-        setFloatUniform("u_ink$slot", transmittance[0], transmittance[1], transmittance[2])
-        setFloatUniform("u_sep$slot", separation.getOrElse(slot) { FloatArray(3) })
-        setFloatUniform(
-            "u_offset$slot",
-            (ink?.offsetX ?: 0f) * density,
-            (ink?.offsetY ?: 0f) * density,
-        )
-        setFloatUniform("u_angle$slot", ((ink?.screenAngle ?: 0f) * PI / 180.0).toFloat())
+    val fan = separationFan(inks.map { it.color })
+
+    // Each drum is one float4 slot per array: the vec3s are padded out to float4 so the uniform
+    // sizes are unambiguous, and slots past the count stay zeroed — the shader's loop stops first.
+    val inkUniform = FloatArray(capacity * 4)
+    val sepUniform = FloatArray(capacity * 4)
+    val passUniform = FloatArray(capacity * 4)
+    inks.forEachIndexed { slot, ink ->
+        val transmittance = ink.color.transmittance()
+        val row = separation.getOrElse(slot) { FloatArray(3) }
+        repeat(3) { channel ->
+            inkUniform[slot * 4 + channel] = transmittance[channel]
+            sepUniform[slot * 4 + channel] = row[channel]
+        }
+        passUniform[slot * 4] = ink.offsetX * density
+        passUniform[slot * 4 + 1] = ink.offsetY * density
+        passUniform[slot * 4 + 2] = (ink.screenAngle * PI / 180.0).toFloat()
     }
+    setFloatUniform("u_ink", inkUniform)
+    setFloatUniform("u_sep", sepUniform)
+    setFloatUniform("u_pass", passUniform)
     setFloatUniform("u_inkCount", inks.size.toFloat())
+
+    // One float4 slot per wedge as well: the three drums it prints with and where it starts, beside
+    // the three rows that give those drums their coverage. A rack with no fan leaves the count at
+    // zero, and the shader falls back to the least-squares rows above.
+    val wedgeUniform = FloatArray(capacity * 4)
+    val rowUniform = Array(3) { FloatArray(capacity * 4) }
+    fan?.wedges?.forEachIndexed { index, wedge ->
+        repeat(3) { corner ->
+            wedgeUniform[index * 4 + corner] = wedge.slots[corner].toFloat()
+            repeat(3) { channel ->
+                rowUniform[corner][index * 4 + channel] = wedge.rows[corner][channel]
+            }
+        }
+        wedgeUniform[index * 4 + 3] = wedge.startAngle
+    }
+    setFloatUniform("u_wedge", wedgeUniform)
+    setFloatUniform("u_wedgeRow0", rowUniform[0])
+    setFloatUniform("u_wedgeRow1", rowUniform[1])
+    setFloatUniform("u_wedgeRow2", rowUniform[2])
+    setFloatUniform("u_wedgeCount", (fan?.wedges?.size ?: 0).toFloat())
+    setFloatUniform("u_fanAnchor", fan?.anchor?.get(0) ?: 0f, fan?.anchor?.get(1) ?: 0f)
+    setFloatUniform("u_fanBase", fan?.base ?: 0f)
 
     setFloatUniform("u_overprint", params.overprint.coerceIn(0f, 1f))
     setFloatUniform("u_screen", params.screen.coerceIn(0f, 1f))
@@ -154,6 +213,117 @@ private fun separationRows(inks: List<Color>): List<FloatArray> {
     }
 }
 
+/**
+ * One wedge of the ink cone: the three drums that print any colour falling in it, the rows that give
+ * those drums their coverage, and the hue the wedge starts at.
+ */
+private class SeparationWedge(
+    val slots: IntArray,
+    val rows: Array<FloatArray>,
+    val startAngle: Float,
+)
+
+/** The whole fan: where it is centred, the hue its first wedge starts at, and the wedges. */
+private class SeparationFan(
+    val anchor: FloatArray,
+    val base: Float,
+    val wedges: List<SeparationWedge>,
+)
+
+/**
+ * Decomposes the rack into wedges, so that a colour can be separated onto the few drums it actually
+ * needs instead of a thin wash across every drum loaded.
+ *
+ * A least-squares fit against many inks is underdetermined — the ink densities span three dimensions
+ * however many drums there are — and its minimum-norm answer prefers to spread a colour over the
+ * whole rack, because many small coverages have a smaller norm than one large one. Printing black
+ * then means running all twelve drums, and a colour authored with [risoOverprint] does not separate
+ * back into the inks it was authored from.
+ *
+ * A press does not work that way: it picks the drums the colour needs. So the ink densities are
+ * sorted by hue around the most achromatic of them and taken in neighbouring pairs, each pair
+ * forming a wedge with the anchor. Every wedge is a 3x3 that inverts exactly, so a colour is
+ * separated onto at most three drums with no residual — and a colour that sits on the seam between
+ * two wedges, which is every tint of a single ink and every overprint of the anchor with one other,
+ * round-trips exactly onto the drums it was authored from.
+ *
+ * Returns null for a rack too small or too collinear to fan out, leaving [separationRows] to it.
+ */
+private fun separationFan(inks: List<Color>): SeparationFan? {
+    if (inks.size < 3) return null
+    val densities = inks.map(::densityOf)
+
+    // The anchor carries the achromatic weight of every wedge, so it is the ink closest to grey —
+    // the black drum on a normal rack.
+    val anchor = densities.indices.minBy { chromaOf(densities[it]) }
+    val anchorPoint = chromaticity(densities[anchor])
+
+    val fan = densities.indices
+        .filter { it != anchor }
+        .map { it to angleFrom(anchorPoint, chromaticity(densities[it])) }
+        .sortedBy { it.second }
+    val base = fan.first().second
+
+    val wedges = mutableListOf<SeparationWedge>()
+    var index = 0
+    while (index < fan.size) {
+        val (startSlot, startAngle) = fan[index]
+
+        // Two inks of the same hue leave a wedge with no width and a singular matrix; step over them
+        // until the wedge has some volume, so the fan comes out gap-free. Inks skipped this way are
+        // metamers of the one before them and simply never get loaded.
+        var span = 1
+        var inverse: Array<FloatArray>? = null
+        var endSlot = startSlot
+        while (span <= fan.size) {
+            endSlot = fan[(index + span) % fan.size].first
+            inverse = invert(
+                Array(3) { channel ->
+                    floatArrayOf(
+                        densities[anchor][channel],
+                        densities[startSlot][channel],
+                        densities[endSlot][channel],
+                    )
+                },
+            )
+            if (inverse != null) break
+            span++
+        }
+        if (inverse == null) return null
+
+        wedges += SeparationWedge(
+            slots = intArrayOf(anchor, startSlot, endSlot),
+            rows = inverse,
+            startAngle = startAngle - base,
+        )
+        index += span
+    }
+    return SeparationFan(anchorPoint, base, wedges)
+}
+
+/** Where a density sits on the plane of hues, i.e. its three channels normalised to sum to one. */
+private fun chromaticity(density: FloatArray): FloatArray {
+    val total = density[0] + density[1] + density[2]
+    if (total <= 1e-6f) return floatArrayOf(1f / 3f, 1f / 3f)
+    return floatArrayOf(density[0] / total, density[1] / total)
+}
+
+/** How far off the achromatic axis a density sits, relative to how dark it is. */
+private fun chromaOf(density: FloatArray): Float {
+    val mean = (density[0] + density[1] + density[2]) / 3f
+    if (mean <= 1e-6f) return 0f
+    var sum = 0f
+    repeat(3) { channel ->
+        val delta = density[channel] - mean
+        sum += delta * delta
+    }
+    return sqrt(sum) / mean
+}
+
+/** The hue of [point] as seen from [anchor], in radians. */
+private fun angleFrom(anchor: FloatArray, point: FloatArray) =
+    atan2(point[1] - anchor[1], point[0] - anchor[0])
+
 /** Gauss-Jordan inverse of a small square matrix, or null if it is singular. */
 private fun invert(matrix: Array<FloatArray>): Array<FloatArray>? {
     val n = matrix.size
@@ -185,8 +355,27 @@ private fun invert(matrix: Array<FloatArray>): Array<FloatArray>? {
     return Array(n) { i -> FloatArray(n) { j -> work[i][n + j] } }
 }
 
+/**
+ * Uniform-array capacity for [count] drums: the next power of two, at least 4. Bucketing keeps a
+ * picker that loads and pulls drums from recompiling the shader on every change.
+ */
+internal fun inkCapacity(count: Int): Int {
+    var capacity = MIN_INK_CAPACITY
+    while (capacity < count) capacity *= 2
+    return capacity
+}
+
+private const val MIN_INK_CAPACITY = 4
+
+/**
+ * The print shader, built for [capacity] bypassed regions and [inkCapacity] drums. See [bypassAgsl]
+ * for why the capacities are part of the source rather than uniforms.
+ */
+internal fun risoPrintAgsl(capacity: Int, inkCapacity: Int): String =
+    bypassAgsl(capacity) + "\n" + risoPrintBodyAgsl(inkCapacity)
+
 // language=AGSL
-internal val RISO_PRINT_AGSL = """
+internal fun risoPrintBodyAgsl(inkCapacity: Int): String = """
 const float PI = 3.14159265359;
 
 uniform float2 u_resolution;
@@ -197,21 +386,23 @@ uniform float3 u_paper;
 uniform float u_minTransmittance;
 uniform float u_inkCount;
 
-uniform float3 u_ink0;
-uniform float3 u_ink1;
-uniform float3 u_ink2;
+// One float4 slot per drum. xyz of u_ink is the ink's transmittance; xyz of u_sep is its row of the
+// density pseudo-inverse, so coverage = dot(row, density) — see separationRows(). u_pass carries
+// that drum's registration error in xy (pixels) and its screen angle in z (radians).
+uniform float4 u_ink[$inkCapacity];
+uniform float4 u_sep[$inkCapacity];
+uniform float4 u_pass[$inkCapacity];
 
-// Rows of the density pseudo-inverse: coverage = dot(row, density). See separationRows().
-uniform float3 u_sep0;
-uniform float3 u_sep1;
-uniform float3 u_sep2;
-
-uniform float2 u_offset0;
-uniform float2 u_offset1;
-uniform float2 u_offset2;
-uniform float u_angle0;
-uniform float u_angle1;
-uniform float u_angle2;
+// One float4 slot per wedge of the ink cone: the three drums it prints with in xyz, and the hue it
+// starts at in w. u_wedgeRow0..2 are the rows that give those three drums their coverage. Wedges
+// ascend from zero around u_fanAnchor, starting at u_fanBase. See separationFan().
+uniform float4 u_wedge[$inkCapacity];
+uniform float4 u_wedgeRow0[$inkCapacity];
+uniform float4 u_wedgeRow1[$inkCapacity];
+uniform float4 u_wedgeRow2[$inkCapacity];
+uniform float u_wedgeCount;
+uniform float2 u_fanAnchor;
+uniform float u_fanBase;
 
 uniform float u_overprint;
 uniform float u_screen;
@@ -257,10 +448,10 @@ float fbm(float2 p) {
 }
 
 /**
- * Ink coverage for one pass, sampled with that pass's registration error.
- * Returns (coverage, source alpha).
+ * The content under one pass, sampled with that pass's registration error.
+ * Returns (optical density, source alpha).
  */
-float2 inkSample(float2 uv, float2 offsetPx, float3 sepRow, float phase) {
+float4 inkSample(float2 uv, float2 offsetPx, float phase) {
     // Drum feed drifts laterally as the sheet travels, so the error varies down the page.
     float2 off = offsetPx;
     off.x += u_wobble * (0.5 * sin(uv.y * 11.0 + phase) + fbm(float2(uv.y * 5.0, phase)) - 0.5);
@@ -272,8 +463,47 @@ float2 inkSample(float2 uv, float2 offsetPx, float3 sepRow, float phase) {
 
     // How much darker than bare paper this pixel is, per channel. Lighter than paper reads as
     // no ink at all — a press cannot print white.
-    float3 density = -log(clamp(rgb / u_paper, u_minTransmittance, 1.0));
-    return float2(clamp(dot(sepRow, density), 0.0, 1.0) * alpha, alpha);
+    return float4(-log(clamp(rgb / u_paper, u_minTransmittance, 1.0)), alpha);
+}
+
+/**
+ * How much of drum [slot] a sampled density calls for.
+ *
+ * The density picks out the wedge of the rack its hue falls in, and that wedge's three drums print
+ * it exactly between them — so a drum outside the wedge stays in the rack rather than taking a thin
+ * share of a colour it has no business in. [sepRow] is the least-squares fallback, used when the
+ * rack is too small or too collinear to fan out.
+ */
+float inkCoverage(int slot, float3 density, float3 sepRow) {
+    float total = density.x + density.y + density.z;
+    if (total <= 0.0001) return 0.0;
+    if (u_wedgeCount < 1.0) return clamp(dot(sepRow, density), 0.0, 1.0);
+
+    float2 hue = density.xy / total - u_fanAnchor;
+    float angle = mod(atan(hue.y, hue.x) - u_fanBase, 2.0 * PI);
+
+    // Wedges ascend from zero, so the last one starting at or before this hue is the one it is in.
+    float4 wedge = u_wedge[0];
+    float3 row0 = u_wedgeRow0[0].xyz;
+    float3 row1 = u_wedgeRow1[0].xyz;
+    float3 row2 = u_wedgeRow2[0].xyz;
+    for (int w = 1; w < $inkCapacity; w++) {
+        if (float(w) >= u_wedgeCount) break;
+        if (u_wedge[w].w <= angle) {
+            wedge = u_wedge[w];
+            row0 = u_wedgeRow0[w].xyz;
+            row1 = u_wedgeRow1[w].xyz;
+            row2 = u_wedgeRow2[w].xyz;
+        }
+    }
+
+    float3 row = float3(0.0);
+    if (slot == int(wedge.x)) row = row0;
+    else if (slot == int(wedge.y)) row = row1;
+    else if (slot == int(wedge.z)) row = row2;
+    else return 0.0;
+
+    return clamp(dot(row, density), 0.0, 1.0);
 }
 
 /** The blotchiness and speckle of ink actually laid down on paper. */
@@ -309,35 +539,55 @@ float inkPass(float coverage, float2 fragCoord, float angle, float phase) {
 }
 
 half4 main(float2 fragCoord) {
+    // A bypassed region is a window onto the layer: its pixels are fetched 1:1 and handed back
+    // untouched, so content that must not be separated survives the press exactly. Well inside one
+    // there is no print to compute at all.
+    float bypass = bypassMask(fragCoord);
+    half4 source = u_image.eval(fragCoord);
+    if (bypass >= 1.0) return source;
+
     float2 uv = fragCoord / u_resolution;
 
-    // Unused drums are skipped rather than sampled: their separation row is zeroed, so they would
-    // contribute nothing anyway.
-    float2 sample0 = inkSample(uv, u_offset0, u_sep0, u_seed);
-    float2 sample1 = float2(0.0);
-    float2 sample2 = float2(0.0);
-    if (u_inkCount > 1.5) sample1 = inkSample(uv, u_offset1, u_sep1, u_seed + 13.7);
-    if (u_inkCount > 2.5) sample2 = inkSample(uv, u_offset2, u_sep2, u_seed + 27.1);
-
-    float c0 = inkPass(sample0.x, fragCoord, u_angle0, u_seed);
-    float c1 = inkPass(sample1.x, fragCoord, u_angle1, u_seed + 41.3);
-    float c2 = inkPass(sample2.x, fragCoord, u_angle2, u_seed + 63.9);
-
     // Stacked ink: the passes multiply, so overlaps go dark.
-    float3 stacked = u_paper
-        * mix(float3(1.0), u_ink0, c0)
-        * mix(float3(1.0), u_ink1, c1)
-        * mix(float3(1.0), u_ink2, c2);
-
+    float3 stacked = u_paper;
     // Juxtaposed ink: dots land side by side rather than on top of each other, so an overlap
-    // averages the inks instead of subtracting once per pass.
-    float total = c0 + c1 + c2;
+    // averages the inks instead of subtracting once per pass. Accumulated as a coverage-weighted
+    // sum of the inks, divided through once the run of drums is done.
+    float3 mixed = float3(0.0);
+    float total = 0.0;
+    float opacity = 0.0;
+
+    // Drums past the count are skipped rather than sampled: each one costs a content fetch, and
+    // their zeroed separation rows would contribute nothing anyway. Of the ones that do run, only
+    // the two or three the colour separates onto get as far as the screen and the grain — inkPass()
+    // drops out at zero coverage, which is what keeps a full rack affordable.
+    for (int i = 0; i < $inkCapacity; i++) {
+        if (float(i) >= u_inkCount) break;
+
+        // Each drum lays down its own noise field, so the mottling of one pass does not line up
+        // with the next.
+        float phase = u_seed + float(i) * 13.7;
+        float3 ink = u_ink[i].xyz;
+        float4 pass = u_pass[i];
+
+        float4 sampled = inkSample(uv, pass.xy, phase);
+        float laid = inkCoverage(i, sampled.xyz, u_sep[i].xyz) * sampled.w;
+        float coverage = inkPass(laid, fragCoord, pass.z, phase + 41.3);
+
+        stacked *= mix(float3(1.0), ink, coverage);
+        mixed += coverage * ink;
+        total += coverage;
+        opacity = max(opacity, sampled.w);
+    }
+
     float3 juxtaposed = total > 0.001
-        ? mix(u_paper, (c0 * u_ink0 + c1 * u_ink1 + c2 * u_ink2) / total, min(total, 1.0))
+        ? mix(u_paper, mixed / total, min(total, 1.0))
         : u_paper;
 
     float3 color = mix(stacked, juxtaposed, u_overprint);
-    float opacity = max(sample0.y, max(sample1.y, sample2.y));
-    return half4(half3(color * opacity), half(opacity));
+    half4 printed = half4(half3(color * opacity), half(opacity));
+
+    // Only the region's antialiased edge reaches here; both sides are premultiplied, so they mix.
+    return mix(printed, source, half(bypass));
 }
 """.trimIndent()

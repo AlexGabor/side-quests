@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -29,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -39,40 +43,35 @@ import androidx.compose.ui.unit.sp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.NamedInk
 import com.alexgabor.design.riso.attributes.RisoColors
+import com.alexgabor.design.riso.bypass.risoBypass
 import com.alexgabor.design.riso.paper.paperTexture
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.roundToInt
-
-private data class Registration(val offsetX: Float, val offsetY: Float, val screenAngle: Float)
-
-/** Registration error and screen angle each drum starts with, by printing order. */
-private val defaultRegistration = listOf(
-    Registration(-1.2f, 0.8f, 15f),
-    Registration(0.9f, -0.5f, 75f),
-    Registration(0.4f, 1.1f, 45f),
-)
+import kotlin.math.sin
 
 /** Keeps a drum's registration when only its colour changes; defaults it when one is added. */
-private fun inkForSlot(slot: Int, color: Color, existing: RisoInk?): RisoInk {
-    val default = defaultRegistration[slot]
-    return existing?.copy(color = color)
-        ?: RisoInk(color, default.offsetX, default.offsetY, default.screenAngle)
-}
+private fun inkForSlot(slot: Int, color: Color, existing: RisoInk?): RisoInk =
+    existing?.copy(color = color) ?: risoInkForSlot(slot, color)
 
 /** Tint steps down each axis of the mixer grid, as on a press's tint scale. */
 private const val GRID_STEPS = 10
 
-/** How far each Venn circle sits from the cluster's centre, in radii. */
+/** How far two neighbouring Venn circles sit apart, in radii. */
 private const val VENN_SPREAD = 0.62f
 
+/** The first three drums are the ones the mixer grid ramps against; the rest only show in the Venn. */
+private const val GRID_INKS = 3
+
 /**
- * Playground for [risoPrint]: pick up to [MAX_INKS] of the RISO inks and see how they mix, over a
+ * Playground for [risoPrint]: load any of the RISO inks onto the press and see how they mix, over a
  * full set of controls for the press itself.
  */
 @Composable
 private fun RisoPrintDemo(modifier: Modifier = Modifier) {
     val palette = RisoColors.inks.all
-    var selected by remember { mutableStateOf(listOf(0, 7)) }
+    var selected by remember { mutableStateOf(palette.indices.toList()) }
     var params by remember {
         mutableStateOf(
             RisoPrintParams(
@@ -91,11 +90,7 @@ private fun RisoPrintDemo(modifier: Modifier = Modifier) {
     }
 
     fun select(paletteIndex: Int) {
-        val next = when {
-            paletteIndex in selected -> selected - paletteIndex
-            selected.size < MAX_INKS -> selected + paletteIndex
-            else -> return
-        }
+        val next = if (paletteIndex in selected) selected - paletteIndex else selected + paletteIndex
         // At least one drum has to be loaded for there to be a print at all.
         if (next.isEmpty()) return
         params = params.copy(
@@ -120,7 +115,7 @@ private fun RisoPrintDemo(modifier: Modifier = Modifier) {
         // Deliberately outside the print: a swatch has to show the ink you are about to load, and
         // a press that is not carrying yellow renders the yellow swatch as whatever it can hit.
         Column(Modifier.padding(horizontal = 16.dp)) {
-            SectionTitle("Inks — pick up to $MAX_INKS")
+            SectionTitle("Inks — one drum, one pass each")
             InkPicker(palette, selected, ::select)
         }
 
@@ -227,17 +222,21 @@ private fun InkPicker(
 }
 
 /**
- * The standard riso colour mixer: a Venn of the selected inks at full coverage, beside a grid of
+ * The standard riso colour mixer: a Venn of the loaded inks at full coverage, beside a grid of
  * every tint combination — ink 1 falling across the columns, ink 2 falling and ink 3 rising down
- * the rows.
+ * the rows. A press can carry more drums than that, but a chart only has two axes, so the grid
+ * ramps the first [GRID_INKS] and leaves the rest to the Venn.
  *
  * Every patch is authored with [risoOverprint], which is the exact inverse of the shader's
- * separation, so a cell labelled 60/40 really does come back off the press as 60% of one drum and
- * 40% of the other. Eyeballing a blend instead would separate into something else entirely.
+ * separation, so a cell labelled 60/40 really does come back off the press as the colour 60% of one
+ * drum and 40% of the other makes. Eyeballing a blend instead would print something else entirely.
+ * With a long rack loaded the press may reach for other drums to make that colour — see
+ * [risoOverprint] — which is visible here as a patch printing in a screen angle you did not pick.
  */
 @Composable
 private fun ColorMixerChart(params: RisoPrintParams) {
-    val inks = params.inks.take(MAX_INKS)
+    val inks = params.inks
+    val gridInks = inks.take(GRID_INKS).map { it.color }
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 7.sp)
 
@@ -256,9 +255,10 @@ private fun ColorMixerChart(params: RisoPrintParams) {
         // --- Venn: one circle per ink, multiplied together so the overlaps overprint ---
         val vennWidth = gridLeft - gutter - margin
         val vennCenter = Offset(margin + vennWidth / 2f, size.height / 2f)
-        // Circles sit VENN_SPREAD radii off centre, so the cluster spans 2 * (1 + spread) radii.
-        val radius = min(vennWidth, size.height - 2 * margin) / (2f * (1f + VENN_SPREAD))
-        vennCenters(inks.size, vennCenter, radius * VENN_SPREAD).forEachIndexed { index, center ->
+        // Circles sit `spread` radii off centre, so the cluster spans 2 * (1 + spread) radii.
+        val spread = vennSpread(inks.size)
+        val radius = min(vennWidth, size.height - 2 * margin) / (2f * (1f + spread))
+        vennCenters(inks.size, vennCenter, radius * spread).forEachIndexed { index, center ->
             drawCircle(
                 color = inks[index].color,
                 radius = radius,
@@ -277,7 +277,7 @@ private fun ColorMixerChart(params: RisoPrintParams) {
                     (row + 1) / GRID_STEPS.toFloat(),
                 )
                 drawRect(
-                    color = risoOverprint(params.paper, inks.map { it.color }, coverages),
+                    color = risoOverprint(params.paper, gridInks, coverages),
                     topLeft = Offset(gridLeft + column * cell, gridTop + row * cell),
                     // Overdraw by a hair: exact edges leave paper-coloured seams between cells.
                     size = Size(cell + 1f, cell + 1f),
@@ -312,18 +312,55 @@ private fun ColorMixerChart(params: RisoPrintParams) {
     }
 }
 
-/** Circle centres for a 1-, 2- or 3-way Venn, spread [spread] from [center]. */
+/**
+ * How far each Venn circle sits from the cluster's centre, in radii.
+ *
+ * Three circles or more sit on a ring, sized so that neighbours always overlap by the same amount
+ * however many there are: the ring grows as drums are added instead of the circles piling up.
+ */
+private fun vennSpread(count: Int): Float = when {
+    count <= 1 -> 0f
+    count == 2 -> VENN_SPREAD
+    else -> VENN_SPREAD / sin(PI.toFloat() / count)
+}
+
+/** Circle centres for a [count]-way Venn, [spread] out from [center] and starting at the top. */
 private fun vennCenters(count: Int, center: Offset, spread: Float): List<Offset> = when (count) {
     1 -> listOf(center)
     2 -> listOf(
         center.copy(x = center.x - spread),
         center.copy(x = center.x + spread),
     )
-    else -> listOf(
-        Offset(center.x, center.y - spread),
-        Offset(center.x - spread * 0.87f, center.y + spread * 0.5f),
-        Offset(center.x + spread * 0.87f, center.y + spread * 0.5f),
-    )
+    else -> List(count) { index ->
+        val angle = -PI.toFloat() / 2f + 2f * PI.toFloat() * index / count
+        Offset(center.x + spread * cos(angle), center.y + spread * sin(angle))
+    }
+}
+
+/**
+ * The same full-spectrum swatch printed and bypassed, side by side. The printed one is projected
+ * onto whichever inks are loaded and picks up the grain, screen and registration error of the pass;
+ * the bypassed one comes through the press untouched, as a tipped-in photograph would.
+ */
+@Composable
+private fun BypassComparison() {
+    val spectrum = Brush.horizontalGradient(RisoColors.inks.all.map { it.color })
+
+    @Composable
+    fun Swatch(label: String, modifier: Modifier) {
+        Column(Modifier.width(120.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(modifier.fillMaxWidth().height(48.dp).background(spectrum, RoundedCornerShape(8.dp)))
+            Text(text = label, style = MaterialTheme.typography.labelSmall)
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+    ) {
+        Swatch("printed", Modifier)
+        Swatch("risoBypass", Modifier.risoBypass(cornerRadius = 8.dp))
+    }
 }
 
 /** Type set in each ink, where misregistration is most visible. */
@@ -354,6 +391,7 @@ private fun TypeArtwork(params: RisoPrintParams) {
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             textAlign = TextAlign.Center,
         )
+        BypassComparison()
     }
 }
 

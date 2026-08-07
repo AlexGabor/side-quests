@@ -1,12 +1,23 @@
 package com.alexgabor.design.riso.print
 
 import androidx.compose.ui.graphics.Color
+import kotlin.math.cos
 import kotlin.math.pow
+import kotlin.math.sin
 
 /**
- * The number of drums the shader runs. Inks past this many in [RisoPrintParams.inks] are ignored.
+ * The drum a press would load in slot [slot], carrying [color].
+ *
+ * No two presses register alike, so the error is spun around the slot index rather than tabulated:
+ * each drum lands about a dp off in its own direction, and successive screen angles sit far enough
+ * apart that neighbouring passes do not moire.
  */
-const val MAX_INKS = 3
+fun risoInkForSlot(slot: Int, color: Color): RisoInk = RisoInk(
+    color = color,
+    offsetX = 1.2f * cos(slot * 2.4f),
+    offsetY = 1.2f * sin(slot * 2.4f),
+    screenAngle = (15f + slot * 37.5f) % 90f,
+)
 
 /**
  * Lower bound on a transmittance. A channel that transmits nothing has infinite optical density, so
@@ -24,12 +35,17 @@ internal const val MIN_TRANSMITTANCE = 0.02f
  * an ink transmits `ink^c` (Beer-Lambert), and the colour to author is the paper seen through all
  * of them. Use it for tint ramps and overprint charts, where eyeballing a blend would land on a
  * colour that separates back into something else entirely.
+ *
+ * The colour always comes back off the press as authored. Which drums print it is another matter:
+ * one ink, or the black drum with one other, separate back onto exactly the drums given here, but a
+ * mix of two inks far apart on the colour wheel is indistinguishable from a mix of the inks that sit
+ * between them, and the press will reach for whichever of the two it can print in one wedge.
  */
 fun risoOverprint(paper: Color = Color(0x00FFFFFF), inks: List<Color>, coverages: List<Float>): Color {
     var red = paper.red
     var green = paper.green
     var blue = paper.blue
-    inks.take(MAX_INKS).forEachIndexed { index, ink ->
+    inks.forEachIndexed { index, ink ->
         val coverage = coverages.getOrElse(index) { 0f }.coerceIn(0f, 1f)
         if (coverage > 0f) {
             red *= ink.red.coerceAtLeast(MIN_TRANSMITTANCE).pow(coverage)
