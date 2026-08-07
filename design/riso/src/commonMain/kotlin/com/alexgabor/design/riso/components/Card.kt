@@ -22,7 +22,7 @@ fun Card(
     Box(
         modifier = modifier
             .border(
-                width = RisoTheme.dimens.lineWidth,
+                width = RisoTheme.dimens.lineWidth * if (selected) 2 else 1,
                 color = animatedColor,
                 shape = RisoTheme.shapes.standardShape,
             ),
