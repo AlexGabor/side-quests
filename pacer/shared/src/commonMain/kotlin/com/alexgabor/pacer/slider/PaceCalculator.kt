@@ -1,9 +1,14 @@
 package com.alexgabor.pacer.slider
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.Checkbox
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -14,10 +19,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Text
+import com.alexgabor.design.riso.components.Card
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 
@@ -79,6 +85,24 @@ class PaceCalculatorState(
             seconds = totalSeconds % 60,
         )
     }
+
+    val displayedDistance: String by derivedStateOf {
+        val km = distanceSliderState.selectedDistance.kilometers
+        val fraction = String.format("%02d", distanceSliderState.selectedDistance.fraction)
+        "$km.$fraction"
+    }
+
+    val displayedPace: String by derivedStateOf {
+        val minutes = paceSliderState.selectedPace.minutes
+        val seconds = String.format("%02d", paceSliderState.selectedPace.seconds)
+        "$minutes:$seconds"
+    }
+
+    val displayedTime: String by derivedStateOf {
+        val minutes = String.format("%02d", timeSliderState.selectedTime.minutes)
+        val seconds = String.format("%02d", timeSliderState.selectedTime.seconds)
+        "${timeSliderState.selectedTime.hours}:$minutes:$seconds"
+    }
 }
 
 @Composable
@@ -123,53 +147,84 @@ fun PaceCalculator(
             .collectLatest { timeState.animateToTime(it) }
     }
 
-    Column(modifier.background(Color.White)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = state.selectedMetric == Metric.Distance,
-                onCheckedChange = { state.selectedMetric = Metric.Distance }
-            )
-            Text(
-                text = "Distance ${distanceState.selectedDistance.kilometers}.${distanceState.selectedDistance.fraction}",
-                textStyle = RisoTheme.typography.heading3,
-            )
-        }
-        DistanceSlider(
-            state = distanceState
-        )
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(vertical = RisoTheme.dimens.screenPadding)
+        ) {
+            item("time") {
+                Card(
+                    selected = state.selectedMetric == Metric.Time,
+                    modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
+                        .clickable(onClick = { state.selectedMetric = Metric.Time })
+                ) {
+                    Column {
+                        Text(
+                            text = "Time = ${state.displayedTime}",
+                            textStyle = RisoTheme.typography.heading3,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                                .padding(top = 16.dp)
+                        )
+                        TimeSlider(
+                            state = timeState,
+                            userScrollEnabled = state.selectedMetric != Metric.Time
+                        )
+                    }
+                }
+            }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = state.selectedMetric == Metric.Pace,
-                onCheckedChange = { state.selectedMetric = Metric.Pace }
-            )
-            Text(
-                text = "Pace ${paceState.selectedPace.minutes}:${paceState.selectedPace.seconds}",
-                textStyle = RisoTheme.typography.heading3,
-            )
-        }
-        PaceSlider(
-            state = paceState
-        )
+            item("distance") {
+                Card(
+                    selected = state.selectedMetric == Metric.Distance,
+                    modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
+                        .clickable(onClick = { state.selectedMetric = Metric.Distance })
+                ) {
+                    Column {
+                        Text(
+                            text = "Distance = ${state.displayedDistance}",
+                            textStyle = RisoTheme.typography.heading3,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                                .padding(top = 16.dp, bottom = 16.dp)
+                        )
+                        DistanceSlider(
+                            state = distanceState,
+                            userScrollEnabled = state.selectedMetric != Metric.Distance
+                        )
+                    }
+                }
+            }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = state.selectedMetric == Metric.Time,
-                onCheckedChange = { state.selectedMetric = Metric.Time }
-            )
-            Text(
-                text = "Time ${timeState.selectedTime.hours}:${timeState.selectedTime.minutes}:${timeState.selectedTime.seconds}",
-                textStyle = RisoTheme.typography.heading3,
-            )
+            item("pace") {
+                Card(
+                    selected = state.selectedMetric == Metric.Pace,
+                    modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
+                        .clickable(onClick = { state.selectedMetric = Metric.Pace })
+                ) {
+                    Column {
+                        Text(
+                            text = "Pace = ${state.displayedPace}",
+                            textStyle = RisoTheme.typography.heading3,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                                .padding(top = 16.dp, bottom = 16.dp)
+                        )
+                        PaceSlider(
+                            state = paceState,
+                            userScrollEnabled = state.selectedMetric != Metric.Pace
+                        )
+                    }
+                }
+            }
         }
-        TimeSlider(
-            state = timeState
-        )
     }
 }
 
 @Preview
 @Composable
 private fun PaceCalculatorPreview() {
-    PaceCalculator()
+    RisoTheme {
+        PaceCalculator(Modifier.background(RisoTheme.colors.paper))
+    }
 }

@@ -14,8 +14,10 @@ import com.alexgabor.pacer.slider.PaceCalculator
 fun App() {
     RisoTheme {
         PaceCalculator(
-            modifier = Modifier.safeDrawingPadding()
+            modifier = Modifier
                 .paperTexture()
-                .risoPrint())
+                .risoPrint()
+                .safeDrawingPadding()
+        )
     }
 }

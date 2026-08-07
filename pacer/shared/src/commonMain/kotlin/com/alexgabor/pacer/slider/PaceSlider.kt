@@ -66,13 +66,15 @@ class PaceSliderState(
 @Composable
 fun PaceSlider(
     modifier: Modifier = Modifier,
+    userScrollEnabled: Boolean = true,
     state: PaceSliderState = rememberPaceSliderState(),
 ) {
     Column(modifier) {
         Track(
             state = state.minuteTrackState,
             itemSize = 100.dp,
-            modifier = Modifier,
+            showGuidelineDot = true,
+            userScrollEnabled = userScrollEnabled,
             itemContent = { item, _ ->
                 Text(
                     text = item.toString(),
@@ -84,7 +86,7 @@ fun PaceSlider(
             state = state.secondTrackState,
             itemSize = 200.dp,
             trackAlignment = TrackAlignment.Top,
-            modifier = Modifier,
+            userScrollEnabled = userScrollEnabled,
             itemContent = { item, subdivision ->
                 Text(
                     text = String.format("%02d", item + subdivision),

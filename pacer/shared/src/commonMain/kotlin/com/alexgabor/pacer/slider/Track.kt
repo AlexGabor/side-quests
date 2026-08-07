@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Text
+import jdk.jfr.Enabled
 import kotlin.math.roundToInt
 
 private val verticalPadding = 16.dp
@@ -52,7 +53,9 @@ fun <T> Track(
     itemSize: Dp = 200.dp,
     trackAlignment: TrackAlignment = TrackAlignment.Bottom,
     firstGuideline: Dp = 64.dp,
-    tickUnit: Dp = 20.dp,
+    showGuidelineDot: Boolean = false,
+    userScrollEnabled: Boolean = true,
+    tickUnit: Dp = 10.dp,
     itemContent: @Composable (item: T, subdivision: Int) -> Unit = { item, subdivision ->
         Text(text = "$item.$subdivision", textStyle = RisoTheme.typography.body)
     },
@@ -84,9 +87,10 @@ fun <T> Track(
                 itemSizePx = state.itemSizePx,
                 subdivision = state.subdivisions
             ),
+            userScrollEnabled = userScrollEnabled,
             modifier = Modifier.fillMaxWidth().drawBehind {
-                if (trackAlignment == TrackAlignment.Bottom) {
-                    guidelineCircle(lineColor, firstGuideline)
+                if (showGuidelineDot) {
+                    guidelineCircle(lineColor, firstGuideline, trackAlignment)
                 }
             }
         ) {
@@ -133,7 +137,6 @@ fun <T> Track(
                 .graphicsLayer {
                     translationX = -size.width / 2f
                 }
-                .background(Color.White)
         ) {
             itemContent(state.selectedItem, state.selectedSubdivision)
         }
@@ -187,6 +190,12 @@ private fun DrawScope.bottomRulerLines(
                 strokeWidth = strokeWidth
             )
         }
+        drawLine(
+            color = lineColor,
+            start = Offset(0f, size.height + verticalPadding.toPx()),
+            end = Offset(size.width, size.height + verticalPadding.toPx()),
+            strokeWidth = strokeWidth / 2
+        )
     }
 }
 
@@ -214,39 +223,61 @@ private fun DrawScope.topRulerLines(
                 strokeWidth = strokeWidth
             )
         }
+        drawLine(
+            color = lineColor,
+            start = Offset(0f, -verticalPadding.toPx()),
+            end = Offset(size.width, -verticalPadding.toPx()),
+            strokeWidth = strokeWidth / 2
+        )
     }
 }
 
 private fun DrawScope.guidelineCircle(
     lineColor: Color,
     firstGuideline: Dp,
+    trackAlignment: TrackAlignment,
 ) {
-    drawCircle(
-        color = lineColor,
-        radius = 4.dp.toPx(),
-        center = Offset(firstGuideline.toPx().roundToInt().toFloat(), 8.dp.toPx())
-    )
+    when (trackAlignment) {
+        TrackAlignment.Bottom -> {
+            drawCircle(
+                color = lineColor,
+                radius = 4.dp.toPx(),
+                center = Offset(firstGuideline.toPx().roundToInt().toFloat(), 8.dp.toPx())
+            )
+        }
+        TrackAlignment.Top -> {
+            drawCircle(
+                color = lineColor,
+                radius = 4.dp.toPx(),
+                center = Offset(firstGuideline.toPx().roundToInt().toFloat(), size.height - 8.dp.toPx())
+            )
+        }
+    }
 }
 
 
 @Preview
 @Composable
 private fun TrackPreview() {
-    Column(Modifier.background(Color.White)) {
+    Column(Modifier.background(RisoTheme.colors.paper)) {
         Track(
             state = rememberTrackState((1..30).toList(), 1, rememberLazyListState()),
-            itemSize = 100.dp
+            itemSize = 100.dp,
+            showGuidelineDot = true,
         )
         Track(
             state = rememberTrackState((1..30).toList(), 5, rememberLazyListState()),
+            showGuidelineDot = true,
         )
         Track(
             state = rememberTrackState((1..30).toList(), 11, rememberLazyListState()),
+            showGuidelineDot = true,
         )
         Track(
             state = rememberTrackState((1..30).toList(), 11, rememberLazyListState()),
             trackAlignment = TrackAlignment.Top,
-            itemSize = 100.dp
+            itemSize = 100.dp,
+            showGuidelineDot = true,
         )
     }
 }

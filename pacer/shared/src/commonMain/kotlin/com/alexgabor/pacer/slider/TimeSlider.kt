@@ -2,6 +2,7 @@ package com.alexgabor.pacer.slider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -74,14 +75,16 @@ class TimeSliderState(
 @Composable
 fun TimeSlider(
     modifier: Modifier = Modifier,
+    userScrollEnabled: Boolean = true,
     state: TimeSliderState = rememberTimeSliderState(),
 ) {
     Column(modifier) {
         Track(
             state = state.hourTrackState,
-            itemSize = 200.dp,
-            trackAlignment = TrackAlignment.Top,
-            modifier = Modifier,
+            itemSize = 150.dp,
+            trackAlignment = TrackAlignment.Bottom,
+            modifier = Modifier.padding(bottom = 8.dp),
+            userScrollEnabled = userScrollEnabled,
             itemContent = { item, _ ->
                 Text(
                     text = item.toString(),
@@ -92,7 +95,8 @@ fun TimeSlider(
         Track(
             state = state.minuteTrackState,
             itemSize = 100.dp,
-            modifier = Modifier,
+            showGuidelineDot = true,
+            userScrollEnabled = userScrollEnabled,
             itemContent = { item, _ ->
                 Text(
                     text = item.toString(),
@@ -104,7 +108,7 @@ fun TimeSlider(
             state = state.secondTrackState,
             itemSize = 100.dp,
             trackAlignment = TrackAlignment.Top,
-            modifier = Modifier,
+            userScrollEnabled = userScrollEnabled,
             itemContent = { item, subdivision ->
                 Text(
                     text = String.format("%02d", item + subdivision),
