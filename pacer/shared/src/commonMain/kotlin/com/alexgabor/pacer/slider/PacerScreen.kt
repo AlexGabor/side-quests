@@ -30,7 +30,6 @@ fun PacerScreen(
             modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
         )
 
-
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.BottomCenter,

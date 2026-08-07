@@ -13,4 +13,5 @@ val RisoShapes = Shapes()
 @Immutable
 data class Shapes(
     val standardShape: RoundedCornerShape = RoundedCornerShape(12.dp),
+    val pillShape: RoundedCornerShape = RoundedCornerShape(percent = 50),
 )

@@ -7,13 +7,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.paper.paperTexture
 import com.alexgabor.design.riso.print.risoPrint
-import com.alexgabor.pacer.slider.PaceCalculator
+import com.alexgabor.pacer.slider.PacerScreen
 
 @Composable
 @Preview
 fun App() {
     RisoTheme {
-        PaceCalculator(
+        PacerScreen(
             modifier = Modifier
                 .paperTexture()
                 .risoPrint()

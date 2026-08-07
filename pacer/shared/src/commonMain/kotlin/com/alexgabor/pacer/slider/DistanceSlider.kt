@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun rememberDistanceSliderState(): DistanceSliderState {
-    val kilometerTrackState: TrackSate<Int> = rememberTrackState(
+    val wholeTrackState: TrackSate<Int> = rememberTrackState(
         trackItems = (0..800).toList(),
         subdivision = 1,
         listState = rememberLazyListState(initialFirstVisibleItemIndex = 42)
@@ -27,13 +27,13 @@ fun rememberDistanceSliderState(): DistanceSliderState {
         subdivision = 5,
         listState = rememberLazyListState(initialFirstVisibleItemIndex = 4)
     )
-    return remember(kilometerTrackState, fractionTrackState) {
-        DistanceSliderState(kilometerTrackState, fractionTrackState)
+    return remember(wholeTrackState, fractionTrackState) {
+        DistanceSliderState(wholeTrackState, fractionTrackState)
     }
 }
 
 data class Distance(
-    val kilometers: Int,
+    val whole: Int,
     val fraction: Int,
 )
 
@@ -42,10 +42,10 @@ class DistanceSliderState(
     internal val fractionTrackState: TrackSate<Int>,
 ) {
     val selectedDistance by derivedStateOf {
-        val kilometers = kilometerTrackState.selectedItem + kilometerTrackState.selectedSubdivision
+        val whole = kilometerTrackState.selectedItem + kilometerTrackState.selectedSubdivision
         val fraction = fractionTrackState.selectedItem + fractionTrackState.selectedSubdivision
         Distance(
-            kilometers = kilometers + fraction / 100,
+            whole = whole + fraction / 100,
             fraction = fraction % 100,
         )
     }
@@ -53,7 +53,7 @@ class DistanceSliderState(
     suspend fun animateToDistance(distance: Distance) {
         coroutineScope {
             launch {
-                kilometerTrackState.animateToIndex(distance.kilometers)
+                kilometerTrackState.animateToIndex(distance.whole)
             }
             launch {
                 fractionTrackState.animateToIndex(distance.fraction / 5, distance.fraction % 5)
@@ -95,7 +95,7 @@ fun DistanceSlider(
 private fun DistanceSliderPreview() {
     Column(Modifier.background(Color.White)) {
         val distanceState = rememberDistanceSliderState()
-        Body("Distance ${distanceState.selectedDistance.kilometers}.${distanceState.selectedDistance.fraction}")
+        Body("Distance ${distanceState.selectedDistance.whole}.${distanceState.selectedDistance.fraction}")
         DistanceSlider(
             state = distanceState
         )

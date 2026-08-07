@@ -3,8 +3,10 @@ package com.alexgabor.pacer.slider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
@@ -13,27 +15,47 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Heading3
+import com.alexgabor.design.riso.components.ButtonGroup
+import com.alexgabor.design.riso.components.ButtonGroupItem
 import com.alexgabor.design.riso.components.Card
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 enum class Metric {
     Distance, Pace, Time
 }
 
+enum class DistanceUnit(override val text: String) : ButtonGroupItem {
+    Kilometers("km"),
+    Miles("mi");
+
+    val paceText: String get() = "min/$text"
+}
+
+private const val KILOMETERS_PER_MILE = 1.609344
+
 class PaceCalculatorState(
     val distanceSliderState: DistanceSliderState,
     val paceSliderState: PaceSliderState,
     val timeSliderState: TimeSliderState,
+    val coroutineScope: CoroutineScope,
 ) {
     var selectedMetric by mutableStateOf(Metric.Pace)
+
+    var selectedUnit by mutableStateOf(DistanceUnit.Kilometers)
+        private set
 
     val computedDistance: Distance? by derivedStateOf {
         if (selectedMetric != Metric.Distance) return@derivedStateOf null
@@ -46,7 +68,7 @@ class PaceCalculatorState(
 
         val hundredths = totalSeconds * 100 / paceSecondsPerKilometer
         Distance(
-            kilometers = hundredths / 100,
+            whole = hundredths / 100,
             fraction = hundredths % 100,
         )
     }
@@ -57,7 +79,7 @@ class PaceCalculatorState(
         val distance = distanceSliderState.selectedDistance
 
         val totalSeconds = time.hours * 3600 + time.minutes * 60 + time.seconds
-        val hundredths = distance.kilometers * 100 + distance.fraction
+        val hundredths = distance.whole * 100 + distance.fraction
         if (hundredths <= 0) return@derivedStateOf null
 
         val paceSecondsPerKilometer = totalSeconds * 100 / hundredths
@@ -72,7 +94,7 @@ class PaceCalculatorState(
         val distance = distanceSliderState.selectedDistance
         val pace = paceSliderState.selectedPace
 
-        val hundredths = distance.kilometers * 100 + distance.fraction
+        val hundredths = distance.whole * 100 + distance.fraction
         val paceSecondsPerKilometer = pace.minutes * 60 + pace.seconds
 
         val totalSeconds = hundredths * paceSecondsPerKilometer / 100
@@ -84,15 +106,59 @@ class PaceCalculatorState(
     }
 
     val displayedDistance: String by derivedStateOf {
-        val km = distanceSliderState.selectedDistance.kilometers
+        val whole = distanceSliderState.selectedDistance.whole
         val fraction = String.format("%02d", distanceSliderState.selectedDistance.fraction)
-        "$km.$fraction km"
+        "$whole.$fraction ${selectedUnit.text}"
     }
 
     val displayedPace: String by derivedStateOf {
         val minutes = paceSliderState.selectedPace.minutes
         val seconds = String.format("%02d", paceSliderState.selectedPace.seconds)
-        "$minutes:$seconds min/km"
+        "$minutes:$seconds ${selectedUnit.paceText}"
+    }
+
+    /**
+     * Distance and pace are only ever "per unit" — the sliders carry no unit of their own — so a
+     * change of unit is a change of the numbers on them, not just of the labels. Converting both
+     * leaves the time, and therefore the run being described, untouched.
+     */
+    fun selectUnit(unit: DistanceUnit) {
+        if (unit == selectedUnit) return
+        val toKilometers = unit == DistanceUnit.Kilometers
+
+        val distance = distanceSliderState.selectedDistance
+        val hundredths = distance.whole * 100 + distance.fraction
+        val converted = if (toKilometers) {
+            (hundredths * KILOMETERS_PER_MILE).roundToInt()
+        } else {
+            (hundredths / KILOMETERS_PER_MILE).roundToInt()
+        }
+
+        val pace = paceSliderState.selectedPace
+        val paceSeconds = pace.minutes * 60 + pace.seconds
+        val convertedPaceSeconds = if (toKilometers) {
+            (paceSeconds / KILOMETERS_PER_MILE).roundToInt()
+        } else {
+            (paceSeconds * KILOMETERS_PER_MILE).roundToInt()
+        }
+
+        selectedUnit = unit
+        coroutineScope.launch {
+            distanceSliderState.animateToDistance(
+                Distance(
+                    whole = converted / 100,
+                    fraction = converted % 100,
+                )
+            )
+        }
+        coroutineScope.launch {
+            paceSliderState.animateToPace(
+                Pace(
+                    minutes = convertedPaceSeconds / 60,
+                    seconds = convertedPaceSeconds % 60,
+                )
+            )
+        }
     }
 
     val displayedTime: String by derivedStateOf {
@@ -107,12 +173,14 @@ fun rememberPaceCalculatorState(): PaceCalculatorState {
     val distanceState = rememberDistanceSliderState()
     val paceState = rememberPaceSliderState()
     val timeState = rememberTimeSliderState()
+    val coroutineScope = rememberCoroutineScope()
 
     return remember {
         PaceCalculatorState(
             distanceState,
             paceState,
-            timeState
+            timeState,
+            coroutineScope,
         )
     }
 }
@@ -149,6 +217,19 @@ fun PaceCalculator(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(vertical = RisoTheme.dimens.screenPadding)
     ) {
+        item("unit") {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                ButtonGroup(
+                    selected = state.selectedUnit,
+                    *DistanceUnit.entries.toTypedArray(),
+                    modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding),
+                    onSelect = { state.selectUnit(it) },
+                )
+            }
+        }
         item("time") {
             Card(
                 selected = state.selectedMetric == Metric.Time,
