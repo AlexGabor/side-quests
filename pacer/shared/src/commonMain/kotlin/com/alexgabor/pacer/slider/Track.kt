@@ -1,6 +1,7 @@
 package com.alexgabor.pacer.slider
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -13,30 +14,41 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Text
-import jdk.jfr.Enabled
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import kotlin.time.TimeSource
+import kotlin.time.Duration.Companion.milliseconds
 
 private val verticalPadding = 16.dp
 private val highLineHeight = 10.dp
 private val lowLineHeight = 4.dp
 private val lineWidth = 4.dp
+
+/** A fling crosses ruler lines far faster than the vibrator can play them, so clicks are spaced out. */
+private val minHapticInterval = 24.milliseconds
 
 enum class TrackAlignment {
     Top, Bottom,
@@ -72,6 +84,8 @@ fun <T> Track(
     val subdivisionPx = itemWidthPx.toFloat() / state.subdivisions
     val strokeWidth = with(density) { (lineWidth.toPx() / 2f).roundToInt() * 2f }
     state.itemSizePx = itemWidthPx.toFloat()
+
+    TrackHaptics(state)
 
     BoxWithConstraints(modifier) {
         LazyRow(
@@ -143,6 +157,41 @@ fun <T> Track(
     }
 }
 
+/**
+ * Clicks once for every ruler line that passes the guideline — a firm tick for an item, a lighter
+ * one for a subdivision. Only scrolls the user started click, so a track that another slider is
+ * driving programmatically stays quiet.
+ */
+@Composable
+private fun <T> TrackHaptics(state: TrackSate<T>) {
+    val haptics = LocalHapticFeedback.current
+    var userScrolling by remember(state) { mutableStateOf(false) }
+
+    LaunchedEffect(state, haptics) {
+        launch {
+            state.listState.interactionSource.interactions.collect { interaction ->
+                if (interaction is DragInteraction.Start) userScrolling = true
+            }
+        }
+        launch {
+            // Covers the whole gesture: the drag itself and the fling it hands off to.
+            snapshotFlow { state.listState.isScrollInProgress }
+                .collect { scrolling -> if (!scrolling) userScrolling = false }
+        }
+        var lastClick = TimeSource.Monotonic.markNow() - minHapticInterval
+        snapshotFlow { state.tick }
+            .drop(1)
+            .collect { tick ->
+                if (!userScrolling || lastClick.elapsedNow() < minHapticInterval) return@collect
+                lastClick = TimeSource.Monotonic.markNow()
+                haptics.performHapticFeedback(
+                    if (tick % state.subdivisions == 0) HapticFeedbackType.SegmentTick
+                    else HapticFeedbackType.SegmentFrequentTick
+                )
+            }
+    }
+}
+
 @Composable
 fun <T> rememberTrackState(
     trackItems: List<T>,
@@ -160,6 +209,11 @@ class TrackSate<T>(
     var itemSizePx by mutableFloatStateOf(0f)
     val selectedItem by derivedStateOf { trackItems[listState.firstVisibleItemIndex] }
     val selectedSubdivision by derivedStateOf { (listState.firstVisibleItemScrollOffset / (itemSizePx / subdivisions)).toInt() }
+
+    /** Position of the guideline counted in ruler lines from the start of the track. */
+    internal val tick by derivedStateOf {
+        listState.firstVisibleItemIndex * subdivisions + selectedSubdivision
+    }
 
     suspend fun animateToIndex(index: Int, subdivision: Int = 0) {
         listState.animateScrollToItem(index, subdivision * (itemSizePx / subdivisions).roundToInt())
