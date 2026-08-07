@@ -12,6 +12,8 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -77,6 +79,73 @@ fun Text(
     )
 }
 
+@Composable
+fun Heading1(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    val lineColor = RisoTheme.colors.content
+    val lineWidth = RisoTheme.dimens.lineWidth
+    Text(
+        text = text,
+        textStyle = RisoTheme.typography.heading1,
+        modifier = modifier
+            .drawBehind {
+                drawRect(
+                    color = lineColor,
+                    size = Size(size.width, lineWidth.toPx()),
+                )
+            }
+            .padding(top = RisoTheme.dimens.lineWidth),
+    )
+}
+
+
+@Composable
+fun Heading2(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    val lineColor = RisoTheme.colors.content
+    val lineWidth = RisoTheme.dimens.lineWidth / 2
+    Text(
+        text = text,
+        textStyle = RisoTheme.typography.heading2,
+        modifier = modifier
+            .drawBehind {
+                drawRect(
+                    color = lineColor,
+                    size = Size(size.width, lineWidth.toPx()),
+                )
+            }
+            .padding(top = RisoTheme.dimens.lineWidth),
+    )
+}
+
+@Composable
+fun Heading3(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        textStyle = RisoTheme.typography.heading3,
+        modifier = modifier
+    )
+}
+
+@Composable
+fun Body(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        textStyle = RisoTheme.typography.body,
+        modifier = modifier
+    )
+}
+
 @Preview
 @Composable
 private fun TypographyPreview() {
@@ -95,27 +164,21 @@ private fun TypographyPreview() {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                Text(
-                    text = "Title Large",
-                    textStyle = RisoTheme.typography.heading1,
-                )
+                Heading1(text = "Title Large")
             }
             item {
-                Text(
+                Heading2(
                     text = "Title Medium",
-                    textStyle = RisoTheme.typography.heading2,
                 )
             }
             item {
-                Text(
+                Heading3(
                     text = "Title Small",
-                    textStyle = RisoTheme.typography.heading3,
                 )
             }
             item {
-                Text(
+                Body(
                     text = "Body of text. This is usually pretty long",
-                    textStyle = RisoTheme.typography.body,
                 )
             }
         }

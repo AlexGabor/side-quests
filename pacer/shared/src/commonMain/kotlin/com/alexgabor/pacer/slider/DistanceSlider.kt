@@ -11,8 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.design.riso.attributes.Text
+import com.alexgabor.design.riso.attributes.Body
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
@@ -76,10 +75,7 @@ fun DistanceSlider(
             showGuidelineDot = true,
             userScrollEnabled = userScrollEnabled,
             itemContent = { item, _ ->
-                Text(
-                    text = item.toString(),
-                    textStyle = RisoTheme.typography.body,
-                )
+                Body(item.toString())
             }
         )
         Track(
@@ -88,10 +84,7 @@ fun DistanceSlider(
             trackAlignment = TrackAlignment.Top,
             userScrollEnabled = userScrollEnabled,
             itemContent = { item, subdivision ->
-                Text(
-                    text = String.format("%02d", item + subdivision),
-                    textStyle = RisoTheme.typography.body,
-                )
+                Body(String.format("%02d", item + subdivision))
             }
         )
     }
@@ -102,10 +95,7 @@ fun DistanceSlider(
 private fun DistanceSliderPreview() {
     Column(Modifier.background(Color.White)) {
         val distanceState = rememberDistanceSliderState()
-        Text(
-            text = "Distance ${distanceState.selectedDistance.kilometers}.${distanceState.selectedDistance.fraction}",
-            textStyle = RisoTheme.typography.body,
-        )
+        Body("Distance ${distanceState.selectedDistance.kilometers}.${distanceState.selectedDistance.fraction}")
         DistanceSlider(
             state = distanceState
         )

@@ -12,8 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.design.riso.attributes.Text
+import com.alexgabor.design.riso.attributes.Body
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
@@ -86,10 +85,7 @@ fun TimeSlider(
             modifier = Modifier.padding(bottom = 8.dp),
             userScrollEnabled = userScrollEnabled,
             itemContent = { item, _ ->
-                Text(
-                    text = item.toString(),
-                    textStyle = RisoTheme.typography.body
-                )
+                Body(item.toString())
             }
         )
         Track(
@@ -98,10 +94,7 @@ fun TimeSlider(
             showGuidelineDot = true,
             userScrollEnabled = userScrollEnabled,
             itemContent = { item, _ ->
-                Text(
-                    text = item.toString(),
-                    textStyle = RisoTheme.typography.body
-                )
+                Body(item.toString())
             }
         )
         Track(
@@ -110,10 +103,7 @@ fun TimeSlider(
             trackAlignment = TrackAlignment.Top,
             userScrollEnabled = userScrollEnabled,
             itemContent = { item, subdivision ->
-                Text(
-                    text = String.format("%02d", item + subdivision),
-                    textStyle = RisoTheme.typography.body
-                )
+                Body(String.format("%02d", item + subdivision))
             }
         )
     }
@@ -124,10 +114,7 @@ fun TimeSlider(
 private fun TimeSliderPreview() {
     Column(Modifier.background(Color.White)) {
         val timeState = rememberTimeSliderState()
-        Text(
-            text = "Time ${timeState.selectedTime.hours}:${timeState.selectedTime.minutes}:${timeState.selectedTime.seconds}",
-            textStyle = RisoTheme.typography.body,
-        )
+        Body("Time ${timeState.selectedTime.hours}:${timeState.selectedTime.minutes}:${timeState.selectedTime.seconds}")
         TimeSlider(
             state = timeState
         )

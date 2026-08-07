@@ -11,8 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.design.riso.attributes.Text
+import com.alexgabor.design.riso.attributes.Body
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
@@ -76,10 +75,7 @@ fun PaceSlider(
             showGuidelineDot = true,
             userScrollEnabled = userScrollEnabled,
             itemContent = { item, _ ->
-                Text(
-                    text = item.toString(),
-                    textStyle = RisoTheme.typography.body
-                )
+                Body(text = item.toString())
             }
         )
         Track(
@@ -88,10 +84,7 @@ fun PaceSlider(
             trackAlignment = TrackAlignment.Top,
             userScrollEnabled = userScrollEnabled,
             itemContent = { item, subdivision ->
-                Text(
-                    text = String.format("%02d", item + subdivision),
-                    textStyle = RisoTheme.typography.body
-                )
+                Body(text = String.format("%02d", item + subdivision))
             }
         )
     }
@@ -103,10 +96,7 @@ fun PaceSlider(
 private fun PaceSliderPreview() {
     Column(Modifier.background(Color.White)) {
         val paceState = rememberPaceSliderState()
-        Text(
-            text = "Pace ${paceState.selectedPace.minutes}:${paceState.selectedPace.seconds}",
-            textStyle = RisoTheme.typography.body,
-        )
+        Body(text = "Pace ${paceState.selectedPace.minutes}:${paceState.selectedPace.seconds}")
         PaceSlider(
             state = paceState
         )

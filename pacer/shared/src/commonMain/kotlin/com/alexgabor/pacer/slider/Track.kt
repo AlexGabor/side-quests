@@ -35,7 +35,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.design.riso.attributes.Text
+import com.alexgabor.design.riso.attributes.Body
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -69,7 +69,7 @@ fun <T> Track(
     userScrollEnabled: Boolean = true,
     tickUnit: Dp = 10.dp,
     itemContent: @Composable (item: T, subdivision: Int) -> Unit = { item, subdivision ->
-        Text(text = "$item.$subdivision", textStyle = RisoTheme.typography.body)
+        Body("$item.$subdivision")
     },
 ) {
     val lineColor = RisoTheme.colors.content
