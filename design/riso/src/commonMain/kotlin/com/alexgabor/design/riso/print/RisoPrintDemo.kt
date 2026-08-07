@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -29,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -39,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.NamedInk
 import com.alexgabor.design.riso.attributes.RisoColors
+import com.alexgabor.design.riso.bypass.risoBypass
 import com.alexgabor.design.riso.paper.paperTexture
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -326,6 +331,32 @@ private fun vennCenters(count: Int, center: Offset, spread: Float): List<Offset>
     )
 }
 
+/**
+ * The same full-spectrum swatch printed and bypassed, side by side. The printed one is projected
+ * onto whichever inks are loaded and picks up the grain, screen and registration error of the pass;
+ * the bypassed one comes through the press untouched, as a tipped-in photograph would.
+ */
+@Composable
+private fun BypassComparison() {
+    val spectrum = Brush.horizontalGradient(RisoColors.inks.all.map { it.color })
+
+    @Composable
+    fun Swatch(label: String, modifier: Modifier) {
+        Column(Modifier.width(120.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(modifier.fillMaxWidth().height(48.dp).background(spectrum, RoundedCornerShape(8.dp)))
+            Text(text = label, style = MaterialTheme.typography.labelSmall)
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+    ) {
+        Swatch("printed", Modifier)
+        Swatch("risoBypass", Modifier.risoBypass(cornerRadius = 8.dp))
+    }
+}
+
 /** Type set in each ink, where misregistration is most visible. */
 @Composable
 private fun TypeArtwork(params: RisoPrintParams) {
@@ -354,6 +385,7 @@ private fun TypeArtwork(params: RisoPrintParams) {
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             textAlign = TextAlign.Center,
         )
+        BypassComparison()
     }
 }
 

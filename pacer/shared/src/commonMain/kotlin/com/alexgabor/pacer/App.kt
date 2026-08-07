@@ -14,8 +14,8 @@ fun App() {
     RisoTheme {
         PacerScreen(
             modifier = Modifier
-                .paperTexture()
                 .risoPrint()
+                .paperTexture()
         )
     }
 }

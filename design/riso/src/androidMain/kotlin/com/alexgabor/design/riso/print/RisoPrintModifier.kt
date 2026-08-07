@@ -14,6 +14,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
+import com.alexgabor.design.riso.bypass.RisoBypassHost
+import com.alexgabor.design.riso.bypass.applyBypass
+import com.alexgabor.design.riso.bypass.bypassAgsl
+import com.alexgabor.design.riso.bypass.bypassCapacity
+import com.alexgabor.design.riso.bypass.risoBypassHost
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ln
@@ -32,29 +37,43 @@ import kotlin.math.ln
  */
 actual fun Modifier.risoPrint(params: RisoPrintParams): Modifier = composed {
     val density = LocalDensity.current.density
-    val shader = remember { RuntimeShader(RISO_PRINT_AGSL) }
     var size by remember { mutableStateOf(IntSize.Zero) }
+    val host = remember { RisoBypassHost() }
 
-    val effect = remember(params, size, density) {
+    // Only the *number* of bypassed regions is read here: it fixes the shader's uniform array
+    // lengths, so it has to be known at compile time. Where those regions are is read at draw time
+    // instead, below.
+    val capacity = bypassCapacity(host.peakRegionCount)
+    val shader = remember(capacity) { RuntimeShader(risoPrintAgsl(capacity)) }
+
+    val ready = remember(shader, params, size, density) {
         val w = size.width
         val h = size.height
         if (w <= 0 || h <= 0) {
-            null
+            false
         } else {
             shader.applyRisoParams(params, w.toFloat(), h.toFloat(), density)
-            RenderEffect
-                .createRuntimeShaderEffect(shader, "u_image")
-                .asComposeRenderEffect()
+            true
         }
     }
 
-    val withEffect = if (effect != null) {
-        Modifier.graphicsLayer(renderEffect = effect, clip = true)
+    // The render effect is rebuilt in the draw block rather than in composition, because a
+    // RenderEffect bakes in its shader's uniforms and the bypass bounds move with every layout
+    // pass. Going through a recomposition would land them a frame late, and a bypassed child would
+    // visibly trail its own window on a fling.
+    val withEffect = if (ready) {
+        Modifier.graphicsLayer {
+            clip = true
+            shader.applyBypass(host.regions, capacity)
+            renderEffect = RenderEffect
+                .createRuntimeShaderEffect(shader, "u_image")
+                .asComposeRenderEffect()
+        }
     } else {
         Modifier
     }
 
-    onSizeChanged { size = it }.then(withEffect)
+    onSizeChanged { size = it }.then(Modifier.risoBypassHost(host)).then(withEffect)
 }
 
 /**
@@ -185,6 +204,12 @@ private fun invert(matrix: Array<FloatArray>): Array<FloatArray>? {
     return Array(n) { i -> FloatArray(n) { j -> work[i][n + j] } }
 }
 
+/**
+ * The print shader, built for [capacity] bypassed regions. See [bypassAgsl] for why the capacity is
+ * part of the source rather than a uniform.
+ */
+internal fun risoPrintAgsl(capacity: Int): String = bypassAgsl(capacity) + "\n" + RISO_PRINT_AGSL
+
 // language=AGSL
 internal val RISO_PRINT_AGSL = """
 const float PI = 3.14159265359;
@@ -309,6 +334,13 @@ float inkPass(float coverage, float2 fragCoord, float angle, float phase) {
 }
 
 half4 main(float2 fragCoord) {
+    // A bypassed region is a window onto the layer: its pixels are fetched 1:1 and handed back
+    // untouched, so content that must not be separated survives the press exactly. Well inside one
+    // there is no print to compute at all.
+    float bypass = bypassMask(fragCoord);
+    half4 source = u_image.eval(fragCoord);
+    if (bypass >= 1.0) return source;
+
     float2 uv = fragCoord / u_resolution;
 
     // Unused drums are skipped rather than sampled: their separation row is zeroed, so they would
@@ -338,6 +370,9 @@ half4 main(float2 fragCoord) {
 
     float3 color = mix(stacked, juxtaposed, u_overprint);
     float opacity = max(sample0.y, max(sample1.y, sample2.y));
-    return half4(half3(color * opacity), half(opacity));
+    half4 printed = half4(half3(color * opacity), half(opacity));
+
+    // Only the region's antialiased edge reaches here; both sides are premultiplied, so they mix.
+    return mix(printed, source, half(bypass));
 }
 """.trimIndent()
