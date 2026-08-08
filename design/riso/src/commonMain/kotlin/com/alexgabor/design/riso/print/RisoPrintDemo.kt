@@ -44,7 +44,6 @@ import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.NamedInk
 import com.alexgabor.design.riso.attributes.RisoColors
 import com.alexgabor.design.riso.bypass.risoBypass
-import com.alexgabor.design.riso.paper.paperTexture
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
@@ -89,6 +88,10 @@ private fun RisoPrintDemo(modifier: Modifier = Modifier) {
         )
     }
 
+    fun updatePaper(block: RisoPaper.() -> RisoPaper) {
+        params = params.copy(paper = params.paper.block())
+    }
+
     fun select(paletteIndex: Int) {
         val next = if (paletteIndex in selected) selected - paletteIndex else selected + paletteIndex
         // At least one drum has to be loaded for there to be a print at all.
@@ -106,7 +109,6 @@ private fun RisoPrintDemo(modifier: Modifier = Modifier) {
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(if (showMixer) 2f else 4 / 3f)
-                .paperTexture()
                 .risoPrint(params)
         ) {
             if (showMixer) ColorMixerChart(params) else TypeArtwork(params)
@@ -120,7 +122,7 @@ private fun RisoPrintDemo(modifier: Modifier = Modifier) {
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize().paperTexture().risoPrint(params),
+            modifier = Modifier.fillMaxSize().risoPrint(params),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
@@ -174,11 +176,62 @@ private fun RisoPrintDemo(modifier: Modifier = Modifier) {
                         updateInk(slot) { copy(screenAngle = it) }
                     }
                 }
-                ParamSlider("Seed", params.seed, 0f, 20f) { params = params.copy(seed = it) }
+                ParamSlider("Ink seed", params.seed, 0f, 20f) { params = params.copy(seed = it) }
+            }
+
+            item {
+                SectionTitle("Paper")
+                paperPresets.forEach { preset ->
+                    LabeledSwitch(
+                        label = preset.label,
+                        checked = params.paper.colorFront == preset.front &&
+                            params.paper.colorBack == preset.back,
+                        onCheckedChange = {
+                            updatePaper { copy(colorFront = preset.front, colorBack = preset.back) }
+                        },
+                    )
+                }
+                // Every distinct stock bakes a new surface, synchronously, so the surface sliders
+                // commit on release rather than baking a texture per frame of a drag. Tolerance is
+                // not one of them — it only moves a uniform.
+                ParamSlider("Contrast", params.paper.contrast, 0f, 1f, onRelease = true) {
+                    updatePaper { copy(contrast = it) }
+                }
+                ParamSlider("Roughness", params.paper.roughness, 0f, 1f, onRelease = true) {
+                    updatePaper { copy(roughness = it) }
+                }
+                ParamSlider("Fiber", params.paper.fiber, 0f, 1f, onRelease = true) {
+                    updatePaper { copy(fiber = it) }
+                }
+                ParamSlider("Fiber size", params.paper.fiberSize, 0.01f, 1f, onRelease = true) {
+                    updatePaper { copy(fiberSize = it) }
+                }
+                ParamSlider("Fade", params.paper.fade, 0f, 1f, onRelease = true) {
+                    updatePaper { copy(fade = it) }
+                }
+                ParamSlider("Scale", params.paper.scale, 0.1f, 2f, onRelease = true) {
+                    updatePaper { copy(scale = it) }
+                }
+                ParamSlider("Paper seed", params.paper.seed, 0f, 20f, onRelease = true) {
+                    updatePaper { copy(seed = it) }
+                }
+                ParamSlider("Tolerance", params.paper.tolerance, 0f, 0.2f) {
+                    updatePaper { copy(tolerance = it) }
+                }
             }
         }
     }
 }
+
+private class PaperPreset(val label: String, val front: Color, val back: Color)
+
+private val paperPresets = listOf(
+    PaperPreset("Riso stock", RisoColors.paper, Color.White),
+    PaperPreset("Slate on white", Color(0xFF9FADBC), Color.White),
+    PaperPreset("Kraft cardboard", Color(0xFF7A5C3E), Color(0xFFC9A06A)),
+    PaperPreset("Charcoal on grey", Color(0xFF333333), Color(0xFFBFBFBF)),
+    PaperPreset("Blueprint", Color(0xFFE8F0FF), Color(0xFF1B3A6B)),
+)
 
 @Composable
 private fun InkPicker(
@@ -240,7 +293,9 @@ private fun ColorMixerChart(params: RisoPrintParams) {
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 7.sp)
 
-    Canvas(Modifier.fillMaxSize().background(params.paper)) {
+    // No background: the press paints its own sheet, and drawing the stock colour on top of it
+    // would only be printed back as bare paper.
+    Canvas(Modifier.fillMaxSize()) {
         val margin = 12.dp.toPx()
         // Room for the percentage scales along the grid's top, left and right.
         val gutter = 20.dp.toPx()
@@ -277,7 +332,7 @@ private fun ColorMixerChart(params: RisoPrintParams) {
                     (row + 1) / GRID_STEPS.toFloat(),
                 )
                 drawRect(
-                    color = risoOverprint(params.paper, gridInks, coverages),
+                    color = risoOverprint(params.paper.colorFront, gridInks, coverages),
                     topLeft = Offset(gridLeft + column * cell, gridTop + row * cell),
                     // Overdraw by a hair: exact edges leave paper-coloured seams between cells.
                     size = Size(cell + 1f, cell + 1f),
@@ -367,7 +422,7 @@ private fun BypassComparison() {
 @Composable
 private fun TypeArtwork(params: RisoPrintParams) {
     Column(
-        modifier = Modifier.fillMaxSize().background(params.paper).padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
@@ -404,6 +459,10 @@ private fun SectionTitle(text: String) {
     )
 }
 
+/**
+ * A labelled slider. Set [onRelease] for a value that is expensive to change — the handle then
+ * tracks the drag locally and reports once, on release, instead of on every frame of it.
+ */
 @Composable
 private fun ParamSlider(
     label: String,
@@ -411,16 +470,22 @@ private fun ParamSlider(
     min: Float,
     max: Float,
     steps: Int = 0,
+    onRelease: Boolean = false,
     onValueChange: (Float) -> Unit,
 ) {
+    // Reset whenever the value changes underneath us, so a preset or a reset still moves the handle.
+    var dragged by remember(value) { mutableStateOf(value) }
+    val shown = if (onRelease) dragged else value
+
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Text(
-            text = "$label: ${(value * 100).roundToInt() / 100f}",
+            text = "$label: ${(shown * 100).roundToInt() / 100f}",
             style = MaterialTheme.typography.bodyMedium,
         )
         Slider(
-            value = value,
-            onValueChange = onValueChange,
+            value = shown,
+            onValueChange = { if (onRelease) dragged = it else onValueChange(it) },
+            onValueChangeFinished = { if (onRelease) onValueChange(dragged) },
             valueRange = min..max,
             steps = steps,
         )

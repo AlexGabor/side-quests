@@ -20,11 +20,11 @@ import androidx.compose.ui.unit.dp
  * Leaves whatever this composable draws exactly as it is, where an ancestor would otherwise have
  * printed it.
  *
- * `risoPrint` and `paperTexture` are render effects: their shaders run on the rasterized output of
- * a whole layer, long after the composables inside it are gone, so a child cannot opt out from the
- * inside. Instead this reports the composable's bounds up to every effect layer above it, and those
- * shaders fetch the region's pixels 1:1 and return them untouched — a window onto the layer, like a
- * photograph tipped onto a printed page.
+ * `risoPrint` is a render effect: its shader runs on the rasterized output of a whole layer, long
+ * after the composables inside it are gone, so a child cannot opt out from the inside. Instead this
+ * reports the composable's bounds up to every effect layer above it, and those shaders fetch the
+ * region's pixels 1:1 and return them untouched — a window onto the layer, like a photograph tipped
+ * onto a printed page.
  *
  * ### What passes through
  * The *region*, not the composable. Everything composited inside those bounds comes through
@@ -147,10 +147,7 @@ internal class RisoBypassNode(cornerRadius: Dp) :
 
     val cornerRadiusPx: Float get() = with(requireDensity()) { cornerRadius.toPx() }
 
-    /**
-     * Every effect layer above this node — both `risoPrint` and `paperTexture` when they are
-     * stacked, and each layer of a nested print.
-     */
+    /** Every effect layer above this node, i.e. each layer of a nested print. */
     private val hosts = mutableListOf<RisoBypassHost>()
 
     override fun onAttach() {

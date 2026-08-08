@@ -22,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
@@ -83,8 +82,7 @@ fun <T> ButtonGroup(
                 Text(
                     text = item.text,
                     color = textColor,
-                    textStyle = RisoTheme.typography.body
-                        .copy(fontWeight = FontWeight.W900),
+                    textStyle = RisoTheme.typography.body,
                 )
             }
         }

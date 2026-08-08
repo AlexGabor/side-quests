@@ -1,6 +1,7 @@
 package com.alexgabor.design.riso.print
 
 import androidx.compose.ui.graphics.Color
+import com.alexgabor.design.riso.attributes.RisoColors
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
@@ -41,7 +42,7 @@ internal const val MIN_TRANSMITTANCE = 0.02f
  * mix of two inks far apart on the colour wheel is indistinguishable from a mix of the inks that sit
  * between them, and the press will reach for whichever of the two it can print in one wedge.
  */
-fun risoOverprint(paper: Color = Color(0x00FFFFFF), inks: List<Color>, coverages: List<Float>): Color {
+fun risoOverprint(paper: Color = RisoColors.paper, inks: List<Color>, coverages: List<Float>): Color {
     var red = paper.red
     var green = paper.green
     var blue = paper.blue
