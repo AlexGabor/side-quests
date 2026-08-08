@@ -22,11 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Text
+import com.alexgabor.design.riso.print.onRisoPaper
 
 interface ButtonGroupItem {
     val text: String
@@ -62,7 +62,7 @@ fun <T> ButtonGroup(
 
             val isSelected = item == selected
             val backgroundColor by animateColorAsState(
-                targetValue = if (isSelected) RisoTheme.colors.accent else Color.Transparent
+                targetValue = if (isSelected) RisoTheme.colors.accent.onRisoPaper() else Color.Transparent
             )
             // The label knocks out to paper so the accent reads as a solid block of ink.
             val textColor by animateColorAsState(
@@ -83,8 +83,7 @@ fun <T> ButtonGroup(
                 Text(
                     text = item.text,
                     color = textColor,
-                    textStyle = RisoTheme.typography.body
-                        .copy(fontWeight = FontWeight.W900),
+                    textStyle = RisoTheme.typography.body,
                 )
             }
         }

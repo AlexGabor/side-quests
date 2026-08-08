@@ -1,6 +1,7 @@
 package com.alexgabor.design.riso.print
 
 import androidx.compose.ui.graphics.Color
+import com.alexgabor.design.riso.attributes.RisoColors
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
@@ -41,12 +42,12 @@ internal const val MIN_TRANSMITTANCE = 0.02f
  * mix of two inks far apart on the colour wheel is indistinguishable from a mix of the inks that sit
  * between them, and the press will reach for whichever of the two it can print in one wedge.
  */
-fun risoOverprint(paper: Color = Color(0x00FFFFFF), inks: List<Color>, coverages: List<Float>): Color {
+fun risoOverprint(paper: Color = RisoColors.paper, vararg inks: Pair<Color, Float>): Color {
     var red = paper.red
     var green = paper.green
     var blue = paper.blue
-    inks.forEachIndexed { index, ink ->
-        val coverage = coverages.getOrElse(index) { 0f }.coerceIn(0f, 1f)
+    inks.forEach { (ink, coverage) ->
+        val coverage = coverage.coerceIn(0f, 1f)
         if (coverage > 0f) {
             red *= ink.red.coerceAtLeast(MIN_TRANSMITTANCE).pow(coverage)
             green *= ink.green.coerceAtLeast(MIN_TRANSMITTANCE).pow(coverage)
@@ -54,4 +55,14 @@ fun risoOverprint(paper: Color = Color(0x00FFFFFF), inks: List<Color>, coverages
         }
     }
     return Color(red, green, blue)
+}
+
+fun Color.onRisoPaper(inkCoverage: Float = 1f, paper: Color = RisoColors.paper): Color {
+    val coverage = inkCoverage.coerceIn(0f, 1f)
+    if (coverage == 0f) return paper
+    return Color(
+        red = paper.red * this.red.coerceAtLeast(MIN_TRANSMITTANCE).pow(coverage),
+        green = paper.green * this.green.coerceAtLeast(MIN_TRANSMITTANCE).pow(coverage),
+        blue = paper.blue * this.blue.coerceAtLeast(MIN_TRANSMITTANCE).pow(coverage),
+    )
 }

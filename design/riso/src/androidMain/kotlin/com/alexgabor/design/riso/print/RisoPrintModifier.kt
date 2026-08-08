@@ -2,6 +2,7 @@ package com.alexgabor.design.riso.print
 
 import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
+import android.graphics.Shader
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,8 +34,10 @@ import kotlin.math.sqrt
  * subtractively so overlaps produce a new colour instead of one ink hiding the other.
  *
  * ### Performance
- * Unlike `paperTexture`, nothing can be baked here: the separation depends on the live content, so
- * the whole effect runs per frame. What it costs is set by how many drums a *pixel* prints with,
+ * The sheet is static for a given stock and layout, so its surface is **baked once** into a cached
+ * texture (see [paperMapShader]) and shared across every usage with the same key; changing an ink
+ * never re-bakes it. The separation cannot be baked — it depends on the live content — so that half
+ * runs per frame. What it costs is set by how many drums a *pixel* prints with,
  * not by how many are loaded: the colour is separated once, and only the drums it actually calls
  * for are sampled, screened and mottled. Most of a screen is paper or flat artwork and prints on
  * one drum, so a twelve-ink rack costs about what a two-ink one does.
@@ -55,13 +58,21 @@ actual fun Modifier.risoPrint(params: RisoPrintParams): Modifier = composed {
         RuntimeShader(risoPrintAgsl(capacity, inkCapacity))
     }
 
-    val ready = remember(shader, params, size, density) {
+    // Keyed on the stock alone, so loading a drum or dragging an ink slider never re-bakes the
+    // sheet — only a new paper or a new layout size does.
+    val paperMap = remember(params.paper, size, density) {
         val w = size.width
         val h = size.height
-        if (w <= 0 || h <= 0) {
+        if (w <= 0 || h <= 0) null else paperMapShader(params.paper, w, h, density)
+    }
+
+    val ready = remember(shader, params, size, density, paperMap) {
+        val w = size.width
+        val h = size.height
+        if (w <= 0 || h <= 0 || paperMap == null) {
             false
         } else {
-            shader.applyRisoParams(params, inkCapacity, w.toFloat(), h.toFloat(), density)
+            shader.applyRisoParams(params, inkCapacity, w.toFloat(), h.toFloat(), density, paperMap)
             true
         }
     }
@@ -96,13 +107,25 @@ private fun RuntimeShader.applyRisoParams(
     width: Float,
     height: Float,
     density: Float,
+    paperMap: Shader,
 ) {
     setFloatUniform("u_resolution", width, height)
     setFloatUniform("u_imageSize", width, height)
 
-    val paper = params.paper.transmittance()
-    setFloatUniform("u_paper", paper[0], paper[1], paper[2])
+    val paper = params.paper
+    // colorFront's RGB is also the white point the separation works against; its alpha only says
+    // whether the sheet gets painted.
+    val reference = paper.colorFront.transmittance()
+    setFloatUniform("u_paper", reference[0], reference[1], reference[2])
     setFloatUniform("u_minTransmittance", MIN_TRANSMITTANCE)
+
+    setColorComponents("u_colorFront", paper.colorFront)
+    setColorComponents("u_colorBack", paper.colorBack)
+    setFloatUniform("u_paperWarp", if (paper.warps) 1f else 0f)
+    // The tolerance is authored as a fraction darker than the stock; the shader wants the density
+    // that corresponds to, since that is what it subtracts.
+    setFloatUniform("u_paperFloor", -ln(1f - paper.tolerance.coerceIn(0f, 0.5f)))
+    setInputShader("u_paperMap", paperMap)
 
     // Drums past what the compiled shader can hold are left in the rack. The clamp only bites in
     // the frame between the palette growing past a bucket and the wider shader landing.
@@ -429,6 +452,18 @@ uniform float u_wobble;
 uniform float u_spread;
 uniform float u_seed;
 
+// The sheet, baked once per stock and layout by RisoPaperBake.kt: rg is how far its surface pushes
+// the artwork around (encoded * 0.25 + 0.5), b is how the light falls on it (encoded * 0.5 + 0.5).
+uniform shader u_paperMap;
+uniform float4 u_colorFront;
+uniform float4 u_colorBack;
+// A stock with no surface to speak of neither pushes the artwork around nor needs the edge of the
+// displaced content antialiased — and the map's 8-bit encoding cannot represent "no push" exactly,
+// so it is switched off here rather than left to round to zero.
+uniform float u_paperWarp;
+// Density below which a pixel is simply the stock, and comes off the press unprinted.
+uniform float u_paperFloor;
+
 float2 rotate(float2 p, float th) {
     float s = sin(th);
     float c = cos(th);
@@ -462,29 +497,37 @@ float fbm(float2 p) {
 }
 
 /**
- * The content under one pass, sampled with that pass's registration error.
- * Returns (optical density, source alpha).
+ * How much darker than bare paper a colour is, per channel. Lighter than paper reads as no ink at
+ * all — a press cannot print white — and so does anything within u_paperFloor of the stock, which
+ * is what keeps artwork authored to the paper colour from separating into a tint no press could
+ * hold. The floor is subtracted rather than thresholded, so ink fades in instead of switching on.
  */
-float4 inkSample(float2 uv, float2 offsetPx, float phase) {
+float3 densityOfRgb(float3 rgb) {
+    return max(-log(clamp(rgb / u_paper, u_minTransmittance, 1.0)) - u_paperFloor, 0.0);
+}
+
+/**
+ * The content under one pass, sampled with that pass's registration error and the sheet's own
+ * displacement. Returns (optical density, source alpha).
+ */
+float4 inkSample(float2 uv, float2 warp, float2 offsetPx, float phase) {
     // Drum feed drifts laterally as the sheet travels, so the error varies down the page.
     float2 off = offsetPx;
     off.x += u_wobble * (0.5 * sin(uv.y * 11.0 + phase) + fbm(float2(uv.y * 5.0, phase)) - 0.5);
     off.y += u_wobble * 0.35 * sin(uv.y * 3.0 + phase * 1.7);
 
-    half4 src = u_image.eval(clamp(uv + off / u_resolution, 0.0, 1.0) * u_imageSize);
+    half4 src = u_image.eval(clamp(uv + warp + off / u_resolution, 0.0, 1.0) * u_imageSize);
     float alpha = float(src.a);
     float3 rgb = alpha > 0.001 ? float3(src.rgb) / alpha : float3(1.0);
 
-    // How much darker than bare paper this pixel is, per channel. Lighter than paper reads as
-    // no ink at all — a press cannot print white.
-    return float4(-log(clamp(rgb / u_paper, u_minTransmittance, 1.0)), alpha);
+    return float4(densityOfRgb(rgb), alpha);
 }
 
-/** How much darker than bare paper a sample is. A press cannot print white, so lighter reads as 0. */
+/** How much darker than bare paper a sample is. */
 float3 densityOf(half4 src) {
     float alpha = float(src.a);
     float3 rgb = alpha > 0.001 ? float3(src.rgb) / alpha : float3(1.0);
-    return -log(clamp(rgb / u_paper, u_minTransmittance, 1.0));
+    return densityOfRgb(rgb);
 }
 
 float weightOf(float3 density) {
@@ -565,21 +608,77 @@ float inkPass(float coverage, float2 fragCoord, float angle, float phase) {
  * One drum end to end: the content under its registration error, separated onto that drum by [row],
  * then screened and laid down. Returns (coverage, source alpha).
  */
-float2 runDrum(float2 uv, float2 fragCoord, float4 pass, float3 row, float phase) {
-    float4 sampled = inkSample(uv, pass.xy, phase);
+float2 runDrum(float2 uv, float2 warp, float2 fragCoord, float4 pass, float3 row, float phase) {
+    float4 sampled = inkSample(uv, warp, pass.xy, phase);
     float laid = clamp(dot(row, sampled.xyz), 0.0, 1.0) * sampled.w;
     return float2(inkPass(laid, fragCoord, pass.z, phase + 41.3), sampled.w);
 }
 
+/**
+ * Antialiases the edge of the content once the sheet has pushed it around, so a read clamped to the
+ * layer's edge does not smear its last row of pixels across the margin.
+ */
+float getUvFrame(float2 uv) {
+    float aax = 2.0 / u_resolution.x;
+    float aay = 2.0 / u_resolution.y;
+    float left = smoothstep(0.0, aax, uv.x);
+    float right = 1.0 - smoothstep(1.0 - aax, 1.0, uv.x);
+    float bottom = smoothstep(0.0, aay, uv.y);
+    float top = 1.0 - smoothstep(1.0 - aay, 1.0, uv.y);
+    return left * right * bottom * top;
+}
+
+/**
+ * Lays a printed pixel down on the sheet: the stock seen through the ink, plus the ink itself
+ * wherever the stock is not painted, so an unpainted sheet hands the print back exactly as it was.
+ *
+ * [transmittance] is what the ink does to the light coming off the sheet — 1 is bare paper, which
+ * leaves the stock untouched whether the artwork there was opaque or transparent. That is the whole
+ * reason the sheet multiplies rather than being blended over: paper is paper either way.
+ */
+half4 onSheet(float3 transmittance, float3 straight, float cover, float3 sheet, float sheetOpacity) {
+    float3 color = sheet * mix(float3(1.0), transmittance, cover);
+    color += straight * cover * (1.0 - sheetOpacity);
+    return half4(half3(color), half(sheetOpacity + cover * (1.0 - sheetOpacity)));
+}
+
+/** Source-over, for a bypassed window: content untouched, with the sheet showing through it. */
+half4 overSheet(half4 content, float frame, float3 sheet, float sheetOpacity) {
+    float a = float(content.a) * frame;
+    float3 c = float3(content.rgb) * frame;
+    return half4(half3(c + sheet * (1.0 - a)), half(a + sheetOpacity * (1.0 - a)));
+}
+
 half4 main(float2 fragCoord) {
-    // A bypassed region is a window onto the layer: its pixels are fetched 1:1 and handed back
-    // untouched, so content that must not be separated survives the press exactly. Well inside one
-    // there is no print to compute at all.
+    // The sheet, baked once per stock and layout: how far its surface pushes the artwork around,
+    // and how the light falls on it.
+    half4 baked = u_paperMap.eval(fragCoord);
+    float2 surface = (float2(baked.r, baked.g) - 0.5) / 0.25;
+    float res = clamp(float(baked.b) * 2.0 - 1.0, 0.0, 1.0);
+
+    // The stock itself: its lit front over whatever shows through it. The lighting works on the
+    // front's opacity, so a default sheet still takes most of its colour from the back.
+    float3 sheet = u_colorFront.rgb * u_colorFront.a * res;
+    float sheetOpacity = u_colorFront.a * res;
+    sheet += u_colorBack.rgb * u_colorBack.a * (1.0 - sheetOpacity);
+    sheetOpacity += u_colorBack.a * (1.0 - sheetOpacity);
+
+    // A bypassed region is a window onto the layer: the sheet stops acting on the content there —
+    // it is neither pushed around by the surface, nor shaded by it, nor separated — so its pixels
+    // arrive exactly as drawn. The stock is still painted behind it, which is what shows through
+    // anything translucent.
     float bypass = bypassMask(fragCoord);
-    half4 source = u_image.eval(fragCoord);
-    if (bypass >= 1.0) return source;
 
     float2 uv = fragCoord / u_resolution;
+    float2 warp = u_paperWarp * 0.02 * surface * (1.0 - bypass);
+    // Carried in pixels for the reads that take pixels, rather than round-tripping through
+    // uv * u_imageSize, which is not exact and would shift a flat stock by a texel.
+    float2 warpPx = warp * u_imageSize;
+    float frame = mix(1.0, getUvFrame(uv + warp), u_paperWarp);
+
+    half4 source = u_image.eval(clamp(fragCoord + warpPx, float2(0.0), u_imageSize));
+    if (bypass >= 1.0) return overSheet(source, frame, sheet, sheetOpacity);
+
     float opacity = float(source.a);
 
     // Which drums to run is decided once, from the artwork as drawn, because a colour separates onto
@@ -591,11 +690,16 @@ half4 main(float2 fragCoord) {
         // registration error, so the rack is chosen from the nearest thing within that drift — and
         // if there is nothing to drift in, the sheet stays blank and no drum runs at all.
         float r = u_probeRadius;
-        probe = darker(probeAt(fragCoord + float2(-r, -r)), probeAt(fragCoord + float2(r, -r)));
-        probe = darker(probe, probeAt(fragCoord + float2(-r, r)));
-        probe = darker(probe, probeAt(fragCoord + float2(r, r)));
+        float2 at = fragCoord + warpPx;
+        probe = darker(probeAt(at + float2(-r, -r)), probeAt(at + float2(r, -r)));
+        probe = darker(probe, probeAt(at + float2(-r, r)));
+        probe = darker(probe, probeAt(at + float2(r, r)));
         if (weightOf(probe) <= 0.0005) {
-            return mix(half4(half3(u_paper * opacity), half(opacity)), source, half(bypass));
+            // Nothing printed: the ink transmits everything, so the stock comes through as it is.
+            return mix(
+                onSheet(float3(1.0), u_paper, opacity * frame, sheet, sheetOpacity),
+                overSheet(source, frame, sheet, sheetOpacity),
+                half(bypass));
         }
     }
 
@@ -644,13 +748,13 @@ half4 main(float2 fragCoord) {
         // Each drum lays down its own noise field, so the mottling of one pass does not line up
         // with the next.
         float2 a = wantA > FAINT_COVERAGE
-            ? runDrum(uv, fragCoord, passA, row0, u_seed + slots.x * 13.7)
+            ? runDrum(uv, warp, fragCoord, passA, row0, u_seed + slots.x * 13.7)
             : float2(wantA * alpha, 0.0);
         float2 b = wantB > FAINT_COVERAGE
-            ? runDrum(uv, fragCoord, passB, row1, u_seed + slots.y * 13.7)
+            ? runDrum(uv, warp, fragCoord, passB, row1, u_seed + slots.y * 13.7)
             : float2(wantB * alpha, 0.0);
         float2 c = wantC > FAINT_COVERAGE
-            ? runDrum(uv, fragCoord, passC, row2, u_seed + slots.z * 13.7)
+            ? runDrum(uv, warp, fragCoord, passC, row2, u_seed + slots.z * 13.7)
             : float2(wantC * alpha, 0.0);
 
         stacked *= mix(float3(1.0), inkA, a.x) * mix(float3(1.0), inkB, b.x) * mix(float3(1.0), inkC, c.x);
@@ -666,7 +770,7 @@ half4 main(float2 fragCoord) {
             float3 ink = u_ink[i].xyz;
             float4 pass = u_pass[i];
 
-            float2 laid = runDrum(uv, fragCoord, pass, u_sep[i].xyz, phase);
+            float2 laid = runDrum(uv, warp, fragCoord, pass, u_sep[i].xyz, phase);
             stacked *= mix(float3(1.0), ink, laid.x);
             mixed += laid.x * ink;
             total += laid.x;
@@ -678,10 +782,15 @@ half4 main(float2 fragCoord) {
         ? mix(u_paper, mixed / total, min(total, 1.0))
         : u_paper;
 
-    float3 color = mix(stacked, juxtaposed, u_overprint);
-    half4 printed = half4(half3(color * opacity), half(opacity));
+    float3 straight = mix(stacked, juxtaposed, u_overprint);
+    // What the ink laid down does to the light coming off the stock. Bare paper divides out to 1
+    // and leaves the sheet alone, which is why there is no seam where artwork stops.
+    float3 transmittance = clamp(straight / u_paper, 0.0, 1.0);
 
     // Only the region's antialiased edge reaches here; both sides are premultiplied, so they mix.
-    return mix(printed, source, half(bypass));
+    return mix(
+        onSheet(transmittance, straight, opacity * frame, sheet, sheetOpacity),
+        overSheet(source, frame, sheet, sheetOpacity),
+        half(bypass));
 }
 """.trimIndent()
