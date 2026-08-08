@@ -323,7 +323,7 @@ private fun ColorMixerChart(params: RisoPrintParams, inks: List<RisoInk>) {
         val radius = min(vennWidth, size.height - 2 * margin) / (2f * (1f + spread))
         vennCenters(inks.size, vennCenter, radius * spread).forEachIndexed { index, center ->
             drawCircle(
-                color = inks[index].color,
+                color = inks[index].color.onRisoPaper(),
                 radius = radius,
                 center = center,
                 // The first pass lands on bare paper; every later one prints over what is there.
@@ -340,7 +340,7 @@ private fun ColorMixerChart(params: RisoPrintParams, inks: List<RisoInk>) {
                     (row + 1) / GRID_STEPS.toFloat(),
                 )
                 drawRect(
-                    color = risoOverprint(params.paper.colorFront, gridInks, coverages),
+                    color = risoOverprint(params.paper.colorFront, *gridInks.zip(coverages).toTypedArray()),
                     topLeft = Offset(gridLeft + column * cell, gridTop + row * cell),
                     // Overdraw by a hair: exact edges leave paper-coloured seams between cells.
                     size = Size(cell + 1f, cell + 1f),

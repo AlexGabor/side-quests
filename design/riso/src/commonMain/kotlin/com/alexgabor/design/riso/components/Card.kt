@@ -17,7 +17,7 @@ fun Card(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val animatedColor by animateColorAsState(
-        targetValue = if (selected) getSelectedColor() else getNormalColor()
+        targetValue = if (selected) getSelectedColor() else RisoTheme.colors.content
     )
     Box(
         modifier = modifier
@@ -30,17 +30,7 @@ fun Card(
     )
 }
 
-
-@Composable
-fun getNormalColor() = RisoTheme.colors.content
-
 @Composable
 fun getSelectedColor() = risoOverprint(
-    inks = listOf(
-        RisoTheme.colors.content,
-        RisoTheme.colors.accent,
-    ),
-    coverages = listOf(
-        .3f, 1f,
-    )
+    inks = arrayOf(RisoTheme.colors.content to .3f, RisoTheme.colors.accent to 1f),
 )
