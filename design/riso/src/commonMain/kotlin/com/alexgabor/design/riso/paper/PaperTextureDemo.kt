@@ -124,27 +124,6 @@ private fun PaperTextureDemoScreen(
                 }
             }
             item {
-                ParamSlider("Crumples", params.crumples, 0f, 1f) {
-                    params = params.copy(crumples = it)
-                }
-            }
-            item {
-                ParamSlider("Crumple size", params.crumpleSize, 0.01f, 1f) {
-                    params = params.copy(crumpleSize = it)
-                }
-            }
-            item {
-                ParamSlider("Folds", params.folds, 0f, 1f) { params = params.copy(folds = it) }
-            }
-            item {
-                ParamSlider("Fold count", params.foldCount, 0f, 15f, steps = 14) {
-                    params = params.copy(foldCount = it.roundToInt().toFloat())
-                }
-            }
-            item {
-                ParamSlider("Drops", params.drops, 0f, 1f) { params = params.copy(drops = it) }
-            }
-            item {
                 ParamSlider("Fade", params.fade, 0f, 1f) { params = params.copy(fade = it) }
             }
             item {
@@ -163,7 +142,6 @@ private fun ParamSlider(
     value: Float,
     min: Float,
     max: Float,
-    steps: Int = 0,
     onValueChange: (Float) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -175,7 +153,6 @@ private fun ParamSlider(
             value = value,
             onValueChange = onValueChange,
             valueRange = min..max,
-            steps = steps,
         )
     }
 }

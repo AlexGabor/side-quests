@@ -9,8 +9,8 @@ import com.alexgabor.design.riso.attributes.RisoColors
  * ported to AGSL from the paper.design `PaperTexture` WebGL shader
  * (https://shaders.paper.design/paper-texture).
  *
- * The composable's own rendered output is fed into the shader as its image input, so paper folds,
- * crumples, fiber and roughness subtly distort and shade the content, like a paper print.
+ * The composable's own rendered output is fed into the shader as its image input, so the paper's
+ * fiber and roughness subtly distort and shade the content, like a paper print.
  */
 expect fun Modifier.paperTexture(params: PaperTextureParams = PaperTextureParams()): Modifier
 
@@ -29,19 +29,9 @@ data class PaperTextureParams(
     val fiber: Float = 0.1f,
     /** Curly-shaped fiber noise scale (0..1). */
     val fiberSize: Float = 0.29f,
-    /** Cell-based crumple pattern intensity (0..1). */
-    val crumples: Float = 0f,
-    /** Cell-based crumple pattern scale (0..1). */
-    val crumpleSize: Float = 0f,
-    /** Depth of the folds (0..1). */
-    val folds: Float = 0f,
-    /** Number of folds (1..15). */
-    val foldCount: Float = 0f,
-    /** Visibility of the speckle/drops pattern (0..1). */
-    val drops: Float = 0f,
     /** Big-scale noise mask applied to the pattern (0..1). */
     val fade: Float = 0.5f,
-    /** Seed applied to folds, crumples and dots. */
+    /** Seed applied to the fade mask. */
     val seed: Float = 5.8f,
     /** Overall zoom level of the texture (0.01..4). */
     val scale: Float = 0.1f,

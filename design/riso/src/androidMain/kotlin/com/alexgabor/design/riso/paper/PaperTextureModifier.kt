@@ -36,11 +36,11 @@ import kotlin.random.Random
  * ported to AGSL from the paper.design `PaperTexture` WebGL shader
  * (https://shaders.paper.design/paper-texture).
  *
- * The composable's own rendered output is fed into the shader as its image input, so paper folds,
- * crumples, fiber and roughness subtly distort and shade the content, like a paper print.
+ * The composable's own rendered output is fed into the shader as its image input, so the paper's
+ * fiber and roughness subtly distort and shade the content, like a paper print.
  *
  * ### Performance
- * The expensive procedural surface (folds, crumples, fiber, roughness, drops, lighting) is static
+ * The expensive procedural surface (fiber, roughness, lighting) is static
  * for a given [params] and layout size, so it is **baked once** into a cached texture
  * (see [bakePaperMap]) and shared across all usages with the same key. Each frame only runs a
  * lightweight composite shader that samples the baked map plus the live content, keeping scroll
@@ -119,11 +119,6 @@ private fun RuntimeShader.applyPaperParams(
     setFloatUniform("u_roughness", params.roughness)
     setFloatUniform("u_fiber", params.fiber)
     setFloatUniform("u_fiberSize", params.fiberSize.coerceAtLeast(0.01f))
-    setFloatUniform("u_crumples", params.crumples)
-    setFloatUniform("u_crumpleSize", params.crumpleSize.coerceAtLeast(0.01f))
-    setFloatUniform("u_folds", params.folds)
-    setFloatUniform("u_foldCount", params.foldCount.coerceIn(0f, 15f))
-    setFloatUniform("u_drops", params.drops)
     setFloatUniform("u_fade", params.fade)
     setFloatUniform("u_seed", params.seed)
     setFloatUniform("u_scale", params.scale.coerceIn(0.01f, 4f))
@@ -243,8 +238,6 @@ private fun createNoiseShader(size: Int = NOISE_SIZE): BitmapShader {
 
 // language=AGSL
 internal val PAPER_TEXTURE_AGSL = """
-const float TWO_PI = 6.28318530718;
-
 uniform float2 u_resolution;
 uniform float u_pixelRatio;
 
@@ -262,11 +255,6 @@ uniform float u_contrast;
 uniform float u_roughness;
 uniform float u_fiber;
 uniform float u_fiberSize;
-uniform float u_crumples;
-uniform float u_crumpleSize;
-uniform float u_folds;
-uniform float u_foldCount;
-uniform float u_drops;
 uniform float u_seed;
 uniform float u_fade;
 uniform float u_scale;
@@ -286,10 +274,6 @@ float randomR(float2 p) {
 float randomG(float2 p) {
     float2 uv = floor(p) / 50.0 + 0.5;
     return float(sampleNoise(uv).g);
-}
-float2 randomGB(float2 p) {
-    float2 uv = floor(p) / 50.0 + 0.5;
-    return float2(sampleNoise(uv).gb);
 }
 float fiberRandom(float2 p) {
     float2 uv = floor(p) / 100.0;
@@ -363,64 +347,6 @@ float fiberNoise(float2 uv, float2 seedOffset) {
     return length(float2(n1 - n2, n3 - n4)) / (2.0 * epsilon);
 }
 
-float crumpledNoise(float2 t, float pw) {
-    float2 p = floor(t);
-    float wsum = 0.0;
-    float cl = 0.0;
-    for (int y = -1; y < 2; y++) {
-        for (int x = -1; x < 2; x++) {
-            float2 b = float2(float(x), float(y));
-            float2 q = b + p;
-            float2 q2 = q - floor(q / 8.0) * 8.0;
-            float2 c = q + randomGB(q2);
-            float2 r = c - t;
-            float w = pow(smoothstep(0.0, 1.0, 1.0 - abs(r.x)), pw) *
-                      pow(smoothstep(0.0, 1.0, 1.0 - abs(r.y)), pw);
-            cl += (0.5 + 0.5 * sin((q2.x + q2.y * 5.0) * 8.0)) * w;
-            wsum += w;
-        }
-    }
-    return pow(wsum != 0.0 ? cl / wsum : 0.0, 0.5) * 2.0;
-}
-float crumplesShape(float2 uv) {
-    return crumpledNoise(uv * 0.25, 16.0) * crumpledNoise(uv * 0.5, 2.0);
-}
-
-float2 foldsMap(float2 uv) {
-    float3 pp = float3(0.0);
-    float l = 9.0;
-    for (float i = 0.0; i < 15.0; i++) {
-        if (i >= u_foldCount) break;
-        float2 rnd = randomGB(float2(i, i * u_seed));
-        float an = rnd.x * TWO_PI;
-        float2 p = float2(cos(an), sin(an)) * rnd.y;
-        float dist = distance(uv, p);
-        l = min(l, dist);
-        if (l == dist) {
-            pp.xy = (uv - p.xy);
-            pp.z = dist;
-        }
-    }
-    return mix(pp.xy, float2(0.0), pow(pp.z, 0.25));
-}
-
-float dropsMap(float2 uv) {
-    float2 iUV = floor(uv);
-    float2 fUV = fract(uv);
-    float minDist = 1.0;
-    for (int j = -1; j <= 1; j++) {
-        for (int i = -1; i <= 1; i++) {
-            float2 neighbor = float2(float(i), float(j));
-            float2 offset = randomGB(iUV + neighbor);
-            offset = 0.5 + 0.5 * sin(10.0 * u_seed + TWO_PI * offset);
-            float2 pos = neighbor + offset - fUV;
-            float dist = length(pos);
-            minDist = min(minDist, minDist * dist);
-        }
-    }
-    return 1.0 - smoothstep(0.05, 0.09, pow(minDist, 0.5));
-}
-
 float getUvFrame(float2 uv) {
     float aax = 2.0 / u_resolution.x;
     float aay = 2.0 / u_resolution.y;
@@ -453,43 +379,18 @@ half4 main(float2 fragCoord) {
     float rough = roughnessMap(roughnessUv + float2(1.0, 0.0)) -
                   roughnessMap(roughnessUv - float2(1.0, 0.0));
 
-    float2 crumplesUV = fract(patternUV * 0.02 / u_crumpleSize - u_seed) * 32.0;
-    float crumples = u_crumples *
-        (crumplesShape(crumplesUV + float2(0.05, 0.0)) - crumplesShape(crumplesUV));
-
     float2 fiberUV = 2.0 / u_fiberSize * patternUV;
     float fiber = fiberNoise(fiberUV, float2(0.0));
     fiber = 0.5 * u_fiber * (fiber - 1.0);
 
-    float2 normal = float2(0.0);
-    float2 normalImage = float2(0.0);
-
-    float2 foldsUV = patternUV * 0.12;
-    foldsUV = rotate(foldsUV, 4.0 * u_seed);
-    float2 w = foldsMap(foldsUV);
-    foldsUV = rotate(foldsUV + 0.007 * cos(u_seed), 0.01 * sin(u_seed));
-    float2 w2 = foldsMap(foldsUV);
-
-    float drops = u_drops * dropsMap(patternUV * 2.0);
-
     float fade = u_fade * fbm(0.17 * patternUV + 10.0 * u_seed);
     fade = clamp(8.0 * fade * fade * fade, 0.0, 1.0);
 
-    w = mix(w, float2(0.0), fade);
-    w2 = mix(w2, float2(0.0), fade);
-    crumples = mix(crumples, 0.0, fade);
-    drops = mix(drops, 0.0, fade);
     fiber *= mix(1.0, 0.5, fade);
     rough *= mix(1.0, 0.5, fade);
 
-    normal += u_folds * min(5.0 * u_contrast, 1.0) * 4.0 * max(float2(0.0), w + w2);
-    normalImage += u_folds * 2.0 * w;
-
-    normal += float2(crumples);
-    normalImage += float2(1.5 * crumples);
-
-    normal += float2(3.0 * drops);
-    normalImage += float2(0.2 * drops);
+    float2 normal = float2(0.0);
+    float2 normalImage = float2(0.0);
 
     normal += float2(u_roughness * 1.5 * rough);
     normal += float2(fiber);
@@ -524,7 +425,6 @@ half4 main(float2 fragCoord) {
     color += bgColor * (1.0 - opacity);
     opacity += bgOpacity * (1.0 - opacity);
     opacity = mix(opacity, 1.0, frame);
-    color -= 0.007 * drops;
     color = mix(color, float3(image.rgb), frame);
 
     return half4(half3(color), half(opacity));
@@ -560,43 +460,18 @@ half4 main(float2 fragCoord) {
     float rough = roughnessMap(roughnessUv + float2(1.0, 0.0)) -
                   roughnessMap(roughnessUv - float2(1.0, 0.0));
 
-    float2 crumplesUV = fract(patternUV * 0.02 / u_crumpleSize - u_seed) * 32.0;
-    float crumples = u_crumples *
-        (crumplesShape(crumplesUV + float2(0.05, 0.0)) - crumplesShape(crumplesUV));
-
     float2 fiberUV = 2.0 / u_fiberSize * patternUV;
     float fiber = fiberNoise(fiberUV, float2(0.0));
     fiber = 0.5 * u_fiber * (fiber - 1.0);
 
-    float2 normal = float2(0.0);
-    float2 normalImage = float2(0.0);
-
-    float2 foldsUV = patternUV * 0.12;
-    foldsUV = rotate(foldsUV, 4.0 * u_seed);
-    float2 w = foldsMap(foldsUV);
-    foldsUV = rotate(foldsUV + 0.007 * cos(u_seed), 0.01 * sin(u_seed));
-    float2 w2 = foldsMap(foldsUV);
-
-    float drops = u_drops * dropsMap(patternUV * 2.0);
-
     float fade = u_fade * fbm(0.17 * patternUV + 10.0 * u_seed);
     fade = clamp(8.0 * fade * fade * fade, 0.0, 1.0);
 
-    w = mix(w, float2(0.0), fade);
-    w2 = mix(w2, float2(0.0), fade);
-    crumples = mix(crumples, 0.0, fade);
-    drops = mix(drops, 0.0, fade);
     fiber *= mix(1.0, 0.5, fade);
     rough *= mix(1.0, 0.5, fade);
 
-    normal += u_folds * min(5.0 * u_contrast, 1.0) * 4.0 * max(float2(0.0), w + w2);
-    normalImage += u_folds * 2.0 * w;
-
-    normal += float2(crumples);
-    normalImage += float2(1.5 * crumples);
-
-    normal += float2(3.0 * drops);
-    normalImage += float2(0.2 * drops);
+    float2 normal = float2(0.0);
+    float2 normalImage = float2(0.0);
 
     normal += float2(u_roughness * 1.5 * rough);
     normal += float2(fiber);
@@ -625,8 +500,7 @@ private fun paperCompositeAgsl(capacity: Int): String =
 /**
  * Composite pass: the lightweight per-frame shader. It reads the pre-baked paper map, reconstructs
  * the distortion vector and lighting term, samples the live content (`u_image`, bound by the
- * render effect), and blends exactly like [PAPER_TEXTURE_AGSL]'s image path. The negligible
- * `color -= 0.007 * drops` term of the original is intentionally omitted.
+ * render effect), and blends exactly like [PAPER_TEXTURE_AGSL]'s image path.
  */
 // language=AGSL
 private val PAPER_COMPOSITE_AGSL: String = """
@@ -655,7 +529,7 @@ half4 main(float2 fragCoord) {
     float res = float(paper.b) * 2.0 - 1.0;
 
     // Inside a bypassed region the sheet stops acting on the content: it is neither pushed around
-    // by the folds nor shaded by the paper's lighting, so its pixels arrive exactly as drawn. The
+    // by the grain nor shaded by the paper's lighting, so its pixels arrive exactly as drawn. The
     // paper behind it is composited as usual, which is what shows through anything translucent.
     float bypass = bypassMask(fragCoord);
 
