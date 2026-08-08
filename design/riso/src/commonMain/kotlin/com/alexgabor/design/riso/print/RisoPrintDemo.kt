@@ -2,6 +2,7 @@ package com.alexgabor.design.riso.print
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,9 +39,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alexgabor.design.riso.RisoTheme
+import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.NamedInk
 import com.alexgabor.design.riso.attributes.RisoColors
 import com.alexgabor.design.riso.bypass.risoBypass
@@ -50,36 +53,32 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-/** Keeps a drum's registration when only its colour changes; defaults it when one is added. */
-private fun inkForSlot(slot: Int, color: Color, existing: RisoInk?): RisoInk =
-    existing?.copy(color = color) ?: risoInkForSlot(slot, color)
-
 /** Tint steps down each axis of the mixer grid, as on a press's tint scale. */
 private const val GRID_STEPS = 10
 
 /** How far two neighbouring Venn circles sit apart, in radii. */
 private const val VENN_SPREAD = 0.62f
 
-/** The first three drums are the ones the mixer grid ramps against; the rest only show in the Venn. */
-private const val GRID_INKS = 3
+/**
+ * How many inks the chart demonstrates. A mixer chart has one axis per ink and only two of them,
+ * plus a rising third, so three is all it can hold — the press still carries the whole rack.
+ */
+private const val CHART_INKS = 3
 
 /**
  * Playground for [risoPrint]: load any of the RISO inks onto the press and see how they mix, over a
  * full set of controls for the press itself.
  */
+@Preview
 @Composable
 private fun RisoPrintDemo(modifier: Modifier = Modifier) {
     val palette = RisoColors.inks.all
-    var selected by remember { mutableStateOf(palette.indices.toList()) }
-    var params by remember {
-        mutableStateOf(
-            RisoPrintParams(
-                inks = selected.mapIndexed { slot, index ->
-                    inkForSlot(slot, palette[index].color, null)
-                },
-            ),
-        )
-    }
+    // The whole rack is loaded, always — a colour is separated onto the few drums that can print it,
+    // so leaving them all mounted costs next to nothing. Picking a swatch chooses what the chart
+    // ramps against, not what the press is carrying.
+    var params by remember { mutableStateOf(RisoPrintParams()) }
+    // Pink, yellow and blue: the subtractive triad a printed mixer chart is normally built on.
+    var selected by remember { mutableStateOf(listOf(0, 3, 7)) }
     var showMixer by remember { mutableStateOf(true) }
 
     fun updateInk(slot: Int, block: RisoInk.() -> RisoInk) {
@@ -93,36 +92,36 @@ private fun RisoPrintDemo(modifier: Modifier = Modifier) {
     }
 
     fun select(paletteIndex: Int) {
-        val next = if (paletteIndex in selected) selected - paletteIndex else selected + paletteIndex
-        // At least one drum has to be loaded for there to be a print at all.
-        if (next.isEmpty()) return
-        params = params.copy(
-            inks = next.mapIndexed { slot, index ->
-                inkForSlot(slot, palette[index].color, params.inks.getOrNull(slot))
-            },
-        )
-        selected = next
+        selected = when {
+            paletteIndex in selected -> selected - paletteIndex
+            // The chart has no room for a fourth, so the oldest pick comes off to make way.
+            selected.size >= CHART_INKS -> selected.drop(1) + paletteIndex
+            else -> selected + paletteIndex
+        // There has to be something left to chart.
+        }.ifEmpty { selected }
     }
 
-    Column(modifier.fillMaxSize().safeDrawingPadding()) {
+    // One press for the whole screen, so the stock is the same sheet everywhere — the artwork, the
+    // picker and the controls all sit on the paper being configured, and every one of them moves
+    // when it changes.
+    Column(modifier.fillMaxSize().risoPrint(params).safeDrawingPadding()) {
+        val chartInks = selected.mapNotNull { params.inks.getOrNull(it) }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(if (showMixer) 2f else 4 / 3f)
-                .risoPrint(params)
         ) {
-            if (showMixer) ColorMixerChart(params) else TypeArtwork(params)
+            if (showMixer) ColorMixerChart(params, chartInks) else TypeArtwork(params, chartInks)
         }
 
-        // Deliberately outside the print: a swatch has to show the ink you are about to load, and
-        // a press that is not carrying yellow renders the yellow swatch as whatever it can hit.
         Column(Modifier.padding(horizontal = 16.dp)) {
-            SectionTitle("Inks — one drum, one pass each")
+            SectionTitle("Inks — the whole rack is loaded; pick up to $CHART_INKS to chart")
             InkPicker(palette, selected, ::select)
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize().risoPrint(params),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
@@ -246,50 +245,59 @@ private fun InkPicker(
         ) {
             row.forEachIndexed { columnIndex, ink ->
                 val index = rowIndex * 6 + columnIndex
-                val slot = selected.indexOf(index)
+                val charted = index in selected
                 Box(
                     modifier = Modifier
                         .size(44.dp)
+                        // A swatch has to show the ink you are about to pick, not the press's read
+                        // of it: the fluorescents sit outside what a density separation can
+                        // round-trip, so printed, pink comes back indistinguishable from burgundy.
+                        // Tipping the whole rack in costs every pixel a dozen bounds tests, which
+                        // is a price only a playground should pay.
+                        .risoBypass()
                         .background(ink.color)
+                        .then(
+                            if (charted) {
+                                Modifier.border(3.dp, RisoTheme.colors.content)
+                            } else {
+                                Modifier
+                            },
+                        )
                         .clickable { onSelect(index) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    // The drum number, so the registration sliders below are unambiguous.
-                    if (slot >= 0) {
-                        Text(
-                            text = "${slot + 1}",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = RisoTheme.colors.content,
-                        )
-                    }
+                    // Every ink is a drum, so the number is the same one the sliders below name.
+                    Text(
+                        text = "${index + 1}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = RisoTheme.colors.content,
+                    )
                 }
             }
         }
     }
     Text(
-        text = selected.mapIndexed { slot, index -> "${slot + 1}. ${palette[index].name}" }
-            .joinToString("   "),
+        text = "Charting " + selected.joinToString("   ") { "${it + 1}. ${palette[it].name}" },
         style = MaterialTheme.typography.bodySmall,
         modifier = Modifier.padding(top = 4.dp),
     )
 }
 
 /**
- * The standard riso colour mixer: a Venn of the loaded inks at full coverage, beside a grid of
+ * The standard riso colour mixer: a Venn of the charted [inks] at full coverage, beside a grid of
  * every tint combination — ink 1 falling across the columns, ink 2 falling and ink 3 rising down
- * the rows. A press can carry more drums than that, but a chart only has two axes, so the grid
- * ramps the first [GRID_INKS] and leaves the rest to the Venn.
+ * the rows. The press carries its whole rack; a chart has only these axes, which is why no more
+ * than [CHART_INKS] can be picked.
  *
  * Every patch is authored with [risoOverprint], which is the exact inverse of the shader's
  * separation, so a cell labelled 60/40 really does come back off the press as the colour 60% of one
  * drum and 40% of the other makes. Eyeballing a blend instead would print something else entirely.
- * With a long rack loaded the press may reach for other drums to make that colour — see
+ * With the full rack loaded the press may reach for other drums to make that colour — see
  * [risoOverprint] — which is visible here as a patch printing in a screen angle you did not pick.
  */
 @Composable
-private fun ColorMixerChart(params: RisoPrintParams) {
-    val inks = params.inks
-    val gridInks = inks.take(GRID_INKS).map { it.color }
+private fun ColorMixerChart(params: RisoPrintParams, inks: List<RisoInk>) {
+    val gridInks = inks.map { it.color }
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 7.sp)
 
@@ -420,7 +428,7 @@ private fun BypassComparison() {
 
 /** Type set in each ink, where misregistration is most visible. */
 @Composable
-private fun TypeArtwork(params: RisoPrintParams) {
+private fun TypeArtwork(params: RisoPrintParams, inks: List<RisoInk>) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -428,14 +436,14 @@ private fun TypeArtwork(params: RisoPrintParams) {
         Text(
             text = "RISO",
             style = MaterialTheme.typography.displayLarge,
-            color = params.inks.last().color,
+            color = inks.last().color,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
         )
         Text(
             text = "${params.inks.size} drums, one pass each",
             style = MaterialTheme.typography.titleMedium,
-            color = params.inks.first().color,
+            color = inks.first().color,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
         )
@@ -478,10 +486,7 @@ private fun ParamSlider(
     val shown = if (onRelease) dragged else value
 
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Text(
-            text = "$label: ${(shown * 100).roundToInt() / 100f}",
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        Body("$label: ${(shown * 100).roundToInt() / 100f}")
         Slider(
             value = shown,
             onValueChange = { if (onRelease) dragged = it else onValueChange(it) },
