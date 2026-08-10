@@ -21,4 +21,7 @@ android {
 
 dependencies {
     implementation(projects.pacer.shared)
+    // For the debug-only launcher icon bake: :pacer:shared keeps riso as an implementation
+    // dependency, so the press is not on this module's classpath otherwise.
+    implementation(projects.design.riso)
 }

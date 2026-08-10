@@ -119,7 +119,7 @@ actual fun Modifier.risoPrint(params: RisoPrintParams): Modifier = composed {
  * to pixels here, so the print grain keeps a constant physical size across densities. The
  * composable's content is bound separately as the `u_image` input by the render effect.
  */
-private fun RuntimeShader.applyRisoParams(
+internal fun RuntimeShader.applyRisoParams(
     params: RisoPrintParams,
     capacity: Int,
     width: Float,
