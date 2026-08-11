@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -25,6 +26,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,7 +49,11 @@ import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.NamedInk
 import com.alexgabor.design.riso.attributes.RisoColors
 import com.alexgabor.design.riso.bypass.risoBypass
+import com.alexgabor.design.riso.components.ButtonGroup
+import com.alexgabor.design.riso.components.ButtonGroupItem
+import com.alexgabor.design.riso.separation.risoInk
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -71,7 +77,7 @@ private const val CHART_INKS = 3
  */
 @Preview
 @Composable
-private fun RisoPrintDemo(modifier: Modifier = Modifier) {
+fun RisoPrintDemo(modifier: Modifier = Modifier) {
     val palette = RisoColors.inks.all
     // The whole rack is loaded, always — a colour is separated onto the few drums that can print it,
     // so leaving them all mounted costs next to nothing. Picking a swatch chooses what the chart
@@ -79,7 +85,8 @@ private fun RisoPrintDemo(modifier: Modifier = Modifier) {
     var params by remember { mutableStateOf(RisoPrintParams()) }
     // Pink, yellow and blue: the subtractive triad a printed mixer chart is normally built on.
     var selected by remember { mutableStateOf(listOf(0, 3, 7)) }
-    var showMixer by remember { mutableStateOf(true) }
+    var artwork by remember { mutableStateOf(Artwork.Intent) }
+    var amplify by remember { mutableFloatStateOf(1f) }
 
     fun updateInk(slot: Int, block: RisoInk.() -> RisoInk) {
         params = params.copy(
@@ -110,9 +117,13 @@ private fun RisoPrintDemo(modifier: Modifier = Modifier) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(if (showMixer) 2f else 4 / 3f)
+                .aspectRatio(if (artwork == Artwork.Mixer) 2f else 4 / 3f)
         ) {
-            if (showMixer) ColorMixerChart(params, chartInks) else TypeArtwork(params, chartInks)
+            when (artwork) {
+                Artwork.Mixer -> ColorMixerChart(params, chartInks)
+                Artwork.Type -> TypeArtwork(params, chartInks)
+                Artwork.Intent -> IntentArtwork(params, chartInks, amplify)
+            }
         }
 
         Column(Modifier.padding(horizontal = 16.dp)) {
@@ -126,11 +137,15 @@ private fun RisoPrintDemo(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             item {
-                LabeledSwitch(
-                    label = "Colour mixer chart",
-                    checked = showMixer,
-                    onCheckedChange = { showMixer = it },
+                ButtonGroup(
+                    selected = artwork,
+                    *Artwork.entries.toTypedArray(),
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    onSelect = { artwork = it },
                 )
+                if (artwork == Artwork.Intent) {
+                    ParamSlider("Amplify registration", amplify, 0f, 12f) { amplify = it }
+                }
             }
 
             item {
@@ -423,6 +438,84 @@ private fun BypassComparison() {
     ) {
         Swatch("printed", Modifier)
         Swatch("risoBypass", Modifier.risoBypass(cornerRadius = 8.dp))
+    }
+}
+
+/** Which artwork the press is running. */
+private enum class Artwork(override val text: String) : ButtonGroupItem {
+    Type("Type"),
+    Mixer("Mixer"),
+    Intent("Intent"),
+}
+
+/**
+ * Coverages the intent disc is authored at, per drum. Deliberately uneven: a colour mixed from three
+ * drums at different strengths is exactly the kind a separation cannot read back unambiguously,
+ * which is what [risoInk] is for.
+ */
+private val INTENT_COVERAGES = listOf(0.85f, 0.55f, 0.35f)
+
+/**
+ * A disc printed on the drums it names, with its title knocked out of the ink — the artwork for
+ * reading [risoInk] off the press.
+ *
+ * The disc's colour is authored with [risoOverprint] from the charted inks, and the same recipe is
+ * declared with [risoInk], so the press prints it on the drums it was mixed from instead of whatever
+ * the separation would otherwise reach for. Wind [amplify] up and each of those drums throws its
+ * pass further off register, until the recipe is legible directly off the artwork as one fringe per
+ * ink.
+ *
+ * The title is set in the stock's own colour, which is a knockout: a press cannot print white, so
+ * paper-coloured artwork comes off as a hole in the ink rather than as a second colour laid over it.
+ * A hole is where amplified registration hurts most — each drum samples the artwork off where the
+ * glyph actually is, so every pass fills the hole in from its own direction and the type turns to
+ * mud. The title's own region prints in perfect register, so the hole is punched exactly where it
+ * was drawn and the type stays readable however far the disc around it is thrown.
+ *
+ * That region is the title's rectangle, so the disc stops fringing inside it too — a sharp block of
+ * registered ink in the middle of a smeared one. That is what a region is: bounds, not a shape.
+ */
+@Composable
+private fun IntentArtwork(params: RisoPrintParams, inks: List<RisoInk>, amplify: Float) {
+    val recipe = inks.map { it.color }
+        .zip(INTENT_COVERAGES)
+        .toTypedArray()
+    val diameter = 240.dp
+
+    // How far the disc's amplified passes reach. A pixel *outside* the title's region still samples
+    // the artwork from this far away, so it can read a glyph from outside and punch a second,
+    // displaced hole through the type. Registering the type is not enough on its own: its region has
+    // to own the whole band the type can be reached from.
+    val reach = params.inks.maxOfOrNull { maxOf(abs(it.offsetX), abs(it.offsetY)) } ?: 0f
+    val standoff = (reach * amplify + params.wobble).dp
+
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .size(diameter)
+                // The region is a rounded rectangle, so a full corner radius makes it the disc.
+                .risoInk(*recipe, offsetScale = amplify, cornerRadius = diameter / 2)
+                .background(
+                    color = risoOverprint(params.paper.colorFront, *recipe),
+                    shape = CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "RISO",
+                style = MaterialTheme.typography.displaySmall,
+                // The stock's own colour: a hole in the ink, not a colour printed over it.
+                color = params.paper.colorFront,
+                textAlign = TextAlign.Center,
+                // The same drums as the disc — a region names the whole rack it prints with, so an
+                // empty recipe here would knock the title's box out to bare paper instead of
+                // leaving the disc's ink around the glyphs. The padding sits inside the region, so
+                // the region is the type plus its standoff.
+                modifier = Modifier
+                    .risoInk(*recipe, offsetScale = 0f)
+                    .padding(standoff),
+            )
+        }
     }
 }
 

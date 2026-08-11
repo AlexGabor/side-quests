@@ -20,6 +20,11 @@ import com.alexgabor.design.riso.bypass.applyBypass
 import com.alexgabor.design.riso.bypass.bypassAgsl
 import com.alexgabor.design.riso.bypass.bypassCapacity
 import com.alexgabor.design.riso.bypass.risoBypassHost
+import com.alexgabor.design.riso.region.regionCapacity
+import com.alexgabor.design.riso.separation.RisoInkHost
+import com.alexgabor.design.riso.separation.applyInk
+import com.alexgabor.design.riso.separation.inkIntentAgsl
+import com.alexgabor.design.riso.separation.risoInkHost
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -46,16 +51,18 @@ actual fun Modifier.risoPrint(params: RisoPrintParams): Modifier = composed {
     val density = LocalDensity.current.density
     var size by remember { mutableStateOf(IntSize.Zero) }
     val host = remember { RisoBypassHost() }
+    val inkHost = remember { RisoInkHost() }
 
-    // Only the *number* of bypassed regions is read here: it fixes the shader's uniform array
-    // lengths, so it has to be known at compile time. Where those regions are is read at draw time
-    // instead, below.
+    // Only the *number* of regions is read here: it fixes the shader's uniform array lengths, so it
+    // has to be known at compile time. Where those regions are, and what they say, is read at draw
+    // time instead, below.
     val capacity = bypassCapacity(host.peakRegionCount)
+    val intentCapacity = regionCapacity(inkHost.peakRegionCount)
     // The drum count sizes uniform arrays the same way, so it is bucketed too: loading or pulling a
     // drum in a picker mostly reuses the shader it already compiled.
     val inkCapacity = inkCapacity(params.inks.size)
-    val shader = remember(capacity, inkCapacity) {
-        RuntimeShader(risoPrintAgsl(capacity, inkCapacity))
+    val shader = remember(capacity, intentCapacity, inkCapacity) {
+        RuntimeShader(risoPrintAgsl(capacity, intentCapacity, inkCapacity))
     }
 
     // Keyed on the stock alone, so loading a drum or dragging an ink slider never re-bakes the
@@ -85,6 +92,13 @@ actual fun Modifier.risoPrint(params: RisoPrintParams): Modifier = composed {
         Modifier.graphicsLayer {
             clip = true
             shader.applyBypass(host.regions, capacity)
+            shader.applyInk(
+                regions = inkHost.regions,
+                capacity = intentCapacity,
+                rack = params.inks.map { it.color },
+                driftPx = params.registrationDrift * density,
+                wobblePx = abs(params.wobble) * density,
+            )
             renderEffect = RenderEffect
                 .createRuntimeShaderEffect(shader, "u_image")
                 .asComposeRenderEffect()
@@ -93,7 +107,10 @@ actual fun Modifier.risoPrint(params: RisoPrintParams): Modifier = composed {
         Modifier
     }
 
-    onSizeChanged { size = it }.then(Modifier.risoBypassHost(host)).then(withEffect)
+    onSizeChanged { size = it }
+        .then(Modifier.risoBypassHost(host))
+        .then(Modifier.risoInkHost(inkHost))
+        .then(withEffect)
 }
 
 /**
@@ -176,10 +193,9 @@ private fun RuntimeShader.applyRisoParams(
     setFloatUniform("u_fanAnchor", fan?.anchor?.get(0) ?: 0f, fan?.anchor?.get(1) ?: 0f)
     setFloatUniform("u_fanBase", fan?.base ?: 0f)
 
-    // How far a pass can land from where it was drawn, which is how far a blank pixel has to look to
-    // find the artwork whose ink might drift onto it.
-    val drift = inks.maxOfOrNull { maxOf(abs(it.offsetX), abs(it.offsetY)) } ?: 0f
-    setFloatUniform("u_probeRadius", (drift + abs(params.wobble)) * density)
+    // u_probeRadius is deliberately not set here. How far a blank pixel has to look for the artwork
+    // drifting onto it depends on how far the regions on screen amplify their passes, which is only
+    // known at draw time — so applyInk() owns it, and runs before every draw.
 
     setFloatUniform("u_overprint", params.overprint.coerceIn(0f, 1f))
     setFloatUniform("u_screen", params.screen.coerceIn(0f, 1f))
@@ -193,20 +209,28 @@ private fun RuntimeShader.applyRisoParams(
     setFloatUniform("u_seed", params.seed)
 }
 
+/**
+ * How far the worst-registered pass on the rack lands from where it was drawn, in dp, before any
+ * region amplifies it. A blank pixel has to look this far to find the artwork whose ink drifts onto
+ * it — see [applyInk], which scales it by the widest amplifier on screen.
+ */
+internal val RisoPrintParams.registrationDrift: Float
+    get() = inks.maxOfOrNull { maxOf(abs(it.offsetX), abs(it.offsetY)) } ?: 0f
+
 /** The colour as a per-channel transmittance, i.e. what full coverage of it does to white paper. */
-private fun Color.transmittance() = floatArrayOf(
+internal fun Color.transmittance() = floatArrayOf(
     red.coerceIn(MIN_TRANSMITTANCE, 1f),
     green.coerceIn(MIN_TRANSMITTANCE, 1f),
     blue.coerceIn(MIN_TRANSMITTANCE, 1f),
 )
 
 /** Optical density of full coverage of [color], i.e. `-ln(transmittance)`. */
-private fun densityOf(color: Color): FloatArray {
+internal fun densityOf(color: Color): FloatArray {
     val t = color.transmittance()
     return floatArrayOf(-ln(t[0]), -ln(t[1]), -ln(t[2]))
 }
 
-private fun dot3(a: FloatArray, b: FloatArray) = a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+internal fun dot3(a: FloatArray, b: FloatArray) = a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 
 /**
  * Builds the colour separation as one row vector per ink, such that ink `i`'s coverage at a pixel
@@ -396,11 +420,13 @@ internal fun inkCapacity(count: Int): Int =
 private const val MIN_INK_CAPACITY = 4
 
 /**
- * The print shader, built for [capacity] bypassed regions and [inkCapacity] drums. See [bypassAgsl]
- * for why the capacities are part of the source rather than uniforms.
+ * The print shader, built for [capacity] bypassed regions, [intentCapacity] regions naming their own
+ * drums, and [inkCapacity] drums. See [bypassAgsl] for why the capacities are part of the source
+ * rather than uniforms.
  */
-internal fun risoPrintAgsl(capacity: Int, inkCapacity: Int): String =
-    bypassAgsl(capacity) + "\n" + risoPrintBodyAgsl(inkCapacity)
+internal fun risoPrintAgsl(capacity: Int, intentCapacity: Int, inkCapacity: Int): String =
+    bypassAgsl(capacity) + "\n" + inkIntentAgsl(intentCapacity) + "\n" +
+        risoPrintBodyAgsl(inkCapacity)
 
 
 // language=AGSL
@@ -685,7 +711,8 @@ half4 main(float2 fragCoord) {
     // at most the three of a wedge — mounting all twelve for every pixel would cost a content sample
     // and a noise field each to lay down nothing.
     float3 probe = densityOf(source);
-    if (u_wedgeCount >= 1.0 && weightOf(probe) <= 0.0005) {
+    bool bare = weightOf(probe) <= 0.0005;
+    if ((u_wedgeCount >= 1.0 || u_intentCount >= 1.0) && bare) {
         // Bare paper. The only ink that can reach here is a neighbouring pass drifting in on its
         // registration error, so the rack is chosen from the nearest thing within that drift — and
         // if there is nothing to drift in, the sheet stays blank and no drum runs at all.
@@ -703,11 +730,22 @@ half4 main(float2 fragCoord) {
         }
     }
 
-    float3 slots;
-    float3 row0;
-    float3 row1;
-    float3 row2;
-    selectWedge(probe, slots, row0, row1, row2);
+    float3 slots = float3(0.0);
+    float3 row0 = float3(0.0);
+    float3 row1 = float3(0.0);
+    float3 row2 = float3(0.0);
+    float offsetScale = 1.0;
+
+    bool haveRack = u_wedgeCount >= 1.0;
+    if (haveRack) selectWedge(probe, slots, row0, row1, row2);
+
+    // A region that names its own drums outranks the fan's read of the colour, and brings its own
+    // rows, so it needs no fan at all — which is what lets a two-drum press honour an intent the
+    // cone is too small to describe. On bare paper the claim reaches as far as a pass can drift,
+    // because the only ink that lands there came from a region it drifted out of.
+    if (selectIntent(fragCoord, bare ? u_probeRadius : 0.0, slots, row0, row1, row2, offsetScale)) {
+        haveRack = true;
+    }
 
     // Stacked ink: the passes multiply, so overlaps go dark.
     float3 stacked = u_paper;
@@ -717,7 +755,7 @@ half4 main(float2 fragCoord) {
     float3 mixed = float3(0.0);
     float total = 0.0;
 
-    if (u_wedgeCount >= 1.0) {
+    if (haveRack) {
         // The wedge names its drums by slot, and a uniform array can only be read at a slot the
         // compiler knows, so the rack is gathered off the loop counter first and printed after.
         float4 passA = float4(0.0);
@@ -732,6 +770,13 @@ half4 main(float2 fragCoord) {
             else if (float(i) == slots.y) { passB = u_pass[i]; inkB = u_ink[i].xyz; }
             else if (float(i) == slots.z) { passC = u_pass[i]; inkC = u_ink[i].xyz; }
         }
+
+        // Exaggerate — or cancel — this region's misregistration. Only the drum's own error is
+        // scaled: the feed wobble added inside inkSample() varies down the page, so scaling that
+        // per region would tear along the region's edge where a constant offset does not.
+        passA.xy *= offsetScale;
+        passB.xy *= offsetScale;
+        passC.xy *= offsetScale;
 
         // A drum the colour barely calls for does not get a pass of its own. Its ink still reaches
         // the sheet — laid flat, straight off the probe — but sampling, screening and mottling a
@@ -762,7 +807,8 @@ half4 main(float2 fragCoord) {
         total = a.x + b.x + c.x;
         opacity = max(opacity, max(a.y, max(b.y, c.y)));
     } else {
-        // No fan — too few inks, or a rack all of one hue — so every drum runs off its own row.
+        // No rack to run: no fan — too few inks, or a rack all of one hue — and no region naming
+        // drums either, so every drum runs off its own row and takes its offset as loaded.
         for (int i = 0; i < $inkCapacity; i++) {
             if (float(i) >= u_inkCount) break;
 

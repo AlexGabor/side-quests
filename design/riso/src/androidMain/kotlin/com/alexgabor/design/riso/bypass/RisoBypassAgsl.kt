@@ -1,6 +1,7 @@
 package com.alexgabor.design.riso.bypass
 
 import android.graphics.RuntimeShader
+import com.alexgabor.design.riso.region.regionCapacity
 
 /**
  * The AGSL every effect shader shares in order to honour [risoBypass]: the bypassed rectangles, and
@@ -38,17 +39,8 @@ float bypassMask(float2 p) {
 }
 """.trimIndent()
 
-/**
- * Uniform-array capacity for [count] regions: the next power of two, at least 4. Bucketing keeps a
- * UI that adds and removes a region from recompiling its shaders each time.
- */
-internal fun bypassCapacity(count: Int): Int {
-    var capacity = MIN_BYPASS_CAPACITY
-    while (capacity < count) capacity *= 2
-    return capacity
-}
-
-private const val MIN_BYPASS_CAPACITY = 4
+/** Uniform-array capacity for [count] bypassed regions. See [regionCapacity]. */
+internal fun bypassCapacity(count: Int): Int = regionCapacity(count)
 
 /**
  * Sets the bypass uniforms, clamped to the shader's own [capacity]. The clamp only bites in the one
