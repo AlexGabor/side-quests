@@ -3,7 +3,7 @@ package com.alexgabor.design.riso.separation
 import android.graphics.RuntimeShader
 import androidx.compose.ui.graphics.Color
 import com.alexgabor.design.riso.print.densityOf
-import com.alexgabor.design.riso.print.dot3
+import com.alexgabor.design.riso.print.separationRows
 
 /**
  * The AGSL the print shader needs in order to honour [risoInk]: the regions that name their own
@@ -20,16 +20,29 @@ uniform float4 u_intentRow0[$capacity];  // xyz: coverage row for slot x; w: the
 uniform float4 u_intentRow1[$capacity];  // xyz: coverage row for slot y.
 uniform float4 u_intentRow2[$capacity];  // xyz: coverage row for slot z.
 uniform float u_intentCount;
+// How far a region's claim carries past its own bounds, in pixels: the furthest any pass on the
+// sheet drifts, once amplified. Only bare paper is claimed at a distance — see selectIntent().
+uniform float u_intentReach;
+
+/** Rounded-box signed distance: negative inside the region, positive outside. */
+float regionSd(float2 p, float4 region, float radius) {
+    float2 halfSize = 0.5 * region.zw;
+    float2 q = abs(p - (region.xy + halfSize)) - (halfSize - radius);
+    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
+}
 
 /**
- * The rack a pixel was told to print with, and how far off-register to run it, if any region claims
- * it. False leaves the arguments as they were, for the separation to decide as it always has —
+ * The rack a pixel was told to print with, how far off-register to run it, and the bounds its passes
+ * may pick ink up from, if any region claims it. False leaves the arguments as they were, for the
+ * separation to decide as it always has —
  * which is why they are `inout` and not `out`: an `out` parameter is write-only, and copying one
  * back unwritten would wipe the rows the fan had just worked out for every unclaimed pixel.
  *
  * [reach] is how far outside a region still counts as claimed — zero for a pixel with artwork of its
- * own, and a pass's drift for one on bare paper, since the only ink that can reach bare paper is a
- * neighbouring pass wandering off its region.
+ * own, and [u_intentReach] for one on bare paper, since the only ink that can reach bare paper is a
+ * neighbouring pass wandering off its region. Granting that reach generously is safe: it settles
+ * only which rack the pixel would print with, and the caller's probe still decides whether any ink
+ * reached it at all.
  *
  * The rows are the same shape [selectWedge] produces, so everything downstream is none the wiser:
  * coverage is still `dot(row, density)`. What changes is that they are built from the recipe the
@@ -42,7 +55,9 @@ bool selectIntent(
     inout float3 row0,
     inout float3 row1,
     inout float3 row2,
-    inout float offsetScale
+    inout float offsetScale,
+    inout float4 clip,
+    inout float clipRadius
 ) {
     bool claimed = false;
     float tightest = 0.0;
@@ -51,10 +66,7 @@ bool selectIntent(
 
         float4 region = u_intent[i];
         float radius = u_intentSlots[i].w;
-        float2 halfSize = 0.5 * region.zw;
-        // Rounded-box signed distance: negative inside the region, positive outside.
-        float2 q = abs(p - (region.xy + halfSize)) - (halfSize - radius);
-        float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
+        float sd = regionSd(p, region, radius);
         if (sd > reach) continue;
 
         // The smallest claim wins, which is the innermost: a composable is laid out inside its
@@ -70,9 +82,20 @@ bool selectIntent(
         row1 = u_intentRow1[i].xyz;
         row2 = u_intentRow2[i].xyz;
         offsetScale = u_intentRow0[i].w;
+        clip = region;
+        clipRadius = radius;
         claimed = true;
     }
     return claimed;
+}
+
+/**
+ * Whether a pass may pick ink up from [p]: a region only prints the artwork it contains, so ink
+ * thrown past its bounds finds bare paper rather than whatever is drawn next door. An unclaimed
+ * pixel is handed bounds big enough to swallow the layer, so this costs it nothing.
+ */
+bool withinRegion(float2 p, float4 clip, float clipRadius) {
+    return regionSd(p, clip, clipRadius) <= 0.0;
 }
 
 // No edge feathering, unlike the bypass mask: how much ink lands is still read per pixel from the
@@ -82,21 +105,25 @@ bool selectIntent(
 
 /**
  * Sets the ink intent uniforms, clamped to the shader's own [capacity], resolving each region's
- * recipe against the [rack] the press is actually running.
+ * named inks against the [rack] the press is actually running.
  *
- * ### How a recipe becomes coverage rows
- * A recipe of coverages `c` on inks `i` has its own optical density `D = sum(c_i * density(ink_i))`,
- * and a pixel's coverage of drum `i` is the pixel's density projected onto that one axis:
+ * ### How a named palette becomes coverage rows
+ * The same separation the fan runs, restricted to the drums the region named: [separationRows] gives
+ * one row per drum such that `coverage_i = dot(row_i, density)`, so a pixel's own colour still
+ * decides how much of each drum it takes. That is what lets one region hold artwork of several
+ * colours — a border in one ink, a fill in another — and print each on the drum it was drawn in.
  *
- *     row_i = c_i * D / dot(D, D)     so that     dot(row_i, pixel) = c_i * s
+ * A flat fill authored with [risoOverprint][com.alexgabor.design.riso.print.risoOverprint] from
+ * these same inks separates back onto them at the coverages it was authored with, since the rows
+ * invert exactly the density sum that built it.
  *
- * where `s` is the least-squares fit of the pixel against the recipe. At the authored colour `s` is
- * exactly 1 and every drum gets the coverage it was given, which is what makes a fill authored with
- * [risoOverprint][com.alexgabor.design.riso.print.risoOverprint] round-trip; at a tint, a gradient
- * or an antialiased edge `s` falls off with the ink, so tone still comes from the artwork.
+ * The basis is the *drum's* ink, not the colour the author passed: naming a colour picks a drum, and
+ * the drum's own ink is what prints. Passing a printed appearance — `purple.onRisoPaper()`, which
+ * already carries the stock — would otherwise skew the basis by a paper multiply the shader divides
+ * out again.
  *
- * A recipe that names nothing has no axis to project onto, and leaves its slots and rows zeroed: no
- * drum runs, and the region prints as bare stock.
+ * A region that names nothing leaves its slots and rows zeroed: no drum runs, and it prints as bare
+ * stock.
  */
 internal fun RuntimeShader.applyInk(
     regions: List<RisoInkRect>,
@@ -124,31 +151,20 @@ internal fun RuntimeShader.applyInk(
         rows[0][index * 4 + 3] = region.offsetScale
         widestScale = maxOf(widestScale, region.offsetScale)
 
-        // A colour prints on at most three drums, as a wedge of the fan does, so a longer recipe
-        // leaves the drums it leans on least in the rack.
-        val recipe = region.recipe
-            .filter { it.second > 0f }
-            .sortedByDescending { it.second }
-            .take(3)
+        // A colour prints on at most three drums, as a wedge of the fan does, so a longer list
+        // leaves the rest in the rack. Two names landing on one drum would split its coverage
+        // between two rows, so they are folded together first.
+        val drums = region.inks.take(3).map { slotOf(it, rack) }.distinct()
 
-        val axis = FloatArray(3)
-        val drums = IntArray(recipe.size)
-        recipe.forEachIndexed { corner, (color, coverage) ->
-            drums[corner] = slotOf(color, rack)
-            val density = densityOf(color)
-            repeat(3) { channel -> axis[channel] += coverage * density[channel] }
-        }
+        // A region that named nothing prints nothing. The zeroed slots matter as much as the zeroed
+        // rows: the shader gathers a pass off a slot before it knows the coverage is zero.
+        if (drums.isEmpty()) return@repeat
 
-        // Nothing to print, or a recipe so pale it has no direction to fit against. Either way the
-        // zeroed slots and rows leave the region blank — and the zeroed slots matter, because the
-        // shader gathers a pass off them before it knows the coverage is zero.
-        val norm = dot3(axis, axis)
-        if (norm <= 1e-6f) return@repeat
-
-        recipe.forEachIndexed { corner, (_, coverage) ->
-            slots[index * 4 + corner] = drums[corner].toFloat()
+        val subset = separationRows(drums.map { rack[it] })
+        drums.forEachIndexed { corner, slot ->
+            slots[index * 4 + corner] = slot.toFloat()
             repeat(3) { channel ->
-                rows[corner][index * 4 + channel] = coverage * axis[channel] / norm
+                rows[corner][index * 4 + channel] = subset[corner][channel]
             }
         }
     }
@@ -159,13 +175,16 @@ internal fun RuntimeShader.applyInk(
     setFloatUniform("u_intentRow1", rows[1])
     setFloatUniform("u_intentRow2", rows[2])
 
-    // How far a pass can land from where it was drawn, which is how far a blank pixel has to look to
-    // find the artwork whose ink might drift onto it. An amplified region throws its passes further
-    // than the rack alone would, and a probe that did not know that would clip the fringe at exactly
-    // the radius the amplifier was reaching past. Sized off the widest amplifier on screen rather
-    // than per region, which is free: the probe is four taps whatever the radius. The feed wobble is
-    // not amplified, so it is added after.
-    setFloatUniform("u_probeRadius", driftPx * widestScale + wobblePx)
+    // How far a region's claim carries onto the bare paper around it: the furthest any pass on the
+    // sheet lands from where it was drawn, so that a blank pixel an amplified region threw ink onto
+    // still finds the region that threw it.
+    //
+    // This is the widest amplifier on screen, and deliberately not per region — a pixel cannot know
+    // which region to ask until it has asked. Over-granting it costs nothing, because all a claim
+    // settles is which rack the pixel would print with; how far it then looks for artwork, and so
+    // whether any ink actually lands, is the claiming region's own amplifier. The feed wobble is not
+    // amplified, so it is added after.
+    setFloatUniform("u_intentReach", driftPx * widestScale + wobblePx)
 }
 
 /**

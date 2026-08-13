@@ -24,11 +24,18 @@ import com.alexgabor.design.riso.region.risoRegionHost
  * that shows up as texture nobody asked for. This says which drums to use and settles it.
  *
  * ### What it fixes, and what it leaves alone
- * The region fixes **which drums, and in what ratio**. How much ink lands is still read per pixel
- * from the artwork, so tints, gradients, type and antialiased edges all keep working inside the
- * region — a flat fill is simply the case where that lands at full strength. Author the fill with
- * [risoOverprint][com.alexgabor.design.riso.print.risoOverprint] and the same coverages and the
- * colour round-trips exactly.
+ * The region names **which drums are on the press**; each pixel's own colour still decides how much
+ * of each it takes, exactly as the separation always did — just over these drums instead of the
+ * whole rack. So one region can hold artwork of several colours and each prints on the drum it was
+ * drawn in: a border in the content ink, a filled pill in the accent, both inside the same
+ * component. Tints, gradients, type and antialiased edges all keep working, and a fill authored with
+ * [risoOverprint][com.alexgabor.design.riso.print.risoOverprint] from these same inks separates back
+ * onto them at the coverages it was authored with.
+ *
+ * Name the ink **as it is loaded on the drum** — `RisoColors.inks.purple`, not
+ * `purple.onRisoPaper()`. The second is what that ink looks like once printed, which is a different
+ * colour; it will usually still resolve to the right drum, but only by being nearest to it. A colour
+ * that is on no drum at all resolves to the nearest one the press is carrying.
  *
  * ### Scope
  * The *region*, not the composable — as with
@@ -37,8 +44,10 @@ import com.alexgabor.design.riso.region.risoRegionHost
  * gets its axis-aligned bounding box. Where regions overlap the smaller one wins, which for nested
  * composables is the innermost. Outside any printed layer this does nothing.
  *
- * A press prints a colour on at most three drums, so if more are named only the three largest
- * coverages are loaded.
+ * A colour prints on at most three drums, so if more are named only the first three are loaded.
+ *
+ * A region's passes also only pick up the region's own artwork: ink thrown past these bounds by
+ * [offsetScale] finds bare paper rather than whatever happens to be drawn next door.
  *
  * ### Printing nothing
  * Naming no inks at all is a **knockout**: the region prints on no drums and comes off the press as
@@ -46,30 +55,56 @@ import com.alexgabor.design.riso.region.risoRegionHost
  * knockout removes it. Nothing drifts into a knockout either, so it takes no fringe from
  * neighbouring passes.
  *
- * @param recipe the drums to print with, each paired with its coverage as on a press's tint scale.
+ * @param inks the drums to load, as the inks themselves rather than as they print. Empty is a
+ *   knockout. Beyond three, only the first three are loaded.
  * @param offsetScale multiplies this region's registration error. `1` is the rack as loaded, `0`
  *   prints it in perfect register — worth having for small type, which is where misregistration
- *   costs legibility first — and larger values throw the passes apart on purpose. Has no effect on
- *   a knockout, where no drum runs.
+ *   costs legibility first — and larger values throw the passes apart on purpose. Thin artwork is
+ *   sampled from wherever the pass lands, so a large value displaces a border or a glyph rather than
+ *   fringing it. Has no effect on a knockout, where no drum runs.
  * @param cornerRadius corner radius of the region, to match the content's own shape.
  */
 fun Modifier.risoInk(
-    vararg recipe: Pair<Color, Float>,
+    inks: List<Color> = emptyList(),
     offsetScale: Float = 1f,
     cornerRadius: Dp = 0.dp,
-): Modifier = this then RisoInkElement(recipe.toList(), offsetScale, cornerRadius)
+): Modifier = this then RisoInkElement(inks, offsetScale, cornerRadius)
+
+/** [risoInk] on one drum. */
+fun Modifier.risoInk(
+    ink: Color,
+    offsetScale: Float = 1f,
+    cornerRadius: Dp = 0.dp,
+): Modifier = risoInk(listOf(ink), offsetScale, cornerRadius)
+
+/** [risoInk] on two drums. */
+fun Modifier.risoInk(
+    first: Color,
+    second: Color,
+    offsetScale: Float = 1f,
+    cornerRadius: Dp = 0.dp,
+): Modifier = risoInk(listOf(first, second), offsetScale, cornerRadius)
+
+/** [risoInk] on three drums, which is as many as a colour prints on. */
+fun Modifier.risoInk(
+    first: Color,
+    second: Color,
+    third: Color,
+    offsetScale: Float = 1f,
+    cornerRadius: Dp = 0.dp,
+): Modifier = risoInk(listOf(first, second, third), offsetScale, cornerRadius)
 
 /**
  * One region's ink intent, in the pixel coordinates of the effect layer that will honour it.
  *
- * [recipe] is carried as authored — colours, not slots. Which drum each colour is on depends on the
- * rack the press is running, which the region has no way of knowing; the print modifier resolves it
- * when it sets the uniforms.
+ * [inks] are carried as authored — colours, not slots. Which drum each is on depends on the rack the
+ * press is running, which the region has no way of knowing; the print modifier resolves it when it
+ * sets the uniforms.
  */
 data class RisoInkRect(
     val rect: Rect,
     val cornerRadiusPx: Float,
-    val recipe: List<Pair<Color, Float>>,
+    val inks: List<Color>,
     val offsetScale: Float,
 )
 
@@ -86,12 +121,12 @@ internal typealias RisoInkHost = RisoRegionHost<RisoInkRect>
 internal fun Modifier.risoInkHost(host: RisoInkHost): Modifier = risoRegionHost(host, RisoInkKey)
 
 internal class RisoInkNode(
-    recipe: List<Pair<Color, Float>>,
+    inks: List<Color>,
     offsetScale: Float,
     cornerRadius: Dp,
 ) : RisoRegionNode<RisoInkRect>(RisoInkKey) {
 
-    var recipe: List<Pair<Color, Float>> = recipe
+    var inks: List<Color> = inks
         set(value) {
             if (field == value) return
             field = value
@@ -115,28 +150,28 @@ internal class RisoInkNode(
     override fun payload(bounds: Rect) = RisoInkRect(
         rect = bounds,
         cornerRadiusPx = with(requireDensity()) { cornerRadius.toPx() },
-        recipe = recipe,
+        inks = inks,
         offsetScale = offsetScale,
     )
 }
 
 private data class RisoInkElement(
-    val recipe: List<Pair<Color, Float>>,
+    val inks: List<Color>,
     val offsetScale: Float,
     val cornerRadius: Dp,
 ) : ModifierNodeElement<RisoInkNode>() {
 
-    override fun create() = RisoInkNode(recipe, offsetScale, cornerRadius)
+    override fun create() = RisoInkNode(inks, offsetScale, cornerRadius)
 
     override fun update(node: RisoInkNode) {
-        node.recipe = recipe
+        node.inks = inks
         node.offsetScale = offsetScale
         node.cornerRadius = cornerRadius
     }
 
     override fun InspectorInfo.inspectableProperties() {
         name = "risoInk"
-        properties["recipe"] = recipe
+        properties["inks"] = inks
         properties["offsetScale"] = offsetScale
         properties["cornerRadius"] = cornerRadius
     }

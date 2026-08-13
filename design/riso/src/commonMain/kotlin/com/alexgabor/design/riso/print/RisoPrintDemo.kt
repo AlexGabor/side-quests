@@ -140,7 +140,12 @@ fun RisoPrintDemo(modifier: Modifier = Modifier) {
                 ButtonGroup(
                     selected = artwork,
                     *Artwork.entries.toTypedArray(),
-                    modifier = Modifier.padding(vertical = 4.dp),
+                    // The two inks this component is drawn in, so the press prints its rule in the
+                    // one and its selected pill in the other, rather than separating each onto
+                    // whichever drums happen to make the colour. Named as the inks themselves, not
+                    // as they come off the paper.
+                    modifier = Modifier.padding(vertical = 4.dp)
+                        .risoInk(RisoTheme.colors.content, RisoTheme.colors.accent),
                     onSelect = { artwork = it },
                 )
                 if (artwork == Artwork.Intent) {
@@ -459,11 +464,12 @@ private val INTENT_COVERAGES = listOf(0.85f, 0.55f, 0.35f)
  * A disc printed on the drums it names, with its title knocked out of the ink — the artwork for
  * reading [risoInk] off the press.
  *
- * The disc's colour is authored with [risoOverprint] from the charted inks, and the same recipe is
- * declared with [risoInk], so the press prints it on the drums it was mixed from instead of whatever
- * the separation would otherwise reach for. Wind [amplify] up and each of those drums throws its
- * pass further off register, until the recipe is legible directly off the artwork as one fringe per
- * ink.
+ * The disc's colour is authored with [risoOverprint] from the charted inks, and those same inks are
+ * named with [risoInk], so the press prints it on the drums it was mixed from instead of whatever
+ * the separation would otherwise reach for — and at the coverages it was authored with, since the
+ * restricted separation inverts exactly the mix that made the colour. Wind [amplify] up and each of
+ * those drums throws its pass further off register, until the recipe is legible directly off the
+ * artwork as one fringe per ink.
  *
  * The title is set in the stock's own colour, which is a knockout: a press cannot print white, so
  * paper-coloured artwork comes off as a hole in the ink rather than as a second colour laid over it.
@@ -477,9 +483,8 @@ private val INTENT_COVERAGES = listOf(0.85f, 0.55f, 0.35f)
  */
 @Composable
 private fun IntentArtwork(params: RisoPrintParams, inks: List<RisoInk>, amplify: Float) {
-    val recipe = inks.map { it.color }
-        .zip(INTENT_COVERAGES)
-        .toTypedArray()
+    val drums = inks.map { it.color }
+    val recipe = inks.map { it.color }.zip(INTENT_COVERAGES).toTypedArray()
     val diameter = 240.dp
 
     // How far the disc's amplified passes reach. A pixel *outside* the title's region still samples
@@ -494,7 +499,7 @@ private fun IntentArtwork(params: RisoPrintParams, inks: List<RisoInk>, amplify:
             modifier = Modifier
                 .size(diameter)
                 // The region is a rounded rectangle, so a full corner radius makes it the disc.
-                .risoInk(*recipe, offsetScale = amplify, cornerRadius = diameter / 2)
+                .risoInk(drums, offsetScale = amplify, cornerRadius = diameter / 2)
                 .background(
                     color = risoOverprint(params.paper.colorFront, *recipe),
                     shape = CircleShape,
@@ -507,12 +512,12 @@ private fun IntentArtwork(params: RisoPrintParams, inks: List<RisoInk>, amplify:
                 // The stock's own colour: a hole in the ink, not a colour printed over it.
                 color = params.paper.colorFront,
                 textAlign = TextAlign.Center,
-                // The same drums as the disc — a region names the whole rack it prints with, so an
-                // empty recipe here would knock the title's box out to bare paper instead of
-                // leaving the disc's ink around the glyphs. The padding sits inside the region, so
-                // the region is the type plus its standoff.
+                // The same drums as the disc — a region names the whole rack it prints with, so
+                // naming none here would knock the title's box out to bare paper instead of leaving
+                // the disc's ink around the glyphs. The padding sits inside the region, so the
+                // region is the type plus its standoff.
                 modifier = Modifier
-                    .risoInk(*recipe, offsetScale = 0f)
+                    .risoInk(drums, offsetScale = 0f)
                     .padding(standoff),
             )
         }

@@ -193,9 +193,11 @@ private fun RuntimeShader.applyRisoParams(
     setFloatUniform("u_fanAnchor", fan?.anchor?.get(0) ?: 0f, fan?.anchor?.get(1) ?: 0f)
     setFloatUniform("u_fanBase", fan?.base ?: 0f)
 
-    // u_probeRadius is deliberately not set here. How far a blank pixel has to look for the artwork
-    // drifting onto it depends on how far the regions on screen amplify their passes, which is only
-    // known at draw time — so applyInk() owns it, and runs before every draw.
+    // How far the worst-registered pass lands from where it was drawn, which is how far a blank pixel
+    // has to look to find the artwork whose ink might drift onto it. The rack's own drift only: the
+    // shader scales it by whatever a region amplifies that pixel's passes by, and adds the wobble
+    // after, since the feed jitter is not amplified.
+    setFloatUniform("u_probeRadius", params.registrationDrift * density)
 
     setFloatUniform("u_overprint", params.overprint.coerceIn(0f, 1f))
     setFloatUniform("u_screen", params.screen.coerceIn(0f, 1f))
@@ -212,7 +214,8 @@ private fun RuntimeShader.applyRisoParams(
 /**
  * How far the worst-registered pass on the rack lands from where it was drawn, in dp, before any
  * region amplifies it. A blank pixel has to look this far to find the artwork whose ink drifts onto
- * it — see [applyInk], which scales it by the widest amplifier on screen.
+ * it, scaled by whatever the region claiming that pixel amplifies its passes by. [applyInk] takes
+ * the same number the other way, to decide how far a region's claim carries past its own bounds.
  */
 internal val RisoPrintParams.registrationDrift: Float
     get() = inks.maxOfOrNull { maxOf(abs(it.offsetX), abs(it.offsetY)) } ?: 0f
@@ -240,7 +243,7 @@ internal fun dot3(a: FloatArray, b: FloatArray) = a[0] * b[0] + a[1] * b[1] + a[
  * density against the ink densities. The rows are the pseudo-inverse of that 3xN system, which
  * depends only on the ink colours and so is solved once here rather than per pixel.
  */
-private fun separationRows(inks: List<Color>): List<FloatArray> {
+internal fun separationRows(inks: List<Color>): List<FloatArray> {
     if (inks.isEmpty()) return emptyList()
     val densities = inks.map(::densityOf)
     val n = densities.size
@@ -465,6 +468,9 @@ uniform float4 u_wedgeRow2[$inkCapacity];
 uniform float u_wedgeCount;
 uniform float2 u_fanAnchor;
 uniform float u_fanBase;
+// The rack's own registration drift, in pixels, unamplified: how far a blank pixel looks for the
+// artwork whose ink lands on it. A region that amplifies its passes scales this for the pixels it
+// claims — it is not a screen-wide radius, see main().
 uniform float u_probeRadius;
 
 uniform float u_overprint;
@@ -535,14 +541,28 @@ float3 densityOfRgb(float3 rgb) {
 /**
  * The content under one pass, sampled with that pass's registration error and the sheet's own
  * displacement. Returns (optical density, source alpha).
+ *
+ * [clip] bounds the artwork this pass is entitled to: a region prints what it contains, so a pass
+ * thrown past its edge comes back with nothing rather than picking up whatever was drawn next door.
+ * An unclaimed pixel is handed bounds larger than the layer, so the test never bites.
  */
-float4 inkSample(float2 uv, float2 warp, float2 offsetPx, float phase) {
+float4 inkSample(float2 uv, float2 warp, float2 offsetPx, float phase, float4 clip, float clipRadius) {
     // Drum feed drifts laterally as the sheet travels, so the error varies down the page.
     float2 off = offsetPx;
     off.x += u_wobble * (0.5 * sin(uv.y * 11.0 + phase) + fbm(float2(uv.y * 5.0, phase)) - 0.5);
     off.y += u_wobble * 0.35 * sin(uv.y * 3.0 + phase * 1.7);
 
-    half4 src = u_image.eval(clamp(uv + warp + off / u_resolution, 0.0, 1.0) * u_imageSize);
+    float2 at = clamp(uv + warp + off / u_resolution, 0.0, 1.0) * u_imageSize;
+    // Only the registration error is asked to stay inside the region, since that is the one this
+    // region amplifies. The sheet's warp and the drum's feed wobble carry the region along with the
+    // artwork printed on it, so neither counts against its bounds — testing them too would starve a
+    // band the width of the displacement along every region's edge, which reads as a hairline drawn
+    // around the region.
+    if (!withinRegion((uv + offsetPx / u_resolution) * u_imageSize, clip, clipRadius)) {
+        return float4(0.0);
+    }
+
+    half4 src = u_image.eval(at);
     float alpha = float(src.a);
     float3 rgb = alpha > 0.001 ? float3(src.rgb) / alpha : float3(1.0);
 
@@ -634,8 +654,17 @@ float inkPass(float coverage, float2 fragCoord, float angle, float phase) {
  * One drum end to end: the content under its registration error, separated onto that drum by [row],
  * then screened and laid down. Returns (coverage, source alpha).
  */
-float2 runDrum(float2 uv, float2 warp, float2 fragCoord, float4 pass, float3 row, float phase) {
-    float4 sampled = inkSample(uv, warp, pass.xy, phase);
+float2 runDrum(
+    float2 uv,
+    float2 warp,
+    float2 fragCoord,
+    float4 pass,
+    float3 row,
+    float phase,
+    float4 clip,
+    float clipRadius
+) {
+    float4 sampled = inkSample(uv, warp, pass.xy, phase, clip, clipRadius);
     float laid = clamp(dot(row, sampled.xyz), 0.0, 1.0) * sampled.w;
     return float2(inkPass(laid, fragCoord, pass.z, phase + 41.3), sampled.w);
 }
@@ -712,11 +741,38 @@ half4 main(float2 fragCoord) {
     // and a noise field each to lay down nothing.
     float3 probe = densityOf(source);
     bool bare = weightOf(probe) <= 0.0005;
+
+    float3 slots = float3(0.0);
+    float3 row0 = float3(0.0);
+    float3 row1 = float3(0.0);
+    float3 row2 = float3(0.0);
+    float offsetScale = 1.0;
+    // Bounds a pass may pick ink up from. Unclaimed, that is the whole sheet and more, so the test
+    // inside inkSample() never bites; a region narrows it to itself.
+    float4 clip = float4(-u_imageSize, 3.0 * u_imageSize);
+    float clipRadius = 0.0;
+
+    // Whether a region claims this pixel is settled first, because how far the pixel has to look for
+    // the artwork drifting onto it is the claiming region's business: a region that amplifies its
+    // registration throws its passes further than the rack alone would.
+    //
+    // A region that names its own drums also outranks the fan's read of the colour, and brings its
+    // own rows, so it needs no fan at all — which is what lets a two-drum press honour an intent the
+    // cone is too small to describe. On bare paper the claim reaches as far as any pass on the sheet
+    // can drift, because the only ink that lands there came from a region it drifted out of.
+    bool claimed = selectIntent(
+        fragCoord, bare ? u_intentReach : 0.0,
+        slots, row0, row1, row2, offsetScale, clip, clipRadius);
+
     if ((u_wedgeCount >= 1.0 || u_intentCount >= 1.0) && bare) {
         // Bare paper. The only ink that can reach here is a neighbouring pass drifting in on its
         // registration error, so the rack is chosen from the nearest thing within that drift — and
         // if there is nothing to drift in, the sheet stays blank and no drum runs at all.
-        float r = u_probeRadius;
+        //
+        // The drift *this* pixel could receive, not the widest on the sheet: these four taps are a
+        // ring, not a search, so a radius wider than the drift does not look at more, it looks past.
+        // Sizing it off the whole screen would cost every unamplified edge on the sheet its fringe.
+        float r = u_probeRadius * offsetScale + abs(u_wobble);
         float2 at = fragCoord + warpPx;
         probe = darker(probeAt(at + float2(-r, -r)), probeAt(at + float2(r, -r)));
         probe = darker(probe, probeAt(at + float2(-r, r)));
@@ -730,20 +786,11 @@ half4 main(float2 fragCoord) {
         }
     }
 
-    float3 slots = float3(0.0);
-    float3 row0 = float3(0.0);
-    float3 row1 = float3(0.0);
-    float3 row2 = float3(0.0);
-    float offsetScale = 1.0;
-
-    bool haveRack = u_wedgeCount >= 1.0;
-    if (haveRack) selectWedge(probe, slots, row0, row1, row2);
-
-    // A region that names its own drums outranks the fan's read of the colour, and brings its own
-    // rows, so it needs no fan at all — which is what lets a two-drum press honour an intent the
-    // cone is too small to describe. On bare paper the claim reaches as far as a pass can drift,
-    // because the only ink that lands there came from a region it drifted out of.
-    if (selectIntent(fragCoord, bare ? u_probeRadius : 0.0, slots, row0, row1, row2, offsetScale)) {
+    // Only where no region spoke for the pixel does the fan get to read the colour and pick the
+    // drums itself.
+    bool haveRack = claimed;
+    if (!claimed && u_wedgeCount >= 1.0) {
+        selectWedge(probe, slots, row0, row1, row2);
         haveRack = true;
     }
 
@@ -793,13 +840,13 @@ half4 main(float2 fragCoord) {
         // Each drum lays down its own noise field, so the mottling of one pass does not line up
         // with the next.
         float2 a = wantA > FAINT_COVERAGE
-            ? runDrum(uv, warp, fragCoord, passA, row0, u_seed + slots.x * 13.7)
+            ? runDrum(uv, warp, fragCoord, passA, row0, u_seed + slots.x * 13.7, clip, clipRadius)
             : float2(wantA * alpha, 0.0);
         float2 b = wantB > FAINT_COVERAGE
-            ? runDrum(uv, warp, fragCoord, passB, row1, u_seed + slots.y * 13.7)
+            ? runDrum(uv, warp, fragCoord, passB, row1, u_seed + slots.y * 13.7, clip, clipRadius)
             : float2(wantB * alpha, 0.0);
         float2 c = wantC > FAINT_COVERAGE
-            ? runDrum(uv, warp, fragCoord, passC, row2, u_seed + slots.z * 13.7)
+            ? runDrum(uv, warp, fragCoord, passC, row2, u_seed + slots.z * 13.7, clip, clipRadius)
             : float2(wantC * alpha, 0.0);
 
         stacked *= mix(float3(1.0), inkA, a.x) * mix(float3(1.0), inkB, b.x) * mix(float3(1.0), inkC, c.x);
@@ -816,7 +863,7 @@ half4 main(float2 fragCoord) {
             float3 ink = u_ink[i].xyz;
             float4 pass = u_pass[i];
 
-            float2 laid = runDrum(uv, warp, fragCoord, pass, u_sep[i].xyz, phase);
+            float2 laid = runDrum(uv, warp, fragCoord, pass, u_sep[i].xyz, phase, clip, clipRadius);
             stacked *= mix(float3(1.0), ink, laid.x);
             mixed += laid.x * ink;
             total += laid.x;
