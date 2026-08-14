@@ -38,12 +38,18 @@ float regionSd(float2 p, float4 region, float radius) {
  * which is why they are `inout` and not `out`: an `out` parameter is write-only, and copying one
  * back unwritten would wipe the rows the fan had just worked out for every unclaimed pixel.
  *
- * [reach] is how far outside a region still counts as claimed — zero for a pixel with artwork of its
- * own, and [u_intentReach] for one on bare paper, since the only ink that can reach bare paper is a
- * neighbouring pass wandering off its region. Granting that reach generously is safe: all a claim
- * settles is which rack the pixel would print with and how far its passes are thrown. Whether any
- * ink actually lands is settled by the passes themselves, each of which reads the artwork under its
- * own registration error and comes back with nothing if the region's [clip] does not contain it.
+ * [reach] is how far outside a region still counts as claimed — a hair for a pixel with artwork of
+ * its own, enough to cover the antialiased fringe of the region's own edge, and [u_intentReach] for
+ * one on bare paper, since the only ink that can reach bare paper is a neighbouring pass wandering
+ * off its region. Granting that reach generously is safe: all a claim settles is which rack the
+ * pixel would print with and how far its passes are thrown. Whether any ink actually lands is
+ * settled by the passes themselves, each of which reads the artwork under its own registration
+ * error and comes back with nothing if the region's [clip] does not contain it.
+ *
+ * A region that *contains* the pixel outranks one that merely reaches it, whatever their sizes.
+ * Without that, reach would let a small region steal the band just outside itself from the larger
+ * one it sits in — and a nested region printing in register would then clip its neighbour's ink to
+ * bare paper, drawing the very hairline the reach is there to remove.
  *
  * The rows are the same shape [selectWedge] produces, so everything downstream is none the wiser:
  * coverage is still `dot(row, density)`. What changes is that they are built from the recipe the
@@ -61,6 +67,7 @@ bool selectIntent(
     inout float clipRadius
 ) {
     bool claimed = false;
+    bool contained = false;
     float tightest = 0.0;
     for (int i = 0; i < $capacity; i++) {
         if (float(i) >= u_intentCount) break;
@@ -70,13 +77,19 @@ bool selectIntent(
         float sd = regionSd(p, region, radius);
         if (sd > reach) continue;
 
-        // The smallest claim wins, which is the innermost: a composable is laid out inside its
-        // ancestors, so a nested region is always contained in the one it sits in. Order would be
-        // the obvious tiebreak and is the wrong one — regions arrive in the order their modifier
-        // nodes attached, which puts a child before its parent as often as not.
-        float area = region.z * region.w;
-        if (claimed && area >= tightest) continue;
+        // Holding the pixel beats reaching for it: the pixel is artwork this region was drawn
+        // around, not artwork that drifted near it.
+        bool holds = sd <= 0.0;
+        if (contained && !holds) continue;
 
+        // Among claims of the same standing the smallest wins, which is the innermost: a composable
+        // is laid out inside its ancestors, so a nested region is always contained in the one it
+        // sits in. Order would be the obvious tiebreak and is the wrong one — regions arrive in the
+        // order their modifier nodes attached, which puts a child before its parent as often as not.
+        float area = region.z * region.w;
+        if (claimed && contained == holds && area >= tightest) continue;
+
+        contained = holds;
         tightest = area;
         slots = u_intentSlots[i].xyz;
         row0 = u_intentRow0[i].xyz;
@@ -100,8 +113,15 @@ bool withinRegion(float2 p, float4 clip, float clipRadius) {
 }
 
 // No edge feathering, unlike the bypass mask: how much ink lands is still read per pixel from the
-// artwork, so the edge of anything drawn inside a region is antialiased by its own coverage. The
-// region's own boundary normally sits out where there is nothing printed for it to cut.
+// artwork, so the edge of anything drawn inside a region is antialiased by its own coverage.
+//
+// A region's bounds often coincide with the artwork drawn to them, though — a disc region around a
+// disc, a region around a bordered box — and a shape's antialiased fringe falls *outside* its
+// mathematical edge, which is where the bounds sit. Those pixels unpremultiply to the full density
+// of the shape, so they are not bare, and a claim that needed them strictly inside would leave them
+// to the fan at unamplified register: a hairline of in-register ink pinned to the artwork's original
+// outline while the region's own passes are thrown clear of it. Hence the hair of reach the caller
+// grants a pixel that has artwork of its own — see selectIntent().
 """.trimIndent()
 
 /**

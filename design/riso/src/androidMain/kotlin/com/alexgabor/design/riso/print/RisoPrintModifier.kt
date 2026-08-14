@@ -28,6 +28,7 @@ import com.alexgabor.design.riso.separation.risoInkHost
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.hypot
 import kotlin.math.ln
 import kotlin.math.sqrt
 
@@ -211,9 +212,13 @@ private fun RuntimeShader.applyRisoParams(
  * region amplifies it. [applyInk] scales it by the widest amplifier on screen to decide how far a
  * region's claim carries past its own bounds — a pixel on the bare paper around a region has to be
  * able to find the region whose ink drifted onto it.
+ *
+ * Measured as the distance the pass actually travels, not the larger of its two components: a
+ * region's bounds are read with a signed distance, which is Euclidean, so taking the axes
+ * separately would under-grant a diagonal drum by up to √2 and cut its fringe off part way out.
  */
 internal val RisoPrintParams.registrationDrift: Float
-    get() = inks.maxOfOrNull { maxOf(abs(it.offsetX), abs(it.offsetY)) } ?: 0f
+    get() = inks.maxOfOrNull { hypot(it.offsetX, it.offsetY) } ?: 0f
 
 /** The colour as a per-channel transmittance, i.e. what full coverage of it does to white paper. */
 internal fun Color.transmittance() = floatArrayOf(
@@ -440,6 +445,16 @@ const float FAINT_COVERAGE = 0.012;
 
 /** Density below which a sample is bare paper, and the drum that read it has nothing to lay down. */
 const float BARE_DENSITY = 0.0005;
+
+/**
+ * How far past its own bounds a region still speaks for a pixel that has artwork of its own, so that
+ * a shape drawn to the shape of its bounds owns its own antialiased edge rather than leaving it to
+ * the fan in register. Two pixels: one for the fringe the rasteriser writes outside the shape's
+ * mathematical edge, and one more for the bilinear tap of a read the sheet's warp has left on a
+ * fractional coordinate, which smears that fringe a texel wider again. Measured off a 240dp disc
+ * whose region is the disc — anything less leaves the ring dotted. See selectIntent().
+ */
+const float EDGE_REACH = 2.0;
 
 uniform float2 u_resolution;
 uniform float2 u_imageSize;
@@ -766,9 +781,18 @@ half4 main(float2 fragCoord) {
     // A region that names its own drums also outranks the fan's read of the colour, and brings its
     // own rows, so it needs no fan at all — which is what lets a two-drum press honour an intent the
     // cone is too small to describe. On bare paper the claim reaches as far as any pass on the sheet
-    // can drift, because the only ink that lands there came from a region it drifted out of.
+    // can drift, because the only ink that lands there came from a region it drifted out of. A pixel
+    // with artwork of its own gets a hair of that reach regardless, since a shape drawn to its
+    // region's bounds antialiases just outside them.
+    //
+    // Asked at the warped position, because that is where the artwork this pixel is being judged on
+    // was read from: the sheet carries the regions along with what is printed on them, so a pixel
+    // showing the edge of a region's artwork has to find that region however far the sheet has moved
+    // it. Testing the claim unwarped would let the warp push a fringe pixel out of its own region
+    // and back onto the fan, in register — a hairline around the artwork, dotted where the warp
+    // happens to reach further than the fringe.
     bool claimed = selectIntent(
-        fragCoord, bare ? u_intentReach : 0.0,
+        fragCoord + warpPx, bare ? max(u_intentReach, EDGE_REACH) : EDGE_REACH,
         slots, row0, row1, row2, offsetScale, clip, clipRadius);
 
     // Stacked ink: the passes multiply, so overlaps go dark.

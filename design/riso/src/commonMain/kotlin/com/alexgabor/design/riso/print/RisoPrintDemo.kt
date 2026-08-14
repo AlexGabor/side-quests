@@ -53,8 +53,8 @@ import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.ButtonGroupItem
 import com.alexgabor.design.riso.separation.risoInk
 import kotlin.math.PI
-import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -495,8 +495,9 @@ private fun IntentArtwork(params: RisoPrintParams, inks: List<RisoInk>, amplify:
     // How far the disc's amplified passes reach. A pixel *outside* the title's region still samples
     // the artwork from this far away, so it can read a glyph from outside and punch a second,
     // displaced hole through the type. Registering the type is not enough on its own: its region has
-    // to own the whole band the type can be reached from.
-    val reach = params.inks.maxOfOrNull { maxOf(abs(it.offsetX), abs(it.offsetY)) } ?: 0f
+    // to own the whole band the type can be reached from — which is the distance a pass travels, not
+    // the larger of its two components, the same measure the press itself grants a region's claim.
+    val reach = params.inks.maxOfOrNull { hypot(it.offsetX, it.offsetY) } ?: 0f
     val standoff = (reach * amplify + params.wobble).dp
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
