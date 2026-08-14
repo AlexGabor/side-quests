@@ -149,7 +149,12 @@ fun RisoPrintDemo(modifier: Modifier = Modifier) {
                     onSelect = { artwork = it },
                 )
                 if (artwork == Artwork.Intent) {
-                    ParamSlider("Amplify registration", amplify, 0f, 12f) { amplify = it }
+                    // Five is where a 3dp rack throws its passes about 15dp, which is as far as the
+                    // disc can be pulled apart and still read as one disc. The ceiling is a distance
+                    // on the page, not a multiplier: wind the rack's own offsets up and this wants
+                    // to come down to match, or the standoff the title needs outgrows the artwork
+                    // it is protecting — see IntentArtwork.
+                    ParamSlider("Amplify registration", amplify, 0f, 5f) { amplify = it }
                 }
             }
 

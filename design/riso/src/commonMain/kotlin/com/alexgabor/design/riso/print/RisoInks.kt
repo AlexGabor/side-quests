@@ -10,13 +10,18 @@ import kotlin.math.sin
  * The drum a press would load in slot [slot], carrying [color].
  *
  * No two presses register alike, so the error is spun around the slot index rather than tabulated:
- * each drum lands about a dp off in its own direction, and successive screen angles sit far enough
+ * each drum lands a few dp off in its own direction, and successive screen angles sit far enough
  * apart that neighbouring passes do not moire.
+ *
+ * Three dp is a press that is visibly out — fills and rules carry a second image, while type at body
+ * sizes still reads. Wind it further with
+ * [risoInk(offsetScale)][com.alexgabor.design.riso.separation.risoInk] per region rather than here,
+ * so the artwork that can afford to be thrown apart is the artwork that is.
  */
 fun risoInkForSlot(slot: Int, color: Color): RisoInk = RisoInk(
     color = color,
-    offsetX = 1.2f * cos(slot * 2.4f),
-    offsetY = 1.2f * sin(slot * 2.4f),
+    offsetX = 3f * cos(slot * 2.4f),
+    offsetY = 3f * sin(slot * 2.4f),
     screenAngle = (15f + slot * 37.5f) % 90f,
 )
 

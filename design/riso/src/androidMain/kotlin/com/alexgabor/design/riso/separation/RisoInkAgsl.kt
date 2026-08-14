@@ -40,9 +40,10 @@ float regionSd(float2 p, float4 region, float radius) {
  *
  * [reach] is how far outside a region still counts as claimed — zero for a pixel with artwork of its
  * own, and [u_intentReach] for one on bare paper, since the only ink that can reach bare paper is a
- * neighbouring pass wandering off its region. Granting that reach generously is safe: it settles
- * only which rack the pixel would print with, and the caller's probe still decides whether any ink
- * reached it at all.
+ * neighbouring pass wandering off its region. Granting that reach generously is safe: all a claim
+ * settles is which rack the pixel would print with and how far its passes are thrown. Whether any
+ * ink actually lands is settled by the passes themselves, each of which reads the artwork under its
+ * own registration error and comes back with nothing if the region's [clip] does not contain it.
  *
  * The rows are the same shape [selectWedge] produces, so everything downstream is none the wiser:
  * coverage is still `dot(row, density)`. What changes is that they are built from the recipe the
@@ -181,9 +182,9 @@ internal fun RuntimeShader.applyInk(
     //
     // This is the widest amplifier on screen, and deliberately not per region — a pixel cannot know
     // which region to ask until it has asked. Over-granting it costs nothing, because all a claim
-    // settles is which rack the pixel would print with; how far it then looks for artwork, and so
-    // whether any ink actually lands, is the claiming region's own amplifier. The feed wobble is not
-    // amplified, so it is added after.
+    // settles is which rack the pixel would print with and how far its passes are thrown; whether
+    // any ink actually lands is settled by the passes themselves. The feed wobble is not amplified,
+    // so it is added after.
     setFloatUniform("u_intentReach", driftPx * widestScale + wobblePx)
 }
 
