@@ -11,10 +11,13 @@ import com.alexgabor.design.riso.attributes.LocalColors
 import com.alexgabor.design.riso.attributes.Colors
 import com.alexgabor.design.riso.attributes.Dimens
 import com.alexgabor.design.riso.attributes.LocalDimens
+import com.alexgabor.design.riso.attributes.LocalPress
 import com.alexgabor.design.riso.attributes.LocalShapes
 import com.alexgabor.design.riso.attributes.LocalTypography
+import com.alexgabor.design.riso.attributes.Press
 import com.alexgabor.design.riso.attributes.RisoColors
 import com.alexgabor.design.riso.attributes.RisoDimens
+import com.alexgabor.design.riso.attributes.RisoPress
 import com.alexgabor.design.riso.attributes.RisoShapes
 import com.alexgabor.design.riso.attributes.Shapes
 import com.alexgabor.design.riso.attributes.Typography
@@ -40,13 +43,20 @@ object RisoTheme {
         @Composable
         @ReadOnlyComposable
         get() = LocalShapes.current
+
+    /** The press: which drums are loaded, and how they lay ink down. */
+    val press: Press
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalPress.current
 }
 
 @Composable
-fun RisoTheme(content: @Composable () -> Unit) {
+fun RisoTheme(press: Press = RisoPress, content: @Composable () -> Unit) {
     CompositionLocalProvider(
         LocalColors provides RisoColors,
         LocalDimens provides RisoDimens,
+        LocalPress provides press,
         LocalShapes provides RisoShapes,
         LocalTypography provides Typography(fontFamily = firaCodeFamily()),
         LocalIndication provides ripple(), // provides the material ripple.

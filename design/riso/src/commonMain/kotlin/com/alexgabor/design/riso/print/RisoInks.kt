@@ -15,8 +15,8 @@ import kotlin.math.sin
  *
  * Three dp is a press that is visibly out — fills and rules carry a second image, while type at body
  * sizes still reads. Wind it further with
- * [risoInk(offsetScale)][com.alexgabor.design.riso.separation.risoInk] per region rather than here,
- * so the artwork that can afford to be thrown apart is the artwork that is.
+ * [risoInk(offsetScale)][com.alexgabor.design.riso.pass.risoInk] per composable rather than here, so
+ * the artwork that can afford to be thrown apart is the artwork that is.
  */
 fun risoInkForSlot(slot: Int, color: Color): RisoInk = RisoInk(
     color = color,
@@ -34,7 +34,8 @@ fun risoInkForSlot(slot: Int, color: Color): RisoInk = RisoInk(
 internal const val MIN_TRANSMITTANCE = 0.02f
 
 /**
- * The colour to draw so that [risoPrint] lays down exactly [coverages] of [inks] on [paper] —
+ * The colour to draw so that a [risoInk][com.alexgabor.design.riso.pass.risoInk] naming these same
+ * inks lays down exactly [coverages] of them on [paper] —
  * `coverages[i]` being the fraction of drum `i`, as on a press's tint scale.
  *
  * This is the inverse of the shader's separation. Densities add as ink stacks, so a coverage `c` of

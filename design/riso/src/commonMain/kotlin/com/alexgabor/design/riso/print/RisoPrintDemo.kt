@@ -47,14 +47,16 @@ import androidx.compose.ui.unit.sp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.NamedInk
+import com.alexgabor.design.riso.attributes.Press
 import com.alexgabor.design.riso.attributes.RisoColors
+import com.alexgabor.design.riso.attributes.RisoPress
 import com.alexgabor.design.riso.bypass.risoBypass
+import com.alexgabor.design.riso.components.Button
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.ButtonGroupItem
-import com.alexgabor.design.riso.separation.risoInk
+import com.alexgabor.design.riso.pass.risoInk
 import kotlin.math.PI
 import kotlin.math.cos
-import kotlin.math.hypot
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -72,30 +74,31 @@ private const val VENN_SPREAD = 0.62f
 private const val CHART_INKS = 3
 
 /**
- * Playground for [risoPrint]: load any of the RISO inks onto the press and see how they mix, over a
- * full set of controls for the press itself.
+ * Playground for [risoPaper] and [risoInk]: load any of the RISO inks onto the press and see how they
+ * mix, over a full set of controls for the press and the sheet.
+ *
+ * The two are configured separately because they are separate things. The press — which drums are
+ * loaded, how hard they screen and mottle — is house style and goes on the theme, so every composable
+ * on screen prints on the press being configured. The sheet is per-call, and goes on the modifier.
  */
 @Preview
 @Composable
 fun RisoPrintDemo(modifier: Modifier = Modifier) {
     val palette = RisoColors.inks.all
-    // The whole rack is loaded, always — a colour is separated onto the few drums that can print it,
-    // so leaving them all mounted costs next to nothing. Picking a swatch chooses what the chart
-    // ramps against, not what the press is carrying.
-    var params by remember { mutableStateOf(RisoPrintParams()) }
+    // The whole rack is loaded, always. It costs nothing: a composable prints on the drums it names,
+    // and nothing here walks the rack per pixel. Picking a swatch chooses what the chart ramps
+    // against, not what the press is carrying.
+    var press by remember { mutableStateOf(RisoPress) }
+    var paper by remember { mutableStateOf(RisoPaper()) }
     // Pink, yellow and blue: the subtractive triad a printed mixer chart is normally built on.
     var selected by remember { mutableStateOf(listOf(0, 3, 7)) }
     var artwork by remember { mutableStateOf(Artwork.Intent) }
     var amplify by remember { mutableFloatStateOf(1f) }
 
     fun updateInk(slot: Int, block: RisoInk.() -> RisoInk) {
-        params = params.copy(
-            inks = params.inks.mapIndexed { index, ink -> if (index == slot) ink.block() else ink },
+        press = press.copy(
+            inks = press.inks.mapIndexed { index, ink -> if (index == slot) ink.block() else ink },
         )
-    }
-
-    fun updatePaper(block: RisoPaper.() -> RisoPaper) {
-        params = params.copy(paper = params.paper.block())
     }
 
     fun select(paletteIndex: Int) {
@@ -108,139 +111,126 @@ fun RisoPrintDemo(modifier: Modifier = Modifier) {
         }.ifEmpty { selected }
     }
 
-    // One press for the whole screen, so the stock is the same sheet everywhere — the artwork, the
-    // picker and the controls all sit on the paper being configured, and every one of them moves
-    // when it changes.
-    Column(modifier.fillMaxSize().risoPrint(params).safeDrawingPadding()) {
-        val chartInks = selected.mapNotNull { params.inks.getOrNull(it) }
+    // The press the sliders are configuring is the press everything below prints on, so the picker
+    // and the controls sit on the same sheet as the artwork and move with it.
+    RisoTheme(press = press) {
+        Column(modifier.fillMaxSize().risoPaper(paper).safeDrawingPadding()) {
+            val chartInks = selected.mapNotNull { press.inks.getOrNull(it) }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(if (artwork == Artwork.Mixer) 2f else 4 / 3f)
-        ) {
-            when (artwork) {
-                Artwork.Mixer -> ColorMixerChart(params, chartInks)
-                Artwork.Type -> TypeArtwork(params, chartInks)
-                Artwork.Intent -> IntentArtwork(params, chartInks, amplify)
-            }
-        }
-
-        Column(Modifier.padding(horizontal = 16.dp)) {
-            SectionTitle("Inks — the whole rack is loaded; pick up to $CHART_INKS to chart")
-            InkPicker(palette, selected, ::select)
-        }
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            item {
-                ButtonGroup(
-                    selected = artwork,
-                    *Artwork.entries.toTypedArray(),
-                    // The two inks this component is drawn in, so the press prints its rule in the
-                    // one and its selected pill in the other, rather than separating each onto
-                    // whichever drums happen to make the colour. Named as the inks themselves, not
-                    // as they come off the paper.
-                    modifier = Modifier.padding(vertical = 4.dp)
-                        .risoInk(RisoTheme.colors.content, RisoTheme.colors.accent),
-                    onSelect = { artwork = it },
-                )
-                if (artwork == Artwork.Intent) {
-                    // Five is where a 3dp rack throws its passes about 15dp, which is as far as the
-                    // disc can be pulled apart and still read as one disc. The ceiling is a distance
-                    // on the page, not a multiplier: wind the rack's own offsets up and this wants
-                    // to come down to match, or the standoff the title needs outgrows the artwork
-                    // it is protecting — see IntentArtwork.
-                    ParamSlider("Amplify registration", amplify, 0f, 5f) { amplify = it }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(if (artwork == Artwork.Mixer) 2f else 4 / 3f)
+            ) {
+                when (artwork) {
+                    Artwork.Mixer -> ColorMixerChart(paper, chartInks)
+                    Artwork.Type -> TypeArtwork(press, chartInks)
+                    Artwork.Intent -> IntentArtwork(paper, chartInks, amplify)
+                    Artwork.Nested -> NestedArtwork(amplify)
                 }
             }
 
-            item {
-                SectionTitle("Registration")
-                params.inks.forEachIndexed { slot, ink ->
-                    ParamSlider("Ink ${slot + 1} offset X", ink.offsetX, -6f, 6f) {
-                        updateInk(slot) { copy(offsetX = it) }
-                    }
-                    ParamSlider("Ink ${slot + 1} offset Y", ink.offsetY, -6f, 6f) {
-                        updateInk(slot) { copy(offsetY = it) }
-                    }
-                }
-                ParamSlider("Wobble", params.wobble, 0f, 4f) { params = params.copy(wobble = it) }
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                SectionTitle("Inks — the whole rack is loaded; pick up to $CHART_INKS to chart")
+                InkPicker(palette, selected, ::select)
             }
 
-            item {
-                SectionTitle("Ink")
-                ParamSlider("Overprint (stacked -> juxtaposed)", params.overprint, 0f, 1f) {
-                    params = params.copy(overprint = it)
-                }
-                ParamSlider("Spread", params.spread, 0f, 1f) { params = params.copy(spread = it) }
-                ParamSlider("Mottle", params.mottle, 0f, 1f) { params = params.copy(mottle = it) }
-                ParamSlider("Mottle size", params.mottleSize, 1f, 40f) {
-                    params = params.copy(mottleSize = it)
-                }
-                ParamSlider("Grain", params.grain, 0f, 1f) { params = params.copy(grain = it) }
-                ParamSlider("Grain size", params.grainSize, 0.5f, 4f) {
-                    params = params.copy(grainSize = it)
-                }
-            }
-
-            item {
-                SectionTitle("Screen")
-                ParamSlider("Screening", params.screen, 0f, 1f) {
-                    params = params.copy(screen = it)
-                }
-                ParamSlider("Dot size", params.dotSize, 1f, 12f) {
-                    params = params.copy(dotSize = it)
-                }
-                params.inks.forEachIndexed { slot, ink ->
-                    ParamSlider("Ink ${slot + 1} angle", ink.screenAngle, 0f, 90f) {
-                        updateInk(slot) { copy(screenAngle = it) }
-                    }
-                }
-                ParamSlider("Ink seed", params.seed, 0f, 20f) { params = params.copy(seed = it) }
-            }
-
-            item {
-                SectionTitle("Paper")
-                paperPresets.forEach { preset ->
-                    LabeledSwitch(
-                        label = preset.label,
-                        checked = params.paper.colorFront == preset.front &&
-                            params.paper.colorBack == preset.back,
-                        onCheckedChange = {
-                            updatePaper { copy(colorFront = preset.front, colorBack = preset.back) }
-                        },
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                item {
+                    ButtonGroup(
+                        selected = artwork,
+                        *Artwork.entries.toTypedArray(),
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        onSelect = { artwork = it },
                     )
+                    if (artwork == Artwork.Intent || artwork == Artwork.Nested) {
+                        ParamSlider("Amplify registration", amplify, 0f, 8f) { amplify = it }
+                    }
                 }
-                // Every distinct stock bakes a new surface, synchronously, so the surface sliders
-                // commit on release rather than baking a texture per frame of a drag. Tolerance is
-                // not one of them — it only moves a uniform.
-                ParamSlider("Contrast", params.paper.contrast, 0f, 1f, onRelease = true) {
-                    updatePaper { copy(contrast = it) }
+
+                item {
+                    SectionTitle("Registration")
+                    press.inks.forEachIndexed { slot, ink ->
+                        ParamSlider("Ink ${slot + 1} offset X", ink.offsetX, -6f, 6f) {
+                            updateInk(slot) { copy(offsetX = it) }
+                        }
+                        ParamSlider("Ink ${slot + 1} offset Y", ink.offsetY, -6f, 6f) {
+                            updateInk(slot) { copy(offsetY = it) }
+                        }
+                    }
                 }
-                ParamSlider("Roughness", params.paper.roughness, 0f, 1f, onRelease = true) {
-                    updatePaper { copy(roughness = it) }
+
+                item {
+                    SectionTitle("Ink")
+                    ParamSlider("Spread", press.spread, 0f, 1f) { press = press.copy(spread = it) }
+                    ParamSlider("Mottle", press.mottle, 0f, 1f) { press = press.copy(mottle = it) }
+                    ParamSlider("Mottle size", press.mottleSize, 1f, 40f) {
+                        press = press.copy(mottleSize = it)
+                    }
+                    ParamSlider("Grain", press.grain, 0f, 1f) { press = press.copy(grain = it) }
+                    ParamSlider("Grain size", press.grainSize, 0.5f, 4f) {
+                        press = press.copy(grainSize = it)
+                    }
+                    ParamSlider("Tolerance", press.tolerance, 0f, 0.2f) {
+                        press = press.copy(tolerance = it)
+                    }
                 }
-                ParamSlider("Fiber", params.paper.fiber, 0f, 1f, onRelease = true) {
-                    updatePaper { copy(fiber = it) }
+
+                item {
+                    SectionTitle("Screen")
+                    ParamSlider("Screening", press.screen, 0f, 1f) {
+                        press = press.copy(screen = it)
+                    }
+                    ParamSlider("Dot size", press.dotSize, 1f, 12f) {
+                        press = press.copy(dotSize = it)
+                    }
+                    press.inks.forEachIndexed { slot, ink ->
+                        ParamSlider("Ink ${slot + 1} angle", ink.screenAngle, 0f, 90f) {
+                            updateInk(slot) { copy(screenAngle = it) }
+                        }
+                    }
+                    ParamSlider("Ink seed", press.seed, 0f, 20f) { press = press.copy(seed = it) }
                 }
-                ParamSlider("Fiber size", params.paper.fiberSize, 0.01f, 1f, onRelease = true) {
-                    updatePaper { copy(fiberSize = it) }
-                }
-                ParamSlider("Fade", params.paper.fade, 0f, 1f, onRelease = true) {
-                    updatePaper { copy(fade = it) }
-                }
-                ParamSlider("Scale", params.paper.scale, 0.1f, 2f, onRelease = true) {
-                    updatePaper { copy(scale = it) }
-                }
-                ParamSlider("Paper seed", params.paper.seed, 0f, 20f, onRelease = true) {
-                    updatePaper { copy(seed = it) }
-                }
-                ParamSlider("Tolerance", params.paper.tolerance, 0f, 0.2f) {
-                    updatePaper { copy(tolerance = it) }
+
+                item {
+                    SectionTitle("Paper")
+                    paperPresets.forEach { preset ->
+                        LabeledSwitch(
+                            label = preset.label,
+                            checked = paper.colorFront == preset.front &&
+                                paper.colorBack == preset.back,
+                            onCheckedChange = {
+                                paper = paper.copy(colorFront = preset.front, colorBack = preset.back)
+                            },
+                        )
+                    }
+                    // Every distinct stock bakes a new surface, synchronously, so these commit on
+                    // release rather than baking a texture per frame of a drag.
+                    ParamSlider("Contrast", paper.contrast, 0f, 1f, onRelease = true) {
+                        paper = paper.copy(contrast = it)
+                    }
+                    ParamSlider("Roughness", paper.roughness, 0f, 1f, onRelease = true) {
+                        paper = paper.copy(roughness = it)
+                    }
+                    ParamSlider("Fiber", paper.fiber, 0f, 1f, onRelease = true) {
+                        paper = paper.copy(fiber = it)
+                    }
+                    ParamSlider("Fiber size", paper.fiberSize, 0.01f, 1f, onRelease = true) {
+                        paper = paper.copy(fiberSize = it)
+                    }
+                    ParamSlider("Fade", paper.fade, 0f, 1f, onRelease = true) {
+                        paper = paper.copy(fade = it)
+                    }
+                    ParamSlider("Scale", paper.scale, 0.1f, 2f, onRelease = true) {
+                        paper = paper.copy(scale = it)
+                    }
+                    ParamSlider("Paper seed", paper.seed, 0f, 20f, onRelease = true) {
+                        paper = paper.copy(seed = it)
+                    }
                 }
             }
         }
@@ -277,8 +267,6 @@ private fun InkPicker(
                         // A swatch has to show the ink you are about to pick, not the press's read
                         // of it: the fluorescents sit outside what a density separation can
                         // round-trip, so printed, pink comes back indistinguishable from burgundy.
-                        // Tipping the whole rack in costs every pixel a dozen bounds tests, which
-                        // is a price only a playground should pay.
                         .risoBypass()
                         .background(ink.color)
                         .then(
@@ -310,25 +298,23 @@ private fun InkPicker(
 
 /**
  * The standard riso colour mixer: a Venn of the charted [inks] at full coverage, beside a grid of
- * every tint combination — ink 1 falling across the columns, ink 2 falling and ink 3 rising down
- * the rows. The press carries its whole rack; a chart has only these axes, which is why no more
- * than [CHART_INKS] can be picked.
+ * every tint combination — ink 1 falling across the columns, ink 2 falling and ink 3 rising down the
+ * rows.
  *
- * Every patch is authored with [risoOverprint], which is the exact inverse of the shader's
- * separation, so a cell labelled 60/40 really does come back off the press as the colour 60% of one
- * drum and 40% of the other makes. Eyeballing a blend instead would print something else entirely.
- * With the full rack loaded the press may reach for other drums to make that colour — see
- * [risoOverprint] — which is visible here as a patch printing in a screen angle you did not pick.
+ * Every patch is authored with [risoOverprint], the exact inverse of the separation, so a cell
+ * labelled 60/40 really does come back off the press as the colour 60% of one drum and 40% of the
+ * other makes. Eyeballing a blend instead would print something else entirely. The chart names its
+ * three drums, so those are the drums it prints on.
  */
 @Composable
-private fun ColorMixerChart(params: RisoPrintParams, inks: List<RisoInk>) {
+private fun ColorMixerChart(paper: RisoPaper, inks: List<RisoInk>) {
     val gridInks = inks.map { it.color }
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 7.sp)
 
-    // No background: the press paints its own sheet, and drawing the stock colour on top of it
-    // would only be printed back as bare paper.
-    Canvas(Modifier.fillMaxSize()) {
+    // No background: the press paints its own sheet, and drawing the stock colour on top of it would
+    // only be printed back as bare paper.
+    Canvas(Modifier.fillMaxSize().risoInk(gridInks)) {
         val margin = 12.dp.toPx()
         // Room for the percentage scales along the grid's top, left and right.
         val gutter = 20.dp.toPx()
@@ -365,7 +351,7 @@ private fun ColorMixerChart(params: RisoPrintParams, inks: List<RisoInk>) {
                     (row + 1) / GRID_STEPS.toFloat(),
                 )
                 drawRect(
-                    color = risoOverprint(params.paper.colorFront, *gridInks.zip(coverages).toTypedArray()),
+                    color = risoOverprint(paper.colorFront, *gridInks.zip(coverages).toTypedArray()),
                     topLeft = Offset(gridLeft + column * cell, gridTop + row * cell),
                     // Overdraw by a hair: exact edges leave paper-coloured seams between cells.
                     size = Size(cell + 1f, cell + 1f),
@@ -426,12 +412,12 @@ private fun vennCenters(count: Int, center: Offset, spread: Float): List<Offset>
 }
 
 /**
- * The same full-spectrum swatch printed and bypassed, side by side. The printed one is projected
- * onto whichever inks are loaded and picks up the grain, screen and registration error of the pass;
- * the bypassed one comes through the press untouched, as a tipped-in photograph would.
+ * The same full-spectrum swatch printed and bypassed, side by side. The printed one picks up the
+ * grain, the screen and the registration of its passes; the bypassed one comes through the press
+ * untouched, as a tipped-in photograph would.
  */
 @Composable
-private fun BypassComparison() {
+private fun BypassComparison(drums: List<Color>) {
     val spectrum = Brush.horizontalGradient(RisoColors.inks.all.map { it.color })
 
     @Composable
@@ -446,7 +432,10 @@ private fun BypassComparison() {
         modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
     ) {
-        Swatch("printed", Modifier)
+        // The printed one is separated onto the drums it names, so a spectrum spanning the whole
+        // rack is squeezed into three inks and picks up their screen and grain; the bypassed one
+        // comes through untouched.
+        Swatch("printed", Modifier.risoInk(drums))
         Swatch("risoBypass", Modifier.risoBypass(cornerRadius = 8.dp))
     }
 }
@@ -456,58 +445,46 @@ private enum class Artwork(override val text: String) : ButtonGroupItem {
     Type("Type"),
     Mixer("Mixer"),
     Intent("Intent"),
+    Nested("Nested"),
 }
 
 /**
  * Coverages the intent disc is authored at, per drum. Deliberately uneven: a colour mixed from three
- * drums at different strengths is exactly the kind a separation cannot read back unambiguously,
- * which is what [risoInk] is for.
+ * drums at different strengths is exactly the kind a separation could not read back unambiguously,
+ * which is what naming the drums is for.
  */
 private val INTENT_COVERAGES = listOf(0.85f, 0.55f, 0.35f)
 
 /**
- * A disc printed on the drums it names, with its title knocked out of the ink — the artwork for
- * reading [risoInk] off the press.
+ * A disc printed on the drums it names, with its title knocked out of the ink.
  *
  * The disc's colour is authored with [risoOverprint] from the charted inks, and those same inks are
- * named with [risoInk], so the press prints it on the drums it was mixed from instead of whatever
- * the separation would otherwise reach for — and at the coverages it was authored with, since the
- * restricted separation inverts exactly the mix that made the colour. Wind [amplify] up and each of
- * those drums throws its pass further off register, until the recipe is legible directly off the
- * artwork as one fringe per ink.
+ * named with [risoInk], so it prints on the drums it was mixed from and at the coverages it was
+ * authored with. Wind [amplify] up and each drum throws its pass further off register, until the
+ * recipe is legible directly off the artwork as one fringe per ink.
  *
  * The title is set in the stock's own colour, which is a knockout: a press cannot print white, so
  * paper-coloured artwork comes off as a hole in the ink rather than as a second colour laid over it.
- * A hole is where amplified registration hurts most — each drum samples the artwork off where the
- * glyph actually is, so every pass fills the hole in from its own direction and the type turns to
- * mud. The title's own region prints in perfect register, so the hole is punched exactly where it
- * was drawn and the type stays readable however far the disc around it is thrown.
  *
- * That region is the title's rectangle, so the disc stops fringing inside it too — a sharp block of
- * registered ink in the middle of a smeared one. That is what a region is: bounds, not a shape.
+ * Note what this artwork no longer needs. The knockout is simply drawn into the disc, and the whole
+ * pass — disc, hole and all — is translated as one, so the hole travels with the ink around it and
+ * stays a clean hole however far the pass is thrown. When each drum instead re-read the finished page
+ * at an offset, every pass filled the hole in from its own direction and the type turned to mud; the
+ * title had to be given a region of its own, printed in perfect register, with a standoff wide enough
+ * to cover the distance a pass could reach. All of that was the price of separating after the fact.
  */
 @Composable
-private fun IntentArtwork(params: RisoPrintParams, inks: List<RisoInk>, amplify: Float) {
+private fun IntentArtwork(paper: RisoPaper, inks: List<RisoInk>, amplify: Float) {
     val drums = inks.map { it.color }
-    val recipe = inks.map { it.color }.zip(INTENT_COVERAGES).toTypedArray()
-    val diameter = 240.dp
-
-    // How far the disc's amplified passes reach. A pixel *outside* the title's region still samples
-    // the artwork from this far away, so it can read a glyph from outside and punch a second,
-    // displaced hole through the type. Registering the type is not enough on its own: its region has
-    // to own the whole band the type can be reached from — which is the distance a pass travels, not
-    // the larger of its two components, the same measure the press itself grants a region's claim.
-    val reach = params.inks.maxOfOrNull { hypot(it.offsetX, it.offsetY) } ?: 0f
-    val standoff = (reach * amplify + params.wobble).dp
+    val recipe = drums.zip(INTENT_COVERAGES).toTypedArray()
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Box(
             modifier = Modifier
-                .size(diameter)
-                // The region is a rounded rectangle, so a full corner radius makes it the disc.
-                .risoInk(drums, offsetScale = amplify, cornerRadius = diameter / 2)
+                .size(240.dp)
+                .risoInk(drums, offsetScale = amplify)
                 .background(
-                    color = risoOverprint(params.paper.colorFront, *recipe),
+                    color = risoOverprint(paper.colorFront, *recipe),
                     shape = CircleShape,
                 ),
             contentAlignment = Alignment.Center,
@@ -515,24 +492,45 @@ private fun IntentArtwork(params: RisoPrintParams, inks: List<RisoInk>, amplify:
             Text(
                 text = "RISO",
                 style = MaterialTheme.typography.displaySmall,
-                // The stock's own colour: a hole in the ink, not a colour printed over it.
-                color = params.paper.colorFront,
+                // The stock's own colour: a hole in the ink, not a colour printed over it. Drawn
+                // straight into the disc's artwork, so it is part of the same pass.
+                color = paper.colorFront,
                 textAlign = TextAlign.Center,
-                // The same drums as the disc — a region names the whole rack it prints with, so
-                // naming none here would knock the title's box out to bare paper instead of leaving
-                // the disc's ink around the glyphs. The padding sits inside the region, so the
-                // region is the type plus its standoff.
-                modifier = Modifier
-                    .risoInk(drums, offsetScale = 0f)
-                    .padding(standoff),
             )
+        }
+    }
+}
+
+/**
+ * A component with its own inks inside a panel with different ones — the case that decides what
+ * nesting means.
+ *
+ * The innermost wins. The panel records its content and leaves a hole where the button goes, then
+ * lays the button down itself, at the button's place on the page, once its own drum is on the sheet.
+ * So the button keeps its pink and purple wherever it is dropped, and neither of them is inked twice.
+ * Wind [amplify] up and the two nest visibly: the panel's black throws one way, the button's pair
+ * throws its own.
+ */
+@Composable
+private fun NestedArtwork(amplify: Float) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.7f)
+                .risoInk(RisoTheme.colors.content, offsetScale = amplify)
+                .background(RisoTheme.colors.content.onRisoPaper(0.3f), RoundedCornerShape(12.dp))
+                .padding(32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Button(text = "Nested", onClick = {})
         }
     }
 }
 
 /** Type set in each ink, where misregistration is most visible. */
 @Composable
-private fun TypeArtwork(params: RisoPrintParams, inks: List<RisoInk>) {
+private fun TypeArtwork(press: Press, inks: List<RisoInk>) {
+    val drums = inks.map { it.color }
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -541,24 +539,29 @@ private fun TypeArtwork(params: RisoPrintParams, inks: List<RisoInk>) {
             text = "RISO",
             style = MaterialTheme.typography.displayLarge,
             color = inks.last().color,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().risoInk(inks.last().color),
             textAlign = TextAlign.Center,
         )
         Text(
-            text = "${params.inks.size} drums, one pass each",
+            text = "${press.inks.size} drums, one pass each",
             style = MaterialTheme.typography.titleMedium,
             color = inks.first().color,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().risoInk(inks.first().color),
             textAlign = TextAlign.Center,
         )
+        // On the black drum, and only that one. Type is where the choice bites hardest: a pass
+        // carries the whole glyph, so a caption separated across three drums comes off the press as
+        // three displaced captions — which is what a badly registered print really does, and why
+        // body copy goes on one drum.
         Text(
-            text = "where the passes overlap, a new colour is made",
+            text = "each pass carries the whole glyph",
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.Black,
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            color = RisoTheme.colors.content,
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                .risoInk(RisoTheme.colors.content),
             textAlign = TextAlign.Center,
         )
-        BypassComparison()
+        BypassComparison(drums)
     }
 }
 
@@ -572,8 +575,8 @@ private fun SectionTitle(text: String) {
 }
 
 /**
- * A labelled slider. Set [onRelease] for a value that is expensive to change — the handle then
- * tracks the drag locally and reports once, on release, instead of on every frame of it.
+ * A labelled slider. Set [onRelease] for a value that is expensive to change — the handle then tracks
+ * the drag locally and reports once, on release, instead of on every frame of it.
  */
 @Composable
 private fun ParamSlider(

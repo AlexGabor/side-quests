@@ -17,7 +17,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -25,11 +24,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Text
+import com.alexgabor.design.riso.pass.risoInk
 import com.alexgabor.design.riso.print.risoOverprint
-import com.alexgabor.design.riso.print.risoPrint
-import com.alexgabor.design.riso.separation.risoInk
+import com.alexgabor.design.riso.print.risoPaper
 
 @Composable
 fun Button(
@@ -41,7 +41,6 @@ fun Button(
     val offset by animateFloatAsState(targetValue = if (pressed) 0f else 2f)
     Box(
         modifier = modifier
-            .clip(RisoTheme.shapes.standardShape)
             .clickable(
                 interactionSource = null,
                 indication = null,
@@ -58,17 +57,32 @@ fun Button(
                     }
                 }
             }
-            .risoInk(listOf(RisoTheme.colors.inks.fluorescentPink, RisoTheme.colors.inks.purple), offsetScale = offset)
-            .background(risoOverprint(inks = arrayOf(RisoTheme.colors.inks.fluorescentPink to 1f,
-                RisoTheme.colors.inks.purple to 1f)))
+            // Pill and label are one pass on each of two drums, so pressing slides them back into
+            // register together and the fringe stays at the pill's edge where it belongs. The label
+            // is knocked out of the fill rather than printed over it — it is drawn in the stock
+            // colour, which no press can lay down.
+            .risoInk(
+                RisoTheme.colors.inks.fluorescentPink,
+                RisoTheme.colors.inks.purple,
+                offsetScale = offset,
+            )
+            .background(
+                risoOverprint(
+                    inks = arrayOf(
+                        RisoTheme.colors.inks.fluorescentPink to 1f,
+                        RisoTheme.colors.inks.purple to 0.6f,
+                    ),
+                ),
+                shape = RisoTheme.shapes.standardShape
+            )
             .padding(horizontal = 20.dp, vertical = 8.dp),
     ) {
         Text(
             text = text,
-            textStyle = RisoTheme.typography.body,
-            color = RisoTheme.colors.paper,
-            modifier = Modifier.risoInk(listOf(RisoTheme.colors.inks.fluorescentPink, RisoTheme.colors.inks.purple), offsetScale = 0f)
-                .padding(horizontal = 4.dp, vertical = 4.dp)
+            textStyle = RisoTheme.typography.body.copy(fontSize = 20.sp),
+            color = RisoTheme.colors.content,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+                .risoInk(RisoTheme.colors.content, offsetScale = 0f),
         )
     }
 }
@@ -91,9 +105,8 @@ private fun ButtonPreview() {
     var counter by remember { mutableIntStateOf(0) }
     RisoTheme {
         LazyColumn(
-            Modifier.background(RisoTheme.colors.paper)
-                .fillMaxSize()
-                .risoPrint()
+            Modifier.fillMaxSize()
+                .risoPaper()
                 .safeDrawingPadding()
                 .padding(RisoTheme.dimens.screenPadding)
         ) {

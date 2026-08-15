@@ -15,11 +15,16 @@ import com.alexgabor.design.riso.region.risoRegionHost
  * Leaves whatever this composable draws exactly as it is, where an ancestor would otherwise have
  * printed it.
  *
- * `risoPrint` is a render effect: its shader runs on the rasterized output of a whole layer, long
+ * `risoPaper` is a render effect: its shader runs on the rasterized output of a whole layer, long
  * after the composables inside it are gone, so a child cannot opt out from the inside. Instead this
  * reports the composable's bounds up to every effect layer above it, and those shaders fetch the
  * region's pixels 1:1 and return them untouched — a window onto the layer, like a photograph tipped
  * onto a printed page.
+ *
+ * This only opts out of the *sheet* — the surface's warp and its shading. Ink is not applied here in
+ * the first place: it is laid by [risoInk][com.alexgabor.design.riso.pass.risoInk], and a composable
+ * that never names a drum was never going to be printed. Bypassing something inside a `risoInk` does
+ * not take it off that drum.
  *
  * ### What passes through
  * The *region*, not the composable. Everything composited inside those bounds comes through

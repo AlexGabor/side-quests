@@ -17,7 +17,7 @@ import kotlin.random.Random
 /**
  * The paper surface, baked. Everything in this file runs once per stock and layout rather than per
  * frame: the folds, fiber and roughness of a sheet do not depend on what is printed on it, so the
- * expensive procedural pass is rendered into a texture that [risoPrint]'s shader then samples.
+ * expensive procedural pass is rendered into a texture that [risoPaper]'s shader then samples.
  *
  * Ported to AGSL from the paper.design `PaperTexture` WebGL shader
  * (https://shaders.paper.design/paper-texture).

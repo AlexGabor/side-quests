@@ -26,6 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Text
+import com.alexgabor.design.riso.pass.risoInk
 import com.alexgabor.design.riso.print.onRisoPaper
 
 interface ButtonGroupItem {
@@ -41,6 +42,9 @@ fun <T> ButtonGroup(
 ) where T : Enum<T>, T : ButtonGroupItem {
     Row(
         modifier = modifier
+            // The rule prints in the content ink and the selected pill in the accent, rather than
+            // both landing on whichever drum an enclosing pass happens to be running.
+            .risoInk(RisoTheme.colors.content, RisoTheme.colors.accent)
             .height(IntrinsicSize.Min)
             .clip(RisoTheme.shapes.pillShape)
             .border(
