@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.design.riso.print.RisoPrintDemo
+import com.alexgabor.design.riso.risograph.RisoPrintDemo
 
 /**
  * A launcher for [RisoPrintDemo].

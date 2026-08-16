@@ -1,4 +1,4 @@
-package com.alexgabor.design.riso.region
+package com.alexgabor.design.riso.risograph.region
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf

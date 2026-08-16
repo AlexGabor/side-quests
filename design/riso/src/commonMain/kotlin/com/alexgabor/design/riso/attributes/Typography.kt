@@ -1,6 +1,5 @@
 package com.alexgabor.design.riso.attributes
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -24,9 +23,8 @@ import androidx.compose.ui.unit.sp
 import com.alexgabor.design.riso.FiraCode_VF
 import com.alexgabor.design.riso.Res
 import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.design.riso.print.RisoInk
-import com.alexgabor.design.riso.print.RisoPrintParams
-import com.alexgabor.design.riso.print.risoPrint
+import com.alexgabor.design.riso.risograph.inks.risoInk
+import com.alexgabor.design.riso.risograph.paper.risoPaper
 import org.jetbrains.compose.resources.Font
 
 @Stable
@@ -153,14 +151,11 @@ private fun TypographyPreview() {
         LazyColumn(
             modifier = Modifier.safeDrawingPadding()
                 .fillMaxSize()
-                .background(RisoTheme.colors.paper)
-                .risoPrint(
-                    params = RisoPrintParams(
-                        inks = listOf(
-                            RisoInk(RisoTheme.colors.inks.vintageBlack)
-                        )
-                    )
-                ).padding(16.dp),
+                .risoPaper()
+                // One drum, so the whole column is a single pass of black over the stock. There is
+                // no background to draw: the sheet is already under it.
+                .risoInk(RisoTheme.colors.inks.vintageBlack)
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {

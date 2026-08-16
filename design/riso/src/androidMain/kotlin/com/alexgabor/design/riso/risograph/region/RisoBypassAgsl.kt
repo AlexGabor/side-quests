@@ -1,7 +1,6 @@
-package com.alexgabor.design.riso.bypass
+package com.alexgabor.design.riso.risograph.region
 
 import android.graphics.RuntimeShader
-import com.alexgabor.design.riso.region.regionCapacity
 
 /**
  * The AGSL every effect shader shares in order to honour [risoBypass]: the bypassed rectangles, and

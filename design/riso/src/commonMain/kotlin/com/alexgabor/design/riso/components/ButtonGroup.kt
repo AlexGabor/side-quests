@@ -1,6 +1,8 @@
 package com.alexgabor.design.riso.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,12 +24,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Text
-import com.alexgabor.design.riso.print.onRisoPaper
+import com.alexgabor.design.riso.risograph.inks.risoInk
+import com.alexgabor.design.riso.risograph.inks.onRisoPaper
 
 interface ButtonGroupItem {
     val text: String
@@ -41,6 +46,7 @@ fun <T> ButtonGroup(
 ) where T : Enum<T>, T : ButtonGroupItem {
     Row(
         modifier = modifier
+            .risoInk(RisoTheme.colors.content)
             .height(IntrinsicSize.Min)
             .clip(RisoTheme.shapes.pillShape)
             .border(
@@ -62,12 +68,24 @@ fun <T> ButtonGroup(
 
             val isSelected = item == selected
             val backgroundColor by animateColorAsState(
-                targetValue = if (isSelected) RisoTheme.colors.accent.onRisoPaper() else Color.Transparent
+                targetValue = if (isSelected) RisoTheme.colors.accent.onRisoPaper() else Color.Transparent,
+                animationSpec = spring(stiffness = Spring.StiffnessLow)
             )
-            // The label knocks out to paper so the accent reads as a solid block of ink.
+
             val textColor by animateColorAsState(
                 targetValue = if (isSelected) RisoTheme.colors.paper else RisoTheme.colors.content
             )
+
+            val shape = when (index) {
+                0 -> RisoTheme.shapes.pillShape
+                    .copy(topEnd = CornerSize(0f), bottomEnd = CornerSize(0f))
+
+                items.size - 1 ->
+                    RisoTheme.shapes.pillShape
+                        .copy(topStart = CornerSize(0f), bottomStart = CornerSize(0f))
+
+                else -> RectangleShape
+            }
 
             Box(
                 modifier = Modifier
@@ -76,7 +94,8 @@ fun <T> ButtonGroup(
                         role = Role.RadioButton,
                         onClick = { onSelect(item) },
                     )
-                    .background(backgroundColor)
+                    .risoInk(RisoTheme.colors.accent)
+                    .background(backgroundColor, shape = shape)
                     .padding(horizontal = 24.dp, vertical = 12.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -84,6 +103,7 @@ fun <T> ButtonGroup(
                     text = item.text,
                     color = textColor,
                     textStyle = RisoTheme.typography.body,
+                    modifier = if (!isSelected) Modifier.risoInk(RisoTheme.colors.content) else Modifier
                 )
             }
         }
