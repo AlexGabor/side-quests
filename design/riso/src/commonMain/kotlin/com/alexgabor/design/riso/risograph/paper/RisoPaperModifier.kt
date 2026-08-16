@@ -1,4 +1,4 @@
-package com.alexgabor.design.riso.print
+package com.alexgabor.design.riso.risograph.paper
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -7,42 +7,13 @@ import com.alexgabor.design.riso.attributes.RisoColors
 /**
  * Puts a sheet of paper under whatever this composable draws.
  *
- * The stock is painted behind the content, its surface shades what is printed on it, and its
- * unevenness pushes the artwork around the way a real sheet does. What lands on the sheet is the
- * business of [risoInk][com.alexgabor.design.riso.pass.risoInk], which runs the artwork through one
- * drum at a time; anything not put on a drum prints flat.
- *
- * The two halves are deliberately separate. The sheet is per-call, because a screen is printed on
- * one; the press — which drums are loaded, how hard they screen and mottle — is house style and
- * lives on [RisoTheme.press][com.alexgabor.design.riso.RisoTheme.press].
- *
- * ### Authoring
- * Inks laid on the same pixel **multiply**, so overlaps go dark exactly as ink on paper does. Where
- * a specific overprint or tint is wanted, [risoOverprint] gives the colour to draw so that it
- * separates back into precisely those coverages.
- *
- * There is no point drawing the stock colour yourself: the sheet is already there, and anything
- * within [Press.tolerance][com.alexgabor.design.riso.attributes.Press.tolerance] of it comes off the
- * press unprinted.
+ * The paper is drawn behind the content, its surface shades what is printed on it, and its
+ * unevenness pushes the artwork around the way a real sheet does. 
  */
 expect fun Modifier.risoPaper(paper: RisoPaper = RisoPaper()): Modifier
 
 /**
- * One ink pass: the drum colour, how far off-register that pass lands, and the angle of its halftone
- * screen.
- */
-data class RisoInk(
-    val color: Color,
-    /** Horizontal registration error of this pass, in dp. */
-    val offsetX: Float = 0f,
-    /** Vertical registration error of this pass, in dp. */
-    val offsetY: Float = 0f,
-    /** Halftone screen angle in degrees. Keep passes ~30 degrees apart to avoid moire. */
-    val screenAngle: Float = 45f,
-)
-
-/**
- * The sheet the press prints onto: the colour of the stock, and the surface that colour sits on.
+ * The sheet the press prints onto: the color of the stock, and the surface that color sits on.
  *
  * The surface is procedural and static for a given stock and layout, so it is baked once and shared
  * — changing an ink never re-bakes it. It does three things to the print: it pushes the artwork
@@ -53,7 +24,7 @@ data class RisoInk(
  * (https://shaders.paper.design/paper-texture).
  */
 data class RisoPaper(
-    /** The stock's own colour. */
+    /** The stock's own color. */
     val colorFront: Color = RisoColors.paper,
     /** What shows through the sheet where its surface lets light past. */
     val colorBack: Color = Color(0xFFFFFFFF),

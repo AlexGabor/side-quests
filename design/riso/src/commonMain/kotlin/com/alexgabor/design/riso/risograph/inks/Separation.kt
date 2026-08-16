@@ -1,11 +1,10 @@
-package com.alexgabor.design.riso.pass
+package com.alexgabor.design.riso.risograph.inks
 
 import androidx.compose.ui.graphics.Color
-import com.alexgabor.design.riso.print.MIN_TRANSMITTANCE
 import kotlin.math.abs
 import kotlin.math.ln
 
-/** The colour as a per-channel transmittance, i.e. what full coverage of it does to white paper. */
+/** The color as a per-channel transmittance, i.e. what full coverage of it does to white paper. */
 internal fun Color.transmittance() = floatArrayOf(
     red.coerceIn(MIN_TRANSMITTANCE, 1f),
     green.coerceIn(MIN_TRANSMITTANCE, 1f),
@@ -21,17 +20,17 @@ internal fun densityOf(color: Color): FloatArray {
 internal fun dot3(a: FloatArray, b: FloatArray) = a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 
 /**
- * Builds the colour separation as one row vector per ink, such that ink `i`'s coverage at a pixel is
+ * Builds the color separation as one row vector per ink, such that ink `i`'s coverage at a pixel is
  * `dot(row[i], density)` where `density = -ln(pixel / paper)`.
  *
  * Densities add when inks stack, so recovering the coverages is a least-squares fit of the pixel's
  * density against the ink densities. The rows are the pseudo-inverse of that 3xN system, which
- * depends only on the ink colours and so is solved once here rather than per pixel.
+ * depends only on the ink colors and so is solved once here rather than per pixel.
  *
  * This is only ever asked about the one to three drums a composable named, where the system is small
  * and — at three — exact. It used to be asked about the whole rack, which is where it got into
  * trouble: three channels cannot pin down twelve unknowns, and the minimum-norm answer prefers to
- * wash a colour thinly over every drum loaded rather than pick the few that can print it. Everything
+ * wash a color thinly over every drum loaded rather than pick the few that can print it. Everything
  * that existed to paper over that (the hue fan, its wedges, the anchor ink) is gone, because a
  * composable now says which drums it prints on instead of leaving it to be inferred from a pixel.
  */

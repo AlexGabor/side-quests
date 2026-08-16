@@ -44,7 +44,6 @@ object RisoTheme {
         @ReadOnlyComposable
         get() = LocalShapes.current
 
-    /** The press: which drums are loaded, and how they lay ink down. */
     val press: Press
         @Composable
         @ReadOnlyComposable
@@ -52,11 +51,11 @@ object RisoTheme {
 }
 
 @Composable
-fun RisoTheme(press: Press = RisoPress, content: @Composable () -> Unit) {
+fun RisoTheme(content: @Composable () -> Unit) {
     CompositionLocalProvider(
         LocalColors provides RisoColors,
         LocalDimens provides RisoDimens,
-        LocalPress provides press,
+        LocalPress provides RisoPress,
         LocalShapes provides RisoShapes,
         LocalTypography provides Typography(fontFamily = firaCodeFamily()),
         LocalIndication provides ripple(), // provides the material ripple.

@@ -1,4 +1,4 @@
-package com.alexgabor.design.riso.pass
+package com.alexgabor.design.riso.risograph.inks
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -33,17 +33,17 @@ import kotlin.math.roundToInt
  * error — the pink/blue fringes of a real riso. The passes multiply, so where two of them land on
  * the same pixel the inks stack and the overlap goes dark, exactly as ink on paper does.
  *
- * ### How a colour becomes coverage
- * Naming a drum says *which* ink prints; the artwork's own colour still says *how much*. Coverage is
+ * ### How a color becomes coverage
+ * Naming a drum says *which* ink prints; the artwork's own color still says *how much*. Coverage is
  * the pixel's optical density resolved against the inks named, so one region can hold artwork of
- * several colours and each prints on the drum it was drawn in — a border in one ink, a fill in
+ * several colors and each prints on the drum it was drawn in — a border in one ink, a fill in
  * another, inside the same component. Tints, gradients, type and antialiased edges all keep working,
- * and a fill authored with [risoOverprint][com.alexgabor.design.riso.print.risoOverprint] from these
+ * and a fill authored with [risoOverprint][risoOverprint] from these
  * same inks separates back onto them at the coverages it was authored with.
  *
  * Name the ink **as it is loaded on the drum** — `RisoColors.inks.purple`, not
  * `purple.onRisoPaper()`. The second is what that ink looks like once printed, which is a different
- * colour; it will usually still resolve to the right drum, but only by being nearest to it. A colour
+ * color; it will usually still resolve to the right drum, but only by being nearest to it. A color
  * on no drum at all resolves to the nearest one the press is carrying.
  *
  * ### Scope
@@ -51,14 +51,14 @@ import kotlin.math.roundToInt
  * registration error moves the whole pass, so a shape carries its own fringe wherever it is drawn
  * and can never pick up a neighbour's artwork on the way.
  *
- * A colour prints on at most three drums, so if more are named only the first three are loaded.
- * Beyond three the separation stops being exact, and a press that needed four drums for one colour
+ * A color prints on at most three drums, so if more are named only the first three are loaded.
+ * Beyond three the separation stops being exact, and a press that needed four drums for one color
  * would be a press with the wrong inks on it.
  *
  * ### Nesting
  * The innermost wins. A `risoInk` inside another prints on its own drums, and the outer one leaves a
  * hole where that artwork was rather than inking it a second time — so a component keeps its own
- * colours wherever it is dropped.
+ * colors wherever it is dropped.
  *
  * The hole is in the *artwork*, not in the sheet: whatever the outer one draws behind the inner —
  * a panel's tint, a card's fill — still prints there, and the inner pass lands on top of it. That is
@@ -67,8 +67,8 @@ import kotlin.math.roundToInt
  *
  * ### Printing nothing
  * Naming no inks is a **knockout**: nothing is laid down and the region comes off the press as bare
- * stock. That is the opposite of [risoBypass][com.alexgabor.design.riso.bypass.risoBypass], which
- * hands the content back untouched — a knockout removes it. A `risoInk` nested inside a knockout
+ * stock. That is different from [risoBypass][com.alexgabor.design.riso.risograph.region.risoBypass],
+ * which hands the content back untouched. A `risoInk` nested inside a knockout
  * still prints, since the innermost still wins.
  *
  * @param inks the drums to load, as the inks themselves rather than as they print. Empty is a
@@ -94,7 +94,7 @@ fun Modifier.risoInk(ink: Color, offsetScale: Float = 1f): Modifier =
 fun Modifier.risoInk(first: Color, second: Color, offsetScale: Float = 1f): Modifier =
     risoInk(listOf(first, second), offsetScale)
 
-/** [risoInk] on three drums, which is as many as a colour prints on. */
+/** [risoInk] on three drums, which is as many as a color prints on. */
 @Composable
 @ReadOnlyComposable
 fun Modifier.risoInk(first: Color, second: Color, third: Color, offsetScale: Float = 1f): Modifier =
@@ -103,7 +103,7 @@ fun Modifier.risoInk(first: Color, second: Color, third: Color, offsetScale: Flo
 /** Links a pass to the passes above it, so that the innermost can take precedence. */
 private object RisoPassKey
 
-/** As many drums as a colour separates onto exactly. See [separationRows]. */
+/** As many drums as a color separates onto exactly. See [separationRows]. */
 private const val MAX_DRUMS = 3
 
 /**

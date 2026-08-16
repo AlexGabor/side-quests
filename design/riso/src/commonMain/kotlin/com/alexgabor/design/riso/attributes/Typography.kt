@@ -23,8 +23,8 @@ import androidx.compose.ui.unit.sp
 import com.alexgabor.design.riso.FiraCode_VF
 import com.alexgabor.design.riso.Res
 import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.design.riso.pass.risoInk
-import com.alexgabor.design.riso.print.risoPaper
+import com.alexgabor.design.riso.risograph.inks.risoInk
+import com.alexgabor.design.riso.risograph.paper.risoPaper
 import org.jetbrains.compose.resources.Font
 
 @Stable

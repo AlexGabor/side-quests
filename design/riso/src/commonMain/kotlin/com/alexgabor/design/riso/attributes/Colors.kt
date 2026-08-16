@@ -17,10 +17,10 @@ data class Colors(
 )
 
 /**
- * Twelve of the most commonly stocked RISO drum inks, spread around the colour wheel.
+ * Twelve of the most commonly stocked RISO drum inks, spread around the color wheel.
  *
  * Hex values are the published approximations of the real inks. They are only ever approximate —
- * RISO inks are spot colours that do not sit inside sRGB, and the fluorescents in particular print
+ * RISO inks are spot colors that do not sit inside sRGB, and the fluorescents in particular print
  * considerably brighter than any screen can show.
  */
 @Immutable
@@ -38,7 +38,7 @@ data class Inks(
     val burgundy: Color = Color(0xFF914E72),
     val vintageBlack: Color = Color(0xFF383226),
 ) {
-    /** Every ink with its RISO name, in colour-wheel order — for pickers and swatch charts. */
+    /** Every ink with its RISO name, in color-wheel order — for pickers and swatch charts. */
     val all: List<NamedInk> = listOf(
         NamedInk("Fluorescent Pink", fluorescentPink),
         NamedInk("Red", red),

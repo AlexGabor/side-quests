@@ -1,4 +1,4 @@
-package com.alexgabor.design.riso.bypass
+package com.alexgabor.design.riso.risograph.region
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
@@ -7,9 +7,6 @@ import androidx.compose.ui.node.requireDensity
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.alexgabor.design.riso.region.RisoRegionHost
-import com.alexgabor.design.riso.region.RisoRegionNode
-import com.alexgabor.design.riso.region.risoRegionHost
 
 /**
  * Leaves whatever this composable draws exactly as it is, where an ancestor would otherwise have
@@ -22,7 +19,7 @@ import com.alexgabor.design.riso.region.risoRegionHost
  * onto a printed page.
  *
  * This only opts out of the *sheet* — the surface's warp and its shading. Ink is not applied here in
- * the first place: it is laid by [risoInk][com.alexgabor.design.riso.pass.risoInk], and a composable
+ * the first place: it is laid by [risoInk][com.alexgabor.design.riso.risograph.inks.risoInk], and a composable
  * that never names a drum was never going to be printed. Bypassing something inside a `risoInk` does
  * not take it off that drum.
  *

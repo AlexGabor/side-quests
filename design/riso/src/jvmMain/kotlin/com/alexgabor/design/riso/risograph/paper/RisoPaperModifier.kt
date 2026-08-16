@@ -1,4 +1,4 @@
-package com.alexgabor.design.riso.print
+package com.alexgabor.design.riso.risograph.paper
 
 import androidx.compose.ui.Modifier
 

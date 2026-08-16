@@ -1,4 +1,4 @@
-package com.alexgabor.design.riso.print
+package com.alexgabor.design.riso.risograph.paper
 
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
@@ -27,7 +27,7 @@ import kotlin.random.Random
 internal val RisoPaper.warps: Boolean get() = roughness > 0f || fiber > 0f
 
 /**
- * The baked surface for [paper] at this size, as a shader ready to bind to `u_paperMap`.
+ * The baked surface for\ [paper] at this size, as a shader ready to bind to `u_paperMap`.
  *
  * A stock with neither roughness nor fiber has the same value at every pixel, so it is baked 1x1 and
  * stretched: every size and every call site then shares the one entry, and [RisoPaper.None] costs no
@@ -46,7 +46,7 @@ internal fun paperMapShader(
         bakePaperMap(paper, w, h, density)
     }
     return BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
-        .apply { setFilterMode(BitmapShader.FILTER_MODE_LINEAR) }
+        .apply { filterMode = BitmapShader.FILTER_MODE_LINEAR }
 }
 
 /**
@@ -92,8 +92,8 @@ private fun bakePaperMap(paper: RisoPaper, width: Int, height: Int, density: Flo
 }
 
 /**
- * Sets every uniform the bake needs. The stock's colours are not among them: they are composited by
- * the print shader per frame, so that recolouring the paper does not re-bake its surface.
+ * Sets every uniform the bake needs. The stock's colors are not among them: they are composited by
+ * the print shader per frame, so that recoloring the paper does not re-bake its surface.
  */
 private fun RuntimeShader.applyPaperParams(
     paper: RisoPaper,

@@ -1,4 +1,4 @@
-package com.alexgabor.design.riso.pass
+package com.alexgabor.design.riso.risograph.inks
 
 import android.graphics.RenderEffect as AndroidRenderEffect
 import android.graphics.RuntimeShader
@@ -48,8 +48,8 @@ internal actual class InkPass actual constructor() {
 /**
  * Lower bound on a transmittance. A channel that transmits nothing has infinite optical density, so
  * pure black is treated as a very dark — but finite — ink. Kept in step with
- * [MIN_TRANSMITTANCE][com.alexgabor.design.riso.print.MIN_TRANSMITTANCE]; if they disagreed, the
- * darkest colours would separate into more ink than the inks themselves can lay down.
+ * [MIN_TRANSMITTANCE][com.alexgabor.design.riso.risograph.inks.MIN_TRANSMITTANCE]; if they disagreed, the
+ * darkest colors would separate into more ink than the inks themselves can lay down.
  */
 private const val MIN_TRANSMITTANCE = 0.02f
 
@@ -57,7 +57,7 @@ private const val MIN_TRANSMITTANCE = 0.02f
  * One drum, end to end. There is no loop and no array here: this shader runs on a layer that is
  * already one pass, and knows about exactly one ink.
  *
- * It returns opaque colour, never transparency, because the pass is composited with
+ * It returns opaque color, never transparency, because the pass is composited with
  * [BlendMode.Multiply][androidx.compose.ui.graphics.BlendMode.Multiply]. White is what a drum that
  * laid no ink hands back, and white multiplies to nothing — so bare paper comes through the pass
  * untouched, and there is no seam where the artwork stops.
@@ -69,7 +69,7 @@ const float PI = 3.14159265359;
 /**
  * Coverage below which a drum is not worth screening. A little over one percent of an ink moves a
  * channel by about two levels out of 255 — less than its own grain would — so the ink is laid flat
- * rather than put through the screen and the mottle. Dropping it instead would pop as a colour
+ * rather than put through the screen and the mottle. Dropping it instead would pop as a color
  * crossed the threshold.
  */
 const float FAINT_COVERAGE = 0.012;
@@ -131,9 +131,9 @@ float fbm(float2 p) {
 }
 
 /**
- * How much darker than bare paper a colour is, per channel. Lighter than paper reads as no ink at
+ * How much darker than bare paper a color is, per channel. Lighter than paper reads as no ink at
  * all — a press cannot print white — and so does anything within u_paperFloor of the stock, which is
- * what keeps artwork authored to the paper colour from separating into a tint no press could hold.
+ * what keeps artwork authored to the paper color from separating into a tint no press could hold.
  * The floor is subtracted rather than thresholded, so ink fades in instead of switching on.
  */
 float3 densityOfRgb(float3 rgb) {
@@ -170,8 +170,8 @@ half4 main(float2 fragCoord) {
     half4 src = u_image.eval(fragCoord);
     float2 sheet = fragCoord + u_origin;
 
-    // Unpremultiplied, so that an antialiased edge is read as its own colour at partial coverage
-    // rather than as that colour fading towards black. Nothing drawn at all reads as bare paper,
+    // Unpremultiplied, so that an antialiased edge is read as its own color at partial coverage
+    // rather than as that color fading towards black. Nothing drawn at all reads as bare paper,
     // which separates to no ink and comes back as white below.
     float alpha = float(src.a);
     float3 rgb = alpha > 0.001 ? float3(src.rgb) / alpha : float3(1.0);

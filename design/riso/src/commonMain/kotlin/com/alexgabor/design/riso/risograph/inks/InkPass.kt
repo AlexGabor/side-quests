@@ -1,4 +1,4 @@
-package com.alexgabor.design.riso.pass
+package com.alexgabor.design.riso.risograph.inks
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.RenderEffect
  * One drum's pass over the artwork.
  *
  * A pass reads the artwork as recorded and hands back what that drum lays on the sheet: the ink where
- * the colour calls for it, and white — which is nothing at all, under the multiply the pass is drawn
+ * the color calls for it, and white — which is nothing at all, under the multiply the pass is drawn
  * with — where it does not. Everything about *where* the pass lands is the caller's business: the
  * registration error is a translation of the whole pass, not something the shader knows about.
  *
@@ -39,7 +39,7 @@ internal class InkPassSpec(
     val row: FloatArray,
     /** The stock the artwork is separated against. Nothing lighter than this can be printed. */
     val paper: Color,
-    /** How close to [paper] a colour has to be to come off the press unprinted (0..1). */
+    /** How close to [paper] a color has to be to come off the press unprinted (0..1). */
     val tolerance: Float,
     /**
      * Where this pass sits on the page, in pixels. The screen and the mottle belong to the press

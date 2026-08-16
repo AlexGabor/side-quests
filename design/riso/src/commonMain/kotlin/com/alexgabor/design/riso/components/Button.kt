@@ -24,12 +24,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Text
-import com.alexgabor.design.riso.pass.risoInk
-import com.alexgabor.design.riso.print.risoOverprint
-import com.alexgabor.design.riso.print.risoPaper
+import com.alexgabor.design.riso.risograph.inks.risoInk
+import com.alexgabor.design.riso.risograph.inks.risoOverprint
+import com.alexgabor.design.riso.risograph.paper.risoPaper
 
 @Composable
 fun Button(
@@ -57,10 +56,6 @@ fun Button(
                     }
                 }
             }
-            // Pill and label are one pass on each of two drums, so pressing slides them back into
-            // register together and the fringe stays at the pill's edge where it belongs. The label
-            // is knocked out of the fill rather than printed over it — it is drawn in the stock
-            // colour, which no press can lay down.
             .risoInk(
                 RisoTheme.colors.inks.fluorescentPink,
                 RisoTheme.colors.inks.purple,
@@ -69,19 +64,19 @@ fun Button(
             .background(
                 risoOverprint(
                     inks = arrayOf(
-                        RisoTheme.colors.inks.fluorescentPink to 1f,
-                        RisoTheme.colors.inks.purple to 0.6f,
+                        RisoTheme.colors.inks.fluorescentPink to .7f,
+                        RisoTheme.colors.inks.purple to .7f,
                     ),
                 ),
                 shape = RisoTheme.shapes.standardShape
             )
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .padding(horizontal = 24.dp, vertical = 12.dp),
     ) {
         Text(
             text = text,
-            textStyle = RisoTheme.typography.body.copy(fontSize = 20.sp),
+            textStyle = RisoTheme.typography.body,
             color = RisoTheme.colors.content,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+            modifier = Modifier
                 .risoInk(RisoTheme.colors.content, offsetScale = 0f),
         )
     }

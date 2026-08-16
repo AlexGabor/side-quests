@@ -1,6 +1,8 @@
 package com.alexgabor.design.riso.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -8,8 +10,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.design.riso.pass.risoInk
-import com.alexgabor.design.riso.print.risoOverprint
+import com.alexgabor.design.riso.risograph.inks.risoInk
+import com.alexgabor.design.riso.risograph.inks.risoOverprint
 
 @Composable
 fun Card(
@@ -18,7 +20,8 @@ fun Card(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val animatedColor by animateColorAsState(
-        targetValue = if (selected) getSelectedColor() else RisoTheme.colors.content
+        targetValue = if (selected) getSelectedColor() else RisoTheme.colors.content,
+        animationSpec = spring(stiffness = Spring.StiffnessLow)
     )
     Box(
         modifier = modifier

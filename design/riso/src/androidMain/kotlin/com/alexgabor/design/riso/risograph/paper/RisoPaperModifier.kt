@@ -1,4 +1,4 @@
-package com.alexgabor.design.riso.print
+package com.alexgabor.design.riso.risograph.paper
 
 import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
@@ -14,29 +14,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
-import com.alexgabor.design.riso.bypass.RisoBypassHost
-import com.alexgabor.design.riso.bypass.applyBypass
-import com.alexgabor.design.riso.bypass.bypassAgsl
-import com.alexgabor.design.riso.bypass.bypassCapacity
-import com.alexgabor.design.riso.bypass.risoBypassHost
+import com.alexgabor.design.riso.risograph.region.RisoBypassHost
+import com.alexgabor.design.riso.risograph.region.applyBypass
+import com.alexgabor.design.riso.risograph.region.bypassAgsl
+import com.alexgabor.design.riso.risograph.region.bypassCapacity
+import com.alexgabor.design.riso.risograph.region.risoBypassHost
 
 /**
  * Puts a sheet of paper under whatever this composable draws.
- *
- * ### What this does, and what the passes do
- * The ink is not here. A composable prints by naming its drums with
- * [risoInk][com.alexgabor.design.riso.pass.risoInk], which records the artwork and replays it once
- * per drum, each replay multiplying its ink onto whatever is beneath. Since white is identity under
- * a multiply, what arrives at this shader is the sheet's-eye view: the *transmittance* of everything
- * printed on it, `1` wherever nothing was. So all that is left to do here is shine the stock through
- * it.
- *
- * That is why there is no separation in this file any more, and no registration either. Both used to
- * live here because a render effect only ever sees the flattened page, so the drums had to be
- * recovered from the pixel — three channels against a rack of twelve, which does not have an answer
- * — and each drum then had to re-read the page at an offset, picking up whatever artwork happened to
- * be sitting there. Recording a pass and translating it is the same effect done where the answer is
- * still known.
  *
  * ### Performance
  * The sheet is static for a given stock and layout, so its surface is **baked once** into a cached
@@ -153,7 +138,7 @@ half4 main(float2 fragCoord) {
     float res = clamp(float(baked.b) * 2.0 - 1.0, 0.0, 1.0);
 
     // The stock itself: its lit front over whatever shows through it. The lighting works on the
-    // front's opacity, so a default sheet still takes most of its colour from the back.
+    // front's opacity, so a default sheet still takes most of its color from the back.
     float3 sheet = u_colorFront.rgb * u_colorFront.a * res;
     float sheetOpacity = u_colorFront.a * res;
     sheet += u_colorBack.rgb * u_colorBack.a * (1.0 - sheetOpacity);

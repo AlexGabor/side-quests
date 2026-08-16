@@ -1,4 +1,4 @@
-package com.alexgabor.design.riso.pass
+package com.alexgabor.design.riso.risograph.inks
 
 import androidx.compose.ui.graphics.RenderEffect
 
