@@ -47,5 +47,9 @@ gradlePlugin {
             id = libs.plugins.sidequests.compose.multiplatform.library.get().pluginId
             implementationClass = "com.alexgabor.sidequests.ComposeMultiplatformLibraryPlugin"
         }
+        register("DesktopAppPlugin") {
+            id = libs.plugins.sidequests.desktop.app.get().pluginId
+            implementationClass = "com.alexgabor.sidequests.DesktopAppPlugin"
+        }
     }
 }
