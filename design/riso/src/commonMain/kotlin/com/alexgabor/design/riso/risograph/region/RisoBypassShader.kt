@@ -1,17 +1,17 @@
 package com.alexgabor.design.riso.risograph.region
 
-import android.graphics.RuntimeShader
+import com.alexgabor.design.riso.risograph.ShaderUniforms
 
 /**
- * The AGSL every effect shader shares in order to honour [risoBypass]: the bypassed rectangles, and
- * a mask that is 1 inside them.
+ * The shader source every effect shader shares in order to honour [risoBypass]: the bypassed
+ * rectangles, and a mask that is 1 inside them.
  *
  * A shader's uniform array lengths are fixed when it is compiled, so [capacity] is baked into the
  * source. Capacities are bucketed by [bypassCapacity] so that adding or removing a region rarely
  * means compiling anything.
  */
 // language=AGSL
-internal fun bypassAgsl(capacity: Int): String = """
+internal fun bypassSksl(capacity: Int): String = """
 uniform float4 u_bypass[$capacity];      // Region bounds as xywh, in layer pixels.
 uniform float u_bypassRadius[$capacity]; // Corner radius of each region, in pixels.
 uniform float u_bypassCount;
@@ -46,9 +46,9 @@ internal fun bypassCapacity(count: Int): Int = regionCapacity(count)
  * frame between a region appearing and the recomposition that widens the arrays landing, and only
  * when the count crosses a bucket; the overflow is printed rather than bypassed until then.
  */
-internal fun RuntimeShader.applyBypass(regions: List<RisoBypassRect>, capacity: Int) {
+internal fun ShaderUniforms.setBypass(regions: List<RisoBypassRect>, capacity: Int) {
     val count = minOf(regions.size, capacity)
-    setFloatUniform("u_bypassCount", count.toFloat())
+    float("u_bypassCount", count.toFloat())
 
     // Slots past the count stay zeroed; the shader's loop stops before it reaches them.
     val bounds = FloatArray(capacity * 4)
@@ -61,6 +61,6 @@ internal fun RuntimeShader.applyBypass(regions: List<RisoBypassRect>, capacity: 
         bounds[index * 4 + 3] = region.rect.height
         radii[index] = region.cornerRadiusPx
     }
-    setFloatUniform("u_bypass", bounds)
-    setFloatUniform("u_bypassRadius", radii)
+    floats("u_bypass", bounds)
+    floats("u_bypassRadius", radii)
 }

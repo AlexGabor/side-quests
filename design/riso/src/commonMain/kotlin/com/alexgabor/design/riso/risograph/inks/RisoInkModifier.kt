@@ -21,6 +21,7 @@ import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.node.traverseAncestors
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.toSize
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Press
 import kotlin.math.PI
@@ -258,13 +259,20 @@ internal class RisoPassNode(
                 // artwork as well: an unclipped one is sized to the whole destination, and the pass
                 // shader would be run over the entire screen once per drum.
                 val shift = origin + drum.registration * offsetScale * scope.density
-                pass.layer.clip = true
-                pass.layer.translationX = shift.x
-                pass.layer.translationY = shift.y
-                pass.layer.blendMode = BlendMode.Multiply
-                pass.layer.renderEffect = pass.shader.effect(drum.spec(scope.density, onPage))
                 with(scope) {
                     pass.layer.record(contentSize) { drawLayer(content) }
+                    // Clipped to an outline named outright rather than to the layer's own bounds.
+                    // Left implicit, the clip is resolved once against whatever the layer measured
+                    // at the time and is never resolved again: on Skia that means a pass set up
+                    // before its first recording clips to nothing and stays blank, and a pass whose
+                    // artwork later grows — a window pulled wider — keeps printing at its old width
+                    // with the rest cut off. Naming the rect makes it the artwork's, every frame.
+                    pass.layer.setRectOutline(Offset.Zero, contentSize.toSize())
+                    pass.layer.clip = true
+                    pass.layer.translationX = shift.x
+                    pass.layer.translationY = shift.y
+                    pass.layer.blendMode = BlendMode.Multiply
+                    pass.layer.renderEffect = pass.shader.effect(drum.spec(density, onPage))
                     drawLayer(pass.layer)
                 }
             }

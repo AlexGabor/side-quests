@@ -50,8 +50,10 @@ androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 
 # Convention Plugins
 sidequests-android-app = { id = "sidequests.android.app" }
 sidequests-compose-multiplatform-library = { id = "sidequests.compose.multiplatform.library" }
+sidequests-desktop-app = { id = "sidequests.desktop.app" }

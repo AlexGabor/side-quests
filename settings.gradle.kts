@@ -33,6 +33,7 @@ dependencyResolutionManagement {
 }
 
 include(":pacer:androidApp")
+include(":pacer:desktopApp")
 include(":pacer:shared")
 include(":stamp:androidApp")
 include(":stamp:shared")
