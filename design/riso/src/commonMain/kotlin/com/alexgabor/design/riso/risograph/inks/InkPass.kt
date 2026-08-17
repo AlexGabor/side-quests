@@ -20,6 +20,12 @@ internal expect class InkPass() {
     /**
      * The effect to hang on this pass's layer, or null on a platform with no runtime shaders — where
      * the caller draws the artwork as it is and no ink is laid at all.
+     *
+     * The effect for the last [spec] is kept and handed back when this one matches it. An effect
+     * bakes in its shader's uniforms, so it cannot outlive a change to them — but of everything in a
+     * spec only [InkPassSpec.origin] moves at all once the drums are resolved, and it only moves when
+     * the pass does. A track being scrolled inside a card that is standing still asks for the same
+     * pass every frame, once per drum, and that is what this answers without rebuilding.
      */
     fun effect(spec: InkPassSpec): RenderEffect?
 }
@@ -32,10 +38,16 @@ internal expect class InkPass() {
  * three inks the author chose rather than fitted against a rack of twelve. That is the whole reason
  * the fan and its wedges are gone: over a named handful the system is small and exact.
  */
-internal class InkPassSpec(
+internal data class InkPassSpec(
     /** The ink on the drum, as loaded — not as it prints once the stock is under it. */
     val ink: Color,
-    /** This drum's row of the separation, three channels. */
+    /**
+     * This drum's row of the separation, three channels.
+     *
+     * Compared by identity, which is what a drum's row is: it is built once with the drum and thrown
+     * away with it, never written in place. Two rows that happen to hold the same numbers are a
+     * different separation and are treated as one.
+     */
     val row: FloatArray,
     /** The stock the artwork is separated against. Nothing lighter than this can be printed. */
     val paper: Color,

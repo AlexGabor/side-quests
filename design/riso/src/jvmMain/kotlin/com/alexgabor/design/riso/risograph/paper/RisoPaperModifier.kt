@@ -111,14 +111,21 @@ actual fun Modifier.risoPaper(paper: RisoPaper): Modifier = composed {
     // remembered lambda — were the surface only read during composition, the block would capture
     // nothing that changed when the bake landed, never re-run, and the sheet would keep the blank
     // stand-in for as long as the layout held still.
+    //
+    // Rebuilt there, but only when those bounds actually moved — see [SheetEffect]. The surface is
+    // one of this holder's keys, so the bake landing still gets the filter it needs.
+    val sheet = remember(builder, paper, size, paperMap) { SheetEffect() }
     val withEffect = if (ready) {
         Modifier.graphicsLayer {
             clip = true
-            builder.child("u_paperMap", paperMap)
-            uniforms.setBypass(host.regions, capacity)
-            renderEffect = ImageFilter
-                .makeRuntimeShader(builder, "u_image", null)
-                .asComposeRenderEffect()
+            val regions = host.regions
+            renderEffect = sheet.forRegions(regions) {
+                builder.child("u_paperMap", paperMap)
+                uniforms.setBypass(regions, capacity)
+                ImageFilter
+                    .makeRuntimeShader(builder, "u_image", null)
+                    .asComposeRenderEffect()
+            }
         }
     } else {
         Modifier

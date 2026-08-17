@@ -11,6 +11,6 @@ import com.alexgabor.design.riso.risograph.paper.risoPaper
 @Preview
 fun App() {
     RisoTheme {
-        PacerScreen(modifier = Modifier.risoPaper().risoInk(RisoTheme.colors.content))
+        PacerScreen(modifier = Modifier.risoPaper())
     }
 }

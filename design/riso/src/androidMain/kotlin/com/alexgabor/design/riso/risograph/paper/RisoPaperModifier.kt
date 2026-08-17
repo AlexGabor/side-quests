@@ -60,13 +60,20 @@ actual fun Modifier.risoPaper(paper: RisoPaper): Modifier = composed {
     // RenderEffect bakes in its shader's uniforms and the bypass bounds move with every layout pass.
     // Going through a recomposition would land them a frame late, and a bypassed child would visibly
     // trail its own window on a fling.
+    //
+    // Rebuilt there, but only when those bounds actually moved — see [SheetEffect]. Everything else
+    // the shader is uniformed with is settled above, which is what this is keyed on.
+    val sheet = remember(shader, paper, size, paperMap) { SheetEffect() }
     val withEffect = if (ready) {
         Modifier.graphicsLayer {
             clip = true
-            uniforms.setBypass(host.regions, capacity)
-            renderEffect = RenderEffect
-                .createRuntimeShaderEffect(shader, "u_image")
-                .asComposeRenderEffect()
+            val regions = host.regions
+            renderEffect = sheet.forRegions(regions) {
+                uniforms.setBypass(regions, capacity)
+                RenderEffect
+                    .createRuntimeShaderEffect(shader, "u_image")
+                    .asComposeRenderEffect()
+            }
         }
     } else {
         Modifier

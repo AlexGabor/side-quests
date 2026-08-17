@@ -209,7 +209,6 @@ internal class RisoPassNode(
 
     override fun ContentDrawScope.draw() {
         val above = above
-        recordContent()
         if (above != null) {
             // These pixels are not the pass above's to ink, so nothing goes on the canvas here —
             // the recording above is left with a hole where this pass belongs, and the pass above
@@ -219,9 +218,19 @@ internal class RisoPassNode(
             // re-run, and then nothing would reach the screen at all, so the ancestor is asked for
             // a frame. It cannot loop: on that frame this node draws inside the ancestor's
             // recording, which is the one case that asks for nothing.
-            if (!above.recording) above.invalidateDraw()
+            //
+            // Recording waits for that frame rather than happening here as well. A recording taken
+            // outside the ancestor's is only overwritten by the one taken inside it a moment later,
+            // and never reaches the sheet in between — on a list being scrolled that is every
+            // pass's whole subtree recorded twice a frame.
+            if (!above.recording) {
+                above.invalidateDraw()
+                return
+            }
+            recordContent()
             return
         }
+        recordContent()
         layDown(this, Offset.Zero)
     }
 
