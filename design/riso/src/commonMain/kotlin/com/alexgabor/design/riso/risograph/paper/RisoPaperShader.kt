@@ -18,8 +18,61 @@ import kotlin.random.Random
 /** Whether the stock's surface pushes the artwork around at all. */
 internal val RisoPaper.warps: Boolean get() = roughness > 0f || fiber > 0f
 
-/** The sheet shader, built for [capacity] bypassed regions. */
-internal fun risoPaperSksl(capacity: Int): String = bypassSksl(capacity) + "\n" + SHEET_SKSL
+/**
+ * The sheet shader, built for [capacity] bypassed regions, reading a surface **baked beforehand**
+ * into `u_paperMap`.
+ *
+ * For platforms that can run the bake on the GPU — Android through a `HardwareRenderer`, iOS through
+ * its own Metal context. The per-frame cost here is one texture read; the surface's real cost was
+ * paid once, off this pass.
+ */
+internal fun risoPaperSksl(capacity: Int): String =
+    bypassSksl(capacity) + "\n" + BAKED_SURFACE_SKSL + "\n" + SHEET_SKSL
+
+/**
+ * The sheet shader, built for [capacity] bypassed regions, computing the surface **inline, per
+ * frame** — no bake and no `u_paperMap`.
+ *
+ * For platforms with no reachable way to bake on the GPU: the desktop JVM and web, where skiko's
+ * only offscreen surface is a CPU raster and taking it would cost seconds. This is what the shader
+ * this was ported from does, so it is well-trodden ground rather than a concession — and it comes
+ * out slightly cleaner, since nothing round-trips through an 8-bit encoding.
+ *
+ * The caller must bind the surface's own uniforms with [setPaperBake] and its `u_noiseTexture` child
+ * in addition to [setSheet].
+ */
+internal fun risoPaperInlineSksl(capacity: Int): String =
+    bypassSksl(capacity) + "\n" + PAPER_SURFACE_SKSL + "\n" + INLINE_SURFACE_SKSL + "\n" + SHEET_SKSL
+
+/**
+ * Reads the surface from the texture the bake left. Declares `u_resolution` because the sheet body
+ * no longer does — the inline prelude gets it from [PAPER_SURFACE_SKSL] instead, and a shader may
+ * only declare a uniform once.
+ */
+// language=AGSL
+private val BAKED_SURFACE_SKSL = """
+uniform float2 u_resolution;
+
+// Baked once per stock and layout: rg is how far the surface pushes the artwork around (encoded
+// * 0.25 + 0.5), b is how the light falls on it (encoded * 0.5 + 0.5).
+uniform shader u_paperMap;
+
+void readPaperSurface(float2 fragCoord, out float2 surface, out float res) {
+    half4 baked = u_paperMap.eval(fragCoord);
+    surface = (float2(baked.r, baked.g) - 0.5) / 0.25;
+    res = clamp(float(baked.b) * 2.0 - 1.0, 0.0, 1.0);
+}
+""".trimIndent()
+
+/** Computes the surface where the baked path would have read it. */
+// language=AGSL
+private val INLINE_SURFACE_SKSL = """
+void readPaperSurface(float2 fragCoord, out float2 surface, out float res) {
+    paperSurface(fragCoord, surface, res);
+    // The baked path clamps on the way out of its 8-bit encoding; do the same here so the two agree.
+    res = clamp(res, 0.0, 1.0);
+}
+""".trimIndent()
 
 /**
  * Sets everything the per-frame sheet pass needs beyond its bypass regions and its baked surface.
@@ -190,20 +243,16 @@ float fiberNoise(float2 uv, float2 seedOffset) {
     float n4 = fiberNoiseFbm(uv - float2(0.0, epsilon), seedOffset);
     return length(float2(n1 - n2, n3 - n4)) / (2.0 * epsilon);
 }
-""".trimIndent()
 
 /**
- * Bake pass: runs the full procedural surface once and encodes the two values the print pass needs
- * into an 8-bit RGBA texture:
- *  - `rg` = the content-UV distortion vector `normalImage.xy`, mapped via `* 0.25 + 0.5`,
- *  - `b`  = the lighting term `res`, mapped via `* 0.5 + 0.5` (already includes `u_contrast`).
- * A small dither (±1/255) is added before quantization to avoid banding on the smooth gradients,
- * and alpha is kept at 1.0 so the data survives premultiplication.
+ * The surface at one pixel: how far it pushes the artwork around, and how the light falls on it.
+ *
+ * This is the whole expensive part of the sheet — around a hundred dependent noise reads per pixel —
+ * and it is a function rather than a `main` so that the two ways of paying for it can share it. A
+ * platform that can bake runs it once into a texture; one that cannot calls it from the print pass
+ * and pays per frame, which is what the shader it was ported from does.
  */
-// language=AGSL
-internal val PAPER_BAKE_SKSL: String = PAPER_SURFACE_SKSL + """
-
-half4 main(float2 fragCoord) {
+void paperSurface(float2 fragCoord, out float2 normalImage, out float res) {
     float2 uv = fragCoord / u_resolution;
 
     float2 patternUV = uv - 0.5;
@@ -224,7 +273,7 @@ half4 main(float2 fragCoord) {
     rough *= mix(1.0, 0.5, fade);
 
     float2 normal = float2(0.0);
-    float2 normalImage = float2(0.0);
+    normalImage = float2(0.0);
 
     normal += float2(u_roughness * 1.5 * rough);
     normal += float2(fiber);
@@ -233,8 +282,26 @@ half4 main(float2 fragCoord) {
     normalImage += float2(0.2 * fiber);
 
     float3 lightPos = float3(1.0, 2.0, 1.0);
-    float res = dot(normalize(float3(normal, 9.5 - 9.0 * pow(u_contrast, 0.1))),
-                    normalize(lightPos));
+    res = dot(normalize(float3(normal, 9.5 - 9.0 * pow(u_contrast, 0.1))),
+              normalize(lightPos));
+}
+""".trimIndent()
+
+/**
+ * Bake pass: runs the full procedural surface once and encodes the two values the print pass needs
+ * into an 8-bit RGBA texture:
+ *  - `rg` = the content-UV distortion vector `normalImage.xy`, mapped via `* 0.25 + 0.5`,
+ *  - `b`  = the lighting term `res`, mapped via `* 0.5 + 0.5` (already includes `u_contrast`).
+ * A small dither (±1/255) is added before quantization to avoid banding on the smooth gradients,
+ * and alpha is kept at 1.0 so the data survives premultiplication.
+ */
+// language=AGSL
+internal val PAPER_BAKE_SKSL: String = PAPER_SURFACE_SKSL + """
+
+half4 main(float2 fragCoord) {
+    float2 normalImage;
+    float res;
+    paperSurface(fragCoord, normalImage, res);
 
     float dither = (float(sampleNoise(fragCoord * 0.37).r) - 0.5) / 255.0;
     float2 encNormal = normalImage * 0.25 + 0.5 + dither;
@@ -245,18 +312,14 @@ half4 main(float2 fragCoord) {
 
 // language=AGSL
 private val SHEET_SKSL = """
-uniform float2 u_resolution;
 uniform float2 u_imageSize;
 uniform shader u_image;
 
-// The sheet, baked once per stock and layout: rg is how far its surface pushes the artwork around
-// (encoded * 0.25 + 0.5), b is how the light falls on it (encoded * 0.5 + 0.5).
-uniform shader u_paperMap;
 uniform float4 u_colorFront;
 uniform float4 u_colorBack;
 // A stock with no surface to speak of neither pushes the artwork around nor needs the edge of the
-// displaced content antialiased — and the map's 8-bit encoding cannot represent "no push" exactly,
-// so it is switched off here rather than left to round to zero.
+// displaced content antialiased, so it is switched off here rather than left to round to zero —
+// which the baked path's 8-bit encoding could not do exactly in any case.
 uniform float u_paperWarp;
 
 /**
@@ -281,11 +344,12 @@ half4 overSheet(half4 content, float frame, float3 sheet, float sheetOpacity) {
 }
 
 half4 main(float2 fragCoord) {
-    // The sheet, baked once per stock and layout: how far its surface pushes the artwork around, and
-    // how the light falls on it.
-    half4 baked = u_paperMap.eval(fragCoord);
-    float2 surface = (float2(baked.r, baked.g) - 0.5) / 0.25;
-    float res = clamp(float(baked.b) * 2.0 - 1.0, 0.0, 1.0);
+    // How far the sheet's surface pushes the artwork around, and how the light falls on it. Whether
+    // that was baked beforehand or is being computed right now is the prelude's business, not this
+    // pass's — see [risoPaperSksl] and [risoPaperInlineSksl].
+    float2 surface;
+    float res;
+    readPaperSurface(fragCoord, surface, res);
 
     // The stock itself: its lit front over whatever shows through it. The lighting works on the
     // front's opacity, so a default sheet still takes most of its color from the back.

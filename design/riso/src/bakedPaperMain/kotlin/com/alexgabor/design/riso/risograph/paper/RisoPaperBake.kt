@@ -1,8 +1,7 @@
 package com.alexgabor.design.riso.risograph.paper
 
 import com.alexgabor.design.riso.risograph.RuntimeShaderBuilderUniforms
-import org.jetbrains.skia.ColorAlphaType
-import org.jetbrains.skia.ColorType
+import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.FilterTileMode
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.ImageInfo
@@ -12,7 +11,6 @@ import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 import org.jetbrains.skia.SamplingMode
 import org.jetbrains.skia.Shader
-import org.jetbrains.skia.Surface
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
@@ -46,23 +44,35 @@ internal fun paperMapShader(
 
 /**
  * Renders [PAPER_BAKE_SKSL] once into an [Image], encoding the content-UV distortion vector and the
- * lighting term (see the shader). Skia runs a runtime effect on a raster surface directly, so unlike
- * Android — where `RuntimeShader` executes only under hardware rendering — this is a plain draw.
+ * lighting term (see the shader).
+ *
+ * Where it draws is [newBakeSurface]'s business — a GPU render target where there is one, a raster
+ * surface where there is not. Either way the pixels are read back to the CPU rather than kept as a
+ * snapshot, because a GPU image belongs to the context that made it and Compose draws through a
+ * different one. That readback is what makes the returned [Image] safe to sample from the print
+ * pass, and it is exactly the trip Android makes through `ImageReader` for the same reason.
  */
 private fun bakePaperMap(paper: RisoPaper, width: Int, height: Int, density: Float): Image {
     val builder = RuntimeShaderBuilder(BakeEffect)
     RuntimeShaderBuilderUniforms(builder)
         .setPaperBake(paper, width.toFloat(), height.toFloat(), density)
-    builder.child("u_noiseTexture", createNoiseShader())
+    builder.child("u_noiseTexture", PaperNoiseShader)
 
-    val surface = Surface.makeRasterN32Premul(width, height)
+    val info = ImageInfo.makeN32Premul(width, height)
+    val surface = newBakeSurface(width, height)
     surface.canvas.drawRect(
         Rect.makeWH(width.toFloat(), height.toFloat()),
         Paint().apply { shader = builder.makeShader() },
     )
-    val image = surface.makeImageSnapshot()
+    // Both are no-ops on a raster surface and both are needed on a GPU one, so neither is worth
+    // branching on.
+    surface.flushAndSubmit(syncCpu = true)
+
+    val bitmap = Bitmap().apply { allocPixels(info) }
+    surface.readPixels(bitmap, 0, 0)
+    bitmap.setImmutable()
     surface.close()
-    return image
+    return Image.makeFromBitmap(bitmap)
 }
 
 /**
@@ -136,22 +146,4 @@ private object PaperMapCache {
         if (held.order.lastOrNull() == key) return
         entries.compareAndSet(held, Entries(held.map, held.order - key + key))
     }
-}
-
-/** [noisePixels] as a repeat-tiled, linearly filtered shader. */
-private fun createNoiseShader(size: Int = NOISE_SIZE): Shader {
-    // RGBA_8888 rather than N32, so the byte order the channels are written in is the one skia
-    // reads back regardless of the host's endianness — the surface samples r, g and b as three
-    // independent random fields, and a swizzle would silently shuffle which is which.
-    val pixels = noisePixels(size)
-    val bytes = ByteArray(pixels.size * 4)
-    pixels.forEachIndexed { index, argb ->
-        bytes[index * 4] = (argb shr 16).toByte()    // r
-        bytes[index * 4 + 1] = (argb shr 8).toByte() // g
-        bytes[index * 4 + 2] = argb.toByte()         // b
-        bytes[index * 4 + 3] = (argb shr 24).toByte() // a, always opaque
-    }
-    val info = ImageInfo(size, size, ColorType.RGBA_8888, ColorAlphaType.UNPREMUL)
-    return Image.makeRaster(info, bytes, size * 4)
-        .makeShader(FilterTileMode.REPEAT, FilterTileMode.REPEAT, SamplingMode.LINEAR)
 }

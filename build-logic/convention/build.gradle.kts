@@ -51,5 +51,9 @@ gradlePlugin {
             id = libs.plugins.sidequests.desktop.app.get().pluginId
             implementationClass = "com.alexgabor.sidequests.DesktopAppPlugin"
         }
+        register("WebAppPlugin") {
+            id = libs.plugins.sidequests.web.app.get().pluginId
+            implementationClass = "com.alexgabor.sidequests.WebAppPlugin"
+        }
     }
 }
