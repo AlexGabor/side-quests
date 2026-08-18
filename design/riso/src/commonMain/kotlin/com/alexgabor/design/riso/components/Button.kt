@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Text
 import com.alexgabor.design.riso.risograph.inks.risoInk
+import com.alexgabor.design.riso.risograph.inks.risoKnockout
 import com.alexgabor.design.riso.risograph.inks.risoOverprint
 import com.alexgabor.design.riso.risograph.paper.risoPaper
 
@@ -75,9 +76,8 @@ fun Button(
         Text(
             text = text,
             textStyle = RisoTheme.typography.body,
-            color = RisoTheme.colors.content,
-            modifier = Modifier
-                .risoInk(RisoTheme.colors.content, offsetScale = 0f),
+            color = RisoTheme.colors.paper,
+            modifier = Modifier.risoKnockout(),
         )
     }
 }

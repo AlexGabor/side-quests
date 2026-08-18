@@ -6,8 +6,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.GraphicsContext
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.layer.CompositingStrategy
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -64,19 +66,16 @@ import kotlin.math.roundToInt
  * The hole is in the *artwork*, not in the sheet: whatever the outer one draws behind the inner —
  * a panel's tint, a card's fill — still prints there, and the inner pass lands on top of it. That is
  * an overprint, and it is what a press would do. Knock the outer one out first if the inner is meant
- * to print on bare stock.
+ * to print on bare stock — see [risoKnockout], which takes that ink back off.
  *
  * ### Printing nothing
- * Naming no inks is a **knockout**: nothing is laid down and the region comes off the press as bare
- * stock. That is different from [risoBypass][com.alexgabor.design.riso.risograph.region.risoBypass],
- * which hands the content back untouched. A `risoInk` nested inside a knockout
- * still prints, since the innermost still wins.
+ * Naming no inks is a **knockout**, which is [risoKnockout] and is documented there.
  *
  * @param inks the drums to load, as the inks themselves rather than as they print. Empty is a
  *   knockout. Beyond three, only the first three are loaded.
  * @param offsetScale multiplies this pass's registration error. `1` is the rack as loaded, `0` prints
  *   in perfect register — worth having for small type, where misregistration costs legibility first —
- *   and larger values throw the passes apart on purpose. Has no effect on a knockout.
+ *   and larger values throw the passes apart on purpose.
  */
 @Composable
 @ReadOnlyComposable
@@ -100,6 +99,37 @@ fun Modifier.risoInk(first: Color, second: Color, offsetScale: Float = 1f): Modi
 @ReadOnlyComposable
 fun Modifier.risoInk(first: Color, second: Color, third: Color, offsetScale: Float = 1f): Modifier =
     risoInk(listOf(first, second, third), offsetScale)
+
+/**
+ * A hole in the pass enclosing this one — a frisket laid on the sheet rather than a plate run
+ * through the press.
+ *
+ * Whatever this draws is taken back out of every drum of the pass above, at one place on the sheet
+ * for all of them, so the region comes off as bare stock however far those drums throw. That last
+ * part is the whole of it. Paper-colored artwork drawn into a two-drum pass is a hole in each drum
+ * separately, and because each drum carries the artwork off register by its own error the two holes
+ * land apart and each fills the other in — reversed-out type comes off the press doubled, one ghost
+ * per ink. A frisket is cut once, and the ink around it moves under it.
+ *
+ * The hole reaches through the enclosing pass and stops there, which is the same rule nesting
+ * already follows: a tint drawn by a pass further out still prints underneath. Knock that one out
+ * too if the region is meant to reach the stock itself.
+ *
+ * A [risoInk] nested inside a knockout still prints, since the innermost still wins — it lands on
+ * the bare stock the frisket left. It is also a hole in the frisket, so the enclosing pass keeps its
+ * ink underneath it.
+ *
+ * Different from [risoBypass][com.alexgabor.design.riso.risograph.region.risoBypass], which hands
+ * the content back untouched rather than taking ink away.
+ *
+ * @param offsetScale how much of the enclosing pass's own throw the hole follows — a fraction of
+ *   that pass's, not a scale of the drum's error the way [risoInk]'s is. `0` pins the hole to the
+ *   sheet, which is what type wants. `1` sits it back inside the artwork, exactly where drawing the
+ *   hole there would have put it.
+ */
+@Composable
+@ReadOnlyComposable
+fun Modifier.risoKnockout(offsetScale: Float = 0f): Modifier = risoInk(emptyList(), offsetScale)
 
 /** Links a pass to the passes above it, so that the innermost can take precedence. */
 private object RisoPassKey
@@ -131,6 +161,9 @@ internal class RisoPassNode(
             field = value
             drums = null
             invalidateDraw()
+            // Whether this is a hole is read by the pass that would have to punch it, and that pass
+            // has this frame's answer baked into recordings of its own.
+            above?.invalidateDraw()
         }
 
     var offsetScale: Float = offsetScale
@@ -138,6 +171,9 @@ internal class RisoPassNode(
             if (field == value) return
             field = value
             invalidateDraw()
+            // Likewise: on a knockout this says how far the hole follows the drum, and the pass
+            // above is the one that reads it.
+            above?.invalidateDraw()
         }
 
     var press: Press = press
@@ -161,6 +197,18 @@ internal class RisoPassNode(
     private var content: GraphicsLayer? = null
     private var contentSize = IntSize.Zero
     private val passes = mutableListOf<Pass>()
+
+    /**
+     * This node's hole in the pass above, one layer per drum that pass runs.
+     *
+     * One layer will not do. A layer's translation is read when the display list that draws it is
+     * replayed, not when it is recorded, and every drum's pass is recorded before any of them is
+     * replayed — so a single punch would hand all of them whichever drum's offset was written last.
+     */
+    private val punches = mutableListOf<GraphicsLayer>()
+
+    /** Lays no ink of its own down: a hole, not a plate. See [risoKnockout]. */
+    private val isKnockout: Boolean get() = inks.isEmpty()
 
     /** The nearest pass above this one, which this one takes precedence over. */
     private var above: RisoPassNode? = null
@@ -193,6 +241,10 @@ internal class RisoPassNode(
     }
 
     override fun onDetach() {
+        // The pass above holds this node's hole in recordings of its own. Releasing the punches
+        // under it is safe — a released layer draws nothing — but it would leave the hole gone and
+        // the ink back until something else happened to invalidate it.
+        above?.invalidateDraw()
         above?.below?.remove(this)
         above = null
         coordinates = null
@@ -201,6 +253,8 @@ internal class RisoPassNode(
         content = null
         passes.forEach { context.releaseGraphicsLayer(it.layer) }
         passes.clear()
+        punches.forEach(context::releaseGraphicsLayer)
+        punches.clear()
     }
 
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
@@ -267,9 +321,20 @@ internal class RisoPassNode(
                 // which the offscreen path would quietly drop. Clipping bounds that buffer to the
                 // artwork as well: an unclipped one is sized to the whole destination, and the pass
                 // shader would be run over the entire screen once per drum.
-                val shift = origin + drum.registration * offsetScale * scope.density
+                //
+                // The slip is kept apart from the origin because a frisket compensates the error and
+                // not the placement: it comes back by exactly what the plate went out by, and by
+                // nothing else.
+                val slip = drum.registration * offsetScale * scope.density
+                val shift = origin + slip
                 with(scope) {
-                    pass.layer.record(contentSize) { drawLayer(content) }
+                    // Cut before the pass is opened. Recording a layer inside the recording that
+                    // draws it works, but only by accident of the scope restoring itself.
+                    cutKnockouts(index, slip)
+                    pass.layer.record(contentSize) {
+                        drawLayer(content)
+                        punchKnockouts(index)
+                    }
                     // Clipped to an outline named outright rather than to the layer's own bounds.
                     // Left implicit, the clip is resolved once against whatever the layer measured
                     // at the time and is never resolved again: on Skia that means a pass set up
@@ -281,6 +346,11 @@ internal class RisoPassNode(
                     pass.layer.translationX = shift.x
                     pass.layer.translationY = shift.y
                     pass.layer.blendMode = BlendMode.Multiply
+                    // The punches take alpha out of this pass and out of nothing else. Multiply and
+                    // the shader each force a buffer of their own already; naming it is what says
+                    // the punches depend on there being one, rather than leaving that to whether
+                    // this pass happens to have an effect to run.
+                    pass.layer.compositingStrategy = CompositingStrategy.Offscreen
                     pass.layer.renderEffect = pass.shader.effect(drum.spec(density, onPage))
                     drawLayer(pass.layer)
                 }
@@ -293,10 +363,56 @@ internal class RisoPassNode(
         below.forEach { it.layDown(scope, origin + it.originIn(this)) }
     }
 
+    /**
+     * Records and places this pass's holes for one drum, ready for [punchKnockouts] to draw.
+     *
+     * The pass layer carries [slip] as its own translation, so a punch put back by [slip] inside the
+     * recording lands at the knockout's place on the page whatever the drum did — the same hole on
+     * the sheet for every pass, which is the point of the thing. The knockout's own [offsetScale]
+     * mixes between the two: `0` compensates the whole slip and pins the hole to the sheet, `1`
+     * compensates none of it and the hole rides the drum, which is where drawing it into the artwork
+     * would have put it.
+     */
+    private fun DrawScope.cutKnockouts(drumIndex: Int, slip: Offset) {
+        below.forEach { child ->
+            if (!child.isKnockout) return@forEach
+            val artwork = child.content ?: return@forEach
+            if (child.contentSize == IntSize.Zero) return@forEach
+            // Not knowing where the hole goes is not the same as it going at the top left: a punch
+            // in the wrong place takes ink off artwork that was meant to keep it. A knockout that
+            // has not been placed yet waits for the frame that places it, which costs one frame of
+            // un-reversed type at worst.
+            val at = child.originOrNullIn(this@RisoPassNode) ?: return@forEach
+
+            val punch = child.punch(drumIndex, requireGraphicsContext())
+            punch.record(child.contentSize) { drawLayer(artwork) }
+            punch.blendMode = BlendMode.DstOut
+            // Same reason the pass's own shift rides the layer: a blend mode forces the offscreen
+            // path, which composites by the layer's transform and drops the canvas's.
+            punch.compositingStrategy = CompositingStrategy.Offscreen
+            val back = at - slip * (1f - child.offsetScale)
+            punch.translationX = back.x
+            punch.translationY = back.y
+        }
+    }
+
+    /** Draws what [cutKnockouts] prepared, inside the pass recording it cuts into. */
+    private fun DrawScope.punchKnockouts(drumIndex: Int) {
+        below.forEach { child ->
+            if (!child.isKnockout) return@forEach
+            if (child.content == null || child.contentSize == IntSize.Zero) return@forEach
+            if (child.coordinates?.isAttached != true) return@forEach
+            child.punches.getOrNull(drumIndex)?.let { drawLayer(it) }
+        }
+    }
+
     /** Where this node's content starts, in [ancestor]'s coordinates. */
-    private fun originIn(ancestor: RisoPassNode): Offset {
-        val mine = coordinates?.takeIf { it.isAttached } ?: return Offset.Zero
-        val theirs = ancestor.coordinates?.takeIf { it.isAttached } ?: return Offset.Zero
+    private fun originIn(ancestor: RisoPassNode): Offset = originOrNullIn(ancestor) ?: Offset.Zero
+
+    /** [originIn], or null while either node is still waiting to be placed. */
+    private fun originOrNullIn(ancestor: RisoPassNode): Offset? {
+        val mine = coordinates?.takeIf { it.isAttached } ?: return null
+        val theirs = ancestor.coordinates?.takeIf { it.isAttached } ?: return null
         return theirs.localPositionOf(mine, Offset.Zero)
     }
 
@@ -305,6 +421,11 @@ internal class RisoPassNode(
             passes += Pass(requireGraphicsContext().createGraphicsLayer(), InkPass())
         }
         return passes[index]
+    }
+
+    private fun punch(index: Int, context: GraphicsContext): GraphicsLayer {
+        while (punches.size <= index) punches += context.createGraphicsLayer()
+        return punches[index]
     }
 
     private fun resolveDrums(): List<Drum> = drums ?: buildDrums().also { drums = it }

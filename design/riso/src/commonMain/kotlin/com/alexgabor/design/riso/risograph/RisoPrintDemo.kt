@@ -57,6 +57,7 @@ import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.ButtonGroupItem
 import com.alexgabor.design.riso.risograph.inks.onRisoPaper
 import com.alexgabor.design.riso.risograph.inks.risoInk
+import com.alexgabor.design.riso.risograph.inks.risoKnockout
 import com.alexgabor.design.riso.risograph.inks.risoOverprint
 import com.alexgabor.design.riso.risograph.inks.RisoInk
 import com.alexgabor.design.riso.risograph.paper.RisoPaper
@@ -490,15 +491,17 @@ private val INTENT_COVERAGES = listOf(0.85f, 0.55f, 0.35f)
  * authored with. Wind [amplify] up and each drum throws its pass further off register, until the
  * recipe is legible directly off the artwork as one fringe per ink.
  *
- * The title is set in the stock's own color, which is a knockout: a press cannot print white, so
- * paper-colored artwork comes off as a hole in the ink rather than as a second color laid over it.
+ * The title is a [risoKnockout] — a frisket on the sheet — rather than paper-colored artwork drawn
+ * into the disc. Both come off as a hole in the ink instead of a color laid over it, since a press
+ * cannot print white. The difference is how many holes there are. Artwork is a hole in each drum
+ * separately, and three drums land it in three places, so at any [amplify] worth looking at each
+ * pass fills in the others' and the type turns to mud. The frisket is cut once and the disc's three
+ * passes slide under it.
  *
- * Note what this artwork no longer needs. The knockout is simply drawn into the disc, and the whole
- * pass — disc, hole and all — is translated as one, so the hole travels with the ink around it and
- * stays a clean hole however far the pass is thrown. When each drum instead re-read the finished page
- * at an offset, every pass filled the hole in from its own direction and the type turned to mud; the
- * title had to be given a region of its own, printed in perfect register, with a standoff wide enough
- * to cover the distance a pass could reach. All of that was the price of separating after the fact.
+ * Note what neither of them needs any more. When each drum instead re-read the finished page at an
+ * offset, every pass filled the hole in from its own direction; the title had to be given a region of
+ * its own, printed in perfect register, with a standoff wide enough to cover the distance a pass
+ * could reach. All of that was the price of separating after the fact.
  */
 @Composable
 private fun IntentArtwork(paper: RisoPaper, inks: List<RisoInk>, amplify: Float) {
@@ -519,10 +522,11 @@ private fun IntentArtwork(paper: RisoPaper, inks: List<RisoInk>, amplify: Float)
             Text(
                 text = "RISO",
                 style = MaterialTheme.typography.displaySmall,
-                // The stock's own color: a hole in the ink, not a color printed over it. Drawn
-                // straight into the disc's artwork, so it is part of the same pass.
+                // The stock's own color: a hole in the ink, not a color printed over it. Only the
+                // alpha of it reaches the punch, but this is what the print means.
                 color = paper.colorFront,
                 textAlign = TextAlign.Center,
+                modifier = Modifier.risoKnockout(),
             )
         }
     }
@@ -537,6 +541,10 @@ private fun IntentArtwork(paper: RisoPaper, inks: List<RisoInk>, amplify: Float)
  * So the button keeps its pink and purple wherever it is dropped, and neither of them is inked twice.
  * Wind [amplify] up and the two nest visibly: the panel's black throws one way, the button's pair
  * throws its own.
+ *
+ * The button's own label is the third case. It is knocked out of both its drums and pinned to the
+ * sheet, so it sits still while the pair throws apart around it — and it comes off the panel's tint
+ * rather than off bare stock, because a knockout reaches through the pass it is in and stops.
  */
 @Composable
 private fun NestedArtwork(amplify: Float) {
