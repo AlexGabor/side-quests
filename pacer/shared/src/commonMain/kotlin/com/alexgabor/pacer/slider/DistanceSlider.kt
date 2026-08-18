@@ -88,7 +88,7 @@ fun DistanceSlider(
             trackAlignment = TrackAlignment.Top,
             userScrollEnabled = userScrollEnabled,
             itemContent = { item, subdivision ->
-                Body(String.format("%02d", item + subdivision))
+                Body((item + subdivision).twoDigits())
             }
         )
     }

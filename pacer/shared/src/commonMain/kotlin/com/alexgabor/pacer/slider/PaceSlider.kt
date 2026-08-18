@@ -88,7 +88,7 @@ fun PaceSlider(
             trackAlignment = TrackAlignment.Top,
             userScrollEnabled = userScrollEnabled,
             itemContent = { item, subdivision ->
-                Body(text = String.format("%02d", item + subdivision))
+                Body(text = (item + subdivision).twoDigits())
             }
         )
     }
