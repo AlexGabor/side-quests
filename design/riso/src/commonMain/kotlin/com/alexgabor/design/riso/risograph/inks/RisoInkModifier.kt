@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.GraphicsContext
@@ -285,7 +286,7 @@ internal class RisoPassNode(
             return
         }
         recordContent()
-        layDown(this, Offset.Zero)
+        layDown(this, Offset.Zero, this@RisoPassNode)
     }
 
     private fun ContentDrawScope.recordContent() {
@@ -308,10 +309,14 @@ internal class RisoPassNode(
      *
      * [origin] is where this node sits in the coordinate space of whoever is drawing it — zero when
      * it draws itself, and its offset within the pass above when that pass is laying it down.
+     *
+     * [host] owns the canvas all of this reaches, which is this node when it draws itself and stays
+     * that same node all the way down the nesting: every pass below is laid into the same scope.
      */
-    private fun layDown(scope: DrawScope, origin: Offset) {
+    private fun layDown(scope: DrawScope, origin: Offset, host: RisoPassNode) {
         val content = content
-        if (content != null && contentSize != IntSize.Zero) {
+        val artwork = visibleArtwork(host)
+        if (content != null && !artwork.isEmpty) {
             val onPage = (coordinates?.takeIf { it.isAttached }?.positionInRoot() ?: Offset.Zero)
             resolveDrums().forEachIndexed { index, drum ->
                 val pass = pass(index)
@@ -340,8 +345,10 @@ internal class RisoPassNode(
                     // at the time and is never resolved again: on Skia that means a pass set up
                     // before its first recording clips to nothing and stays blank, and a pass whose
                     // artwork later grows — a window pulled wider — keeps printing at its old width
-                    // with the rest cut off. Naming the rect makes it the artwork's, every frame.
-                    pass.layer.setRectOutline(Offset.Zero, contentSize.toSize())
+                    // with the rest cut off. Naming the rect makes it the artwork's, every frame —
+                    // and the artwork's is the part of it the ancestors leave showing, which is what
+                    // keeps this pass off the rest of the page. See [visibleArtwork].
+                    pass.layer.setRectOutline(artwork.topLeft, artwork.size)
                     pass.layer.clip = true
                     pass.layer.translationX = shift.x
                     pass.layer.translationY = shift.y
@@ -360,7 +367,7 @@ internal class RisoPassNode(
         // not only the ones that happened to re-record this frame, since a pass whose content is
         // unchanged still has to reach the sheet. A pass nested two deep recurses through here in
         // turn, each level resolving against the one that draws it.
-        below.forEach { it.layDown(scope, origin + it.originIn(this)) }
+        below.forEach { it.layDown(scope, origin + it.originIn(this), host) }
     }
 
     /**
@@ -383,9 +390,17 @@ internal class RisoPassNode(
             // has not been placed yet waits for the frame that places it, which costs one frame of
             // un-reversed type at worst.
             val at = child.originOrNullIn(this@RisoPassNode) ?: return@forEach
+            // A frisket is cut by whatever the hole's own ancestors leave showing, for the same
+            // reason a plate is and by the same escape: this is the enclosing pass placing the
+            // child's artwork, so a scroller between them would otherwise take ink off the sheet
+            // somewhere the child was never on it. See [visibleArtwork].
+            val hole = child.visibleArtwork(this@RisoPassNode)
+            if (hole.isEmpty) return@forEach
 
             val punch = child.punch(drumIndex, requireGraphicsContext())
             punch.record(child.contentSize) { drawLayer(artwork) }
+            punch.setRectOutline(hole.topLeft, hole.size)
+            punch.clip = true
             punch.blendMode = BlendMode.DstOut
             // Same reason the pass's own shift rides the layer: a blend mode forces the offscreen
             // path, which composites by the layer's transform and drops the canvas's.
@@ -402,8 +417,48 @@ internal class RisoPassNode(
             if (!child.isKnockout) return@forEach
             if (child.content == null || child.contentSize == IntSize.Zero) return@forEach
             if (child.coordinates?.isAttached != true) return@forEach
+            // Cut nothing this frame, so draw nothing: the layer still holds the last frame it was
+            // cut on, and drawing that would put a stale hole back.
+            if (child.visibleArtwork(this@RisoPassNode).isEmpty) return@forEach
             child.punches.getOrNull(drumIndex)?.let { drawLayer(it) }
         }
+    }
+
+    /**
+     * How much of this node's artwork survives the clips [host]'s canvas does not already apply, in
+     * the artwork's own coordinates.
+     *
+     * A nested pass never reaches the canvas by itself — the pass above lays it down, into *that*
+     * pass's scope, at the offset between them. Every clip standing between the two is stepped over
+     * on the way, and a scroller in that gap gets no say at all: a track label scrolled out of a
+     * `LazyRow` still prints where the layout put it, which is off the row, off the card holding it,
+     * and onto the next pane. Asking the layout what [host] can see of this node puts those clips
+     * back, all of them, without any of them having to be named here.
+     *
+     * Only those. The clips above [host] are already on its canvas, and they are re-applied wherever
+     * that canvas is replayed, where a rect named here is fixed at the draw that named it. The
+     * difference is the whole reason this is asked of [host] rather than of the root: a pass drawing
+     * on its own canvas is scrolled by moving its layer, without redrawing, so a clip named against
+     * the root freezes at whatever was visible on the last draw. A card that last printed as a sliver
+     * at the edge of a list then stays a sliver as it scrolls into full view.
+     *
+     * Named before the drum's throw rather than after it, because the layer carries that throw as
+     * its own translation and the clip is cut inside the layer: the edge moves out with the ink by
+     * exactly the registration error, so a pass still bleeds past the scroller the way a pass is
+     * meant to. That is what the whole-page pass got for free when it recorded content a scroller
+     * had already clipped and then threw the whole recording — cut first, thrown second — and it is
+     * why there is no allowance added here.
+     *
+     * The full artwork while either node is waiting to be placed, which is what it printed before.
+     */
+    private fun visibleArtwork(host: RisoPassNode): Rect {
+        val artwork = Rect(Offset.Zero, contentSize.toSize())
+        if (host === this) return artwork
+        val mine = coordinates?.takeIf { it.isAttached } ?: return artwork
+        val theirs = host.coordinates?.takeIf { it.isAttached } ?: return artwork
+        return theirs.localBoundingBoxOf(mine, clipBounds = true)
+            .translate(-theirs.localPositionOf(mine, Offset.Zero))
+            .intersect(artwork)
     }
 
     /** Where this node's content starts, in [ancestor]'s coordinates. */
