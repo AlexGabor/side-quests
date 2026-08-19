@@ -87,7 +87,7 @@ fun Heading1(
     Text(
         text = text,
         textStyle = RisoTheme.typography.heading1,
-        modifier = modifier.risoInk(RisoTheme.colors.content)
+        modifier = modifier
             .drawBehind {
                 drawRect(
                     color = lineColor,
@@ -109,7 +109,7 @@ fun Heading2(
     Text(
         text = text,
         textStyle = RisoTheme.typography.heading2,
-        modifier = modifier.risoInk(RisoTheme.colors.content)
+        modifier = modifier
             .drawBehind {
                 drawRect(
                     color = lineColor,
@@ -128,7 +128,7 @@ fun Heading3(
     Text(
         text = text,
         textStyle = RisoTheme.typography.heading3,
-        modifier = modifier.risoInk(RisoTheme.colors.content)
+        modifier = modifier
     )
 }
 
@@ -140,7 +140,7 @@ fun Body(
     Text(
         text = text,
         textStyle = RisoTheme.typography.body,
-        modifier = modifier.risoInk(RisoTheme.colors.content)
+        modifier = modifier
     )
 }
 

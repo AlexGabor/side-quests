@@ -35,6 +35,7 @@ import com.alexgabor.design.riso.attributes.Heading1
 import com.alexgabor.design.riso.layout.WindowHeightSizeClass
 import com.alexgabor.design.riso.layout.WindowWidthSizeClass
 import com.alexgabor.design.riso.layout.computeWindowSizeClass
+import com.alexgabor.design.riso.risograph.inks.risoInk
 import com.alexgabor.pacer.slider.MetricCards
 import com.alexgabor.pacer.slider.PaceCalculator
 import com.alexgabor.pacer.slider.UnitSelector
@@ -81,7 +82,7 @@ fun PacerScreen(
 
 @Composable
 private fun PacerHeader(modifier: Modifier = Modifier) {
-    Column(modifier) {
+    Column(modifier.risoInk(RisoTheme.colors.content)) {
         Heading1(
             text = "Pacer",
             modifier = Modifier.fillMaxWidth()
