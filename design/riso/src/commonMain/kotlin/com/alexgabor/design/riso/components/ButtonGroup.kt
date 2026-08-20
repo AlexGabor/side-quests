@@ -1,10 +1,9 @@
 package com.alexgabor.design.riso.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -15,6 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.style.ExperimentalFoundationStyleApi
+import androidx.compose.foundation.style.Style
+import androidx.compose.foundation.style.hovered
+import androidx.compose.foundation.style.rememberUpdatedStyleState
+import androidx.compose.foundation.style.selected
+import androidx.compose.foundation.style.styleable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,20 +28,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Text
-import com.alexgabor.design.riso.risograph.inks.risoInk
 import com.alexgabor.design.riso.risograph.inks.onRisoPaper
+import com.alexgabor.design.riso.risograph.inks.risoInk
 
 interface ButtonGroupItem {
     val text: String
 }
 
+@OptIn(ExperimentalFoundationStyleApi::class)
 @Composable
 fun <T> ButtonGroup(
     selected: T,
@@ -67,10 +72,6 @@ fun <T> ButtonGroup(
             }
 
             val isSelected = item == selected
-            val backgroundColor by animateColorAsState(
-                targetValue = if (isSelected) RisoTheme.colors.accent.onRisoPaper() else Color.Transparent,
-                animationSpec = spring(stiffness = Spring.StiffnessLow)
-            )
 
             val textColor by animateColorAsState(
                 targetValue = if (isSelected) RisoTheme.colors.paper else RisoTheme.colors.content
@@ -87,16 +88,35 @@ fun <T> ButtonGroup(
                 else -> RectangleShape
             }
 
+            val colors = RisoTheme.colors
+
+            val segmentStyle = Style {
+                selected {
+                    animate {
+                        background(colors.accent.onRisoPaper())
+                    }
+                }
+                hovered {
+                    background(colors.accent.copy(alpha = 0.4f))
+                }
+                shape(shape)
+                contentPadding(horizontal = 24.dp, vertical = 12.dp)
+            }
+
+            val interactionSource = remember { MutableInteractionSource() }
+            val styleState =
+                rememberUpdatedStyleState(interactionSource) { it.isSelected = isSelected }
+
             Box(
                 modifier = Modifier
                     .selectable(
                         selected = isSelected,
                         role = Role.RadioButton,
+                        interactionSource = interactionSource,
                         onClick = { onSelect(item) },
                     )
                     .risoInk(RisoTheme.colors.accent)
-                    .background(backgroundColor, shape = shape)
-                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                    .styleable(styleState, segmentStyle),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(

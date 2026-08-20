@@ -1,43 +1,66 @@
 package com.alexgabor.design.riso.components
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.style.ExperimentalFoundationStyleApi
+import androidx.compose.foundation.style.Style
+import androidx.compose.foundation.style.hovered
+import androidx.compose.foundation.style.rememberUpdatedStyleState
+import androidx.compose.foundation.style.selected
+import androidx.compose.foundation.style.styleable
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.risograph.inks.risoInk
 import com.alexgabor.design.riso.risograph.inks.risoOverprint
 
+@OptIn(ExperimentalFoundationStyleApi::class)
 @Composable
 fun Card(
     modifier: Modifier = Modifier,
-    selected: Boolean = false,
+    isSelected: Boolean = false,
+    onClick: () -> Unit,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    val animatedColor by animateColorAsState(
-        targetValue = if (selected) getSelectedColor() else RisoTheme.colors.content,
-        animationSpec = spring(stiffness = Spring.StiffnessLow)
-    )
+    val lineWith = RisoTheme.dimens.lineWidth
+    val shape = RisoTheme.shapes.standardShape
+    val colors = RisoTheme.colors
+    val cardStyle = Style {
+        border(
+            width = lineWith,
+            color = colors.content,
+        )
+        this.selected {
+            animate(spring(stiffness = Spring.StiffnessLow)) {
+                border(
+                    width = lineWith * 2,
+                    color = risoOverprint(
+                        inks = arrayOf(colors.content to .5f, colors.accent to 1f),
+                    ),
+                )
+            }
+        }
+        shape(shape)
+        hovered {
+            background(colors.content.copy(alpha = 0.25f))
+        }
+    }
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val styleState = rememberUpdatedStyleState(interactionSource) { it.isSelected = isSelected }
+
     Box(
         modifier = modifier
+            .clickable(enabled = true, onClick = onClick, interactionSource = interactionSource, indication = null)
             // The two drums the border is mixed from, so a selected card separates back onto exactly
             // the inks getSelectedColor() overprinted rather than onto whatever is nearest.
             .risoInk(RisoTheme.colors.content, RisoTheme.colors.accent)
-            .border(
-                width = RisoTheme.dimens.lineWidth * if (selected) 2 else 1,
-                color = animatedColor,
-                shape = RisoTheme.shapes.standardShape,
-            ),
+            .styleable(styleState, cardStyle),
         content = content,
     )
 }
-
-@Composable
-fun getSelectedColor() = risoOverprint(
-    inks = arrayOf(RisoTheme.colors.content to .5f, RisoTheme.colors.accent to 1f),
-)

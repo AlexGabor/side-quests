@@ -1,7 +1,6 @@
 package com.alexgabor.pacer.slider
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -255,8 +254,9 @@ private fun MetricCard(
     slider: @Composable () -> Unit,
 ) {
     Card(
-        selected = selected,
-        modifier = modifier.clickable(onClick = onClick),
+        isSelected = selected,
+        modifier = modifier,
+        onClick = onClick,
     ) {
         Column {
             Heading3(
