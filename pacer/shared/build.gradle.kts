@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+
 plugins {
     alias(libs.plugins.sidequests.compose.multiplatform.library)
 }
@@ -6,6 +8,16 @@ kotlin {
     
     android {
        namespace = "com.alexgabor.pacer.shared"
+    }
+
+    // The iOS targets themselves come from the convention plugin; only the binary they produce is
+    // this module's business. Static, so the design system it depends on is linked in rather than
+    // needing a second framework alongside it — Swift only ever calls `MainViewController()`.
+    targets.withType<KotlinNativeTarget>().configureEach {
+        binaries.framework {
+            baseName = "PacerShared"
+            isStatic = true
+        }
     }
     
     sourceSets {

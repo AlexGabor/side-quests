@@ -116,13 +116,13 @@ class PaceCalculatorState(
 
     val displayedDistance: String by derivedStateOf {
         val whole = distanceSliderState.selectedDistance.whole
-        val fraction = String.format("%02d", distanceSliderState.selectedDistance.fraction)
+        val fraction = distanceSliderState.selectedDistance.fraction.twoDigits()
         "$whole.$fraction ${selectedUnit.text}"
     }
 
     val displayedPace: String by derivedStateOf {
         val minutes = paceSliderState.selectedPace.minutes
-        val seconds = String.format("%02d", paceSliderState.selectedPace.seconds)
+        val seconds = paceSliderState.selectedPace.seconds.twoDigits()
         "$minutes:$seconds ${selectedUnit.paceText}"
     }
 
@@ -171,8 +171,8 @@ class PaceCalculatorState(
     }
 
     val displayedTime: String by derivedStateOf {
-        val minutes = String.format("%02d", timeSliderState.selectedTime.minutes)
-        val seconds = String.format("%02d", timeSliderState.selectedTime.seconds)
+        val minutes = timeSliderState.selectedTime.minutes.twoDigits()
+        val seconds = timeSliderState.selectedTime.seconds.twoDigits()
         "${timeSliderState.selectedTime.hours}h ${minutes}m ${seconds}s"
     }
 }
@@ -390,3 +390,12 @@ private fun PaceCalculatorPreview() {
         PaceCalculator(Modifier.background(RisoTheme.colors.paper))
     }
 }
+
+/**
+ * This number as two digits, zero-padded — `7` as `"07"`.
+ *
+ * The clock faces and the distance readout are all fixed-width, so a single-digit part has to carry
+ * its own leading zero rather than let the text reflow around it. `String.format` would say the same
+ * thing, but it is a JVM-only extension and this is read on iOS too.
+ */
+internal fun Int.twoDigits(): String = toString().padStart(2, '0')

@@ -47,10 +47,11 @@ private val bakeDispatcher = Dispatchers.Default.limitedParallelism(1)
  * is per-frame beyond one texture read and one content read.
  *
  * The bake itself is where this parts company with Android. There it is a GPU pass and costs nothing
- * worth naming; here Skia runs the same shader on the CPU, and a window-sized sheet takes the better
- * part of a second — enough that baking it inline turned a resize drag into roughly one frame per
- * bake. So it runs off the composition, and the sheet keeps the surface it already had until the new
- * one is ready: a resize stays at frame rate and the stock's grain is briefly stretched instead.
+ * worth naming; on skia — the desktop JVM and iOS both — the same shader runs on the CPU, because
+ * neither exposes a GPU surface to render it into. A window-sized sheet then takes the better part of
+ * a second, enough that baking it inline turned a resize drag into roughly one frame per bake. So it
+ * runs off the composition, and the sheet keeps the surface it already had until the new one is
+ * ready: a resize stays at frame rate and the stock's grain is briefly stretched instead.
  */
 actual fun Modifier.risoPaper(paper: RisoPaper): Modifier = composed {
     val density = LocalDensity.current.density
@@ -70,7 +71,7 @@ actual fun Modifier.risoPaper(paper: RisoPaper): Modifier = composed {
     // full surface settles to — so standing in with it changes the sheet's grain, never its color.
     val standIn = remember(paper, density) { paperMapShader(paper, 1, 1, density) }
 
-    // The surface itself is another matter: Skia runs a runtime effect on the CPU here, where Android
+    // The surface itself is another matter: skia runs a runtime effect on the CPU here, where Android
     // runs the same bake on the GPU, and a sheet the size of a window costs seconds rather than
     // nothing. So it is baked off the composition and the sheet keeps whatever surface it already had
     // until the new one lands — deliberately not keyed on [size], which is what makes a resize reuse

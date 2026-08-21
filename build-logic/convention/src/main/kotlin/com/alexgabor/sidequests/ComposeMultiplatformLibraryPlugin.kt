@@ -5,6 +5,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.apply
 import com.alexgabor.sidequests.common.libs
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptions
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
@@ -12,6 +13,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 
 abstract class ComposeMultiplatformLibraryPlugin : Plugin<Project> {
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
     override fun apply(target: Project) {
         with(target) {
             apply(plugin = "org.jetbrains.kotlin.multiplatform")
@@ -28,6 +30,11 @@ abstract class ComposeMultiplatformLibraryPlugin : Plugin<Project> {
                 }
 
                 jvm()
+
+                iosArm64()
+                iosSimulatorArm64()
+
+                wasmJs { browser() }
             }
 
             tasks.withType(KotlinCompilationTask::class.java).configureEach {
