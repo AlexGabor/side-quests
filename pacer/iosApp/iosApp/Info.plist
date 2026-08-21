@@ -22,15 +22,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-
-	<!--
-	  Required by Compose, which refuses to start without it: without this key iOS caps a
-	  ProMotion display at 60Hz, and the risograph passes are exactly the kind of per-frame work
-	  that shows the difference. Compose checks for it at launch and raises if it is missing.
-	-->
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>
@@ -40,8 +33,6 @@
 		<string>armv7</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-	</array>
+	<array/>
 </dict>
 </plist>
