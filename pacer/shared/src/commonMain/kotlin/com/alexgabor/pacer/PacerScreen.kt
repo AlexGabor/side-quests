@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -82,17 +83,19 @@ fun PacerScreen(
 
 @Composable
 private fun PacerHeader(modifier: Modifier = Modifier) {
-    Column(modifier.risoInk(RisoTheme.colors.content)) {
-        Heading1(
-            text = "Pacer",
-            modifier = Modifier.fillMaxWidth()
-                .padding(RisoTheme.dimens.screenPadding)
-        )
+    SelectionContainer {
+        Column(modifier.risoInk(RisoTheme.colors.content, RisoTheme.colors.accent)) {
+            Heading1(
+                text = "Pacer",
+                modifier = Modifier.fillMaxWidth()
+                    .padding(RisoTheme.dimens.screenPadding)
+            )
 
-        Body(
-            text = "Tap the card you want to solve for, then scroll the other two. Pacer keeps them in sync.",
-            modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
-        )
+            Body(
+                text = "Tap the card you want to solve for, then scroll the other two. Pacer keeps them in sync.",
+                modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
+            )
+        }
     }
 }
 

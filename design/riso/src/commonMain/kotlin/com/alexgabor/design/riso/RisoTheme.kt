@@ -61,7 +61,7 @@ fun RisoTheme(content: @Composable () -> Unit) {
         LocalIndication provides ripple(), // provides the material ripple.
         LocalTextSelectionColors provides TextSelectionColors(
             handleColor = RisoColors.accent,
-            backgroundColor = RisoColors.accent.copy(alpha = 0.4f)
+            backgroundColor = RisoColors.accent.copy(alpha = 0.3f)
         ), // changes the text selection background and handle color.
         content = content
     )
