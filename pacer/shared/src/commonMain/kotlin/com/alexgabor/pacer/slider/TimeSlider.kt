@@ -3,10 +3,8 @@ package com.alexgabor.pacer.slider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -16,62 +14,55 @@ import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.pacer.track.Track
 import com.alexgabor.pacer.track.TrackAlignment
 import com.alexgabor.pacer.track.TrackSate
-import com.alexgabor.pacer.track.rememberTrackState
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.seconds
 
 @Composable
-fun rememberTimeSliderState(): TimeSliderState {
-    val hourTrackState = rememberTrackState(
-        trackItems = (0..120).toList(),
-        subdivision = 1,
-        listState = rememberLazyListState(initialFirstVisibleItemIndex = 4)
-    )
-    val minuteTrackState = rememberTrackState(
-        trackItems = (0..59).toList(),
-        subdivision = 1,
-        listState = rememberLazyListState()
-    )
-    val secondTrackState = rememberTrackState(
-        trackItems = (0..60 step 5).toList(),
-        subdivision = 5,
-        listState = rememberLazyListState()
-    )
-    return remember(hourTrackState, minuteTrackState, secondTrackState) {
-        TimeSliderState(hourTrackState, minuteTrackState, secondTrackState)
-    }
-}
+fun rememberTimeSliderState(): TimeSliderState = remember { TimeSliderState() }
 
-data class Time(
-    val hours: Int,
-    val minutes: Int,
-    val seconds: Int,
-)
-
+/**
+ * The three rulers that show an elapsed time, and the translation between them and a [Duration].
+ */
 class TimeSliderState(
-    internal val hourTrackState: TrackSate<Int>,
-    internal val minuteTrackState: TrackSate<Int>,
-    internal val secondTrackState: TrackSate<Int>,
+    internal val hourTrackState: TrackSate<Int> = TrackSate((0..120).toList(), subdivisions = 1),
+    internal val minuteTrackState: TrackSate<Int> = TrackSate((0..59).toList(), subdivisions = 1),
+    internal val secondTrackState: TrackSate<Int> = TrackSate((0..60 step 5).toList(), subdivisions = 5),
 ) {
-    val selectedTime by derivedStateOf {
-        val hours = hourTrackState.selectedItem + hourTrackState.selectedSubdivision
-        val minutes = minuteTrackState.selectedItem + minuteTrackState.selectedSubdivision
-        val seconds = secondTrackState.selectedItem + secondTrackState.selectedSubdivision
+    internal val tracks: List<TrackSate<Int>>
+        get() = listOf(hourTrackState, minuteTrackState, secondTrackState)
 
-        val totalSeconds = hours * 3600 + minutes * 60 + seconds
-        Time(
-            hours = totalSeconds / 3600,
-            minutes = (totalSeconds % 3600) / 60,
-            seconds = totalSeconds % 60
-        )
+    val isUserScrolling: Boolean
+        get() = hourTrackState.isUserScrolling ||
+            minuteTrackState.isUserScrolling ||
+            secondTrackState.isUserScrolling
+
+    /** What the three rulers currently read. Each one's last line carries into the next. */
+    val value: Duration
+        get() = (hourTrackState.tick * 3600 + minuteTrackState.tick * 60 + secondTrackState.tick)
+            .seconds
+
+    suspend fun moveTo(value: Duration, animate: Boolean): Unit = coroutineScope {
+        val seconds = seconds(value)
+        launch { hourTrackState.moveToTick(seconds / 3600, animate) }
+        launch { minuteTrackState.moveToTick((seconds % 3600) / 60, animate) }
+        launch { secondTrackState.moveToTick(seconds % 60, animate) }
     }
 
-    suspend fun animateToTime(time: Time) {
-        coroutineScope {
-            launch { hourTrackState.animateToIndex(time.hours) }
-            launch { minuteTrackState.animateToIndex(time.minutes) }
-            launch { secondTrackState.animateToIndex(time.seconds / 5, time.seconds % 5) }
-        }
+    companion object {
+        /** The furthest second the three rulers can jointly show. */
+        const val MaxTicks = 120 * 3600 + 59 * 60 + 59
+
+        /**
+         * This time on the rulers' grid, in seconds, and *not* clamped to it — a caller comparing
+         * against [MaxTicks] is how the readout knows to say `>` instead of `=`.
+         */
+        fun ticks(value: Duration): Int = value.roundedSeconds()
+
+        /** The single quantiser, shared by the rulers and the readout so they cannot disagree. */
+        fun seconds(value: Duration): Int = ticks(value).coerceIn(0, MaxTicks)
     }
 }
 
@@ -118,7 +109,8 @@ fun TimeSlider(
 private fun TimeSliderPreview() {
     Column(Modifier.background(Color.White)) {
         val timeState = rememberTimeSliderState()
-        Body("Time ${timeState.selectedTime.hours}:${timeState.selectedTime.minutes}:${timeState.selectedTime.seconds}")
+        LaunchedEffect(timeState) { timeState.moveTo(4.hours, animate = false) }
+        Body("Time ${timeState.value}")
         TimeSlider(
             state = timeState
         )

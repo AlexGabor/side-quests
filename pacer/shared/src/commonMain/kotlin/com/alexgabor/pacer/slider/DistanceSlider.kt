@@ -2,10 +2,8 @@ package com.alexgabor.pacer.slider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -15,54 +13,59 @@ import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.pacer.track.Track
 import com.alexgabor.pacer.track.TrackAlignment
 import com.alexgabor.pacer.track.TrackSate
-import com.alexgabor.pacer.track.rememberTrackState
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
-fun rememberDistanceSliderState(): DistanceSliderState {
-    val wholeTrackState: TrackSate<Int> = rememberTrackState(
-        trackItems = (0..800).toList(),
-        subdivision = 1,
-        listState = rememberLazyListState(initialFirstVisibleItemIndex = 42)
-    )
-    val fractionTrackState: TrackSate<Int> = rememberTrackState(
-        trackItems = (0..100 step 5).toList(),
-        subdivision = 5,
-        listState = rememberLazyListState(initialFirstVisibleItemIndex = 4)
-    )
-    return remember(wholeTrackState, fractionTrackState) {
-        DistanceSliderState(wholeTrackState, fractionTrackState)
-    }
-}
+fun rememberDistanceSliderState(): DistanceSliderState = remember { DistanceSliderState() }
 
-data class Distance(
-    val whole: Int,
-    val fraction: Int,
-)
-
+/**
+ * The two rulers that show a distance, and the translation between them and a plain number.
+ *
+ * The state holds no distance of its own — [PaceCalculatorState] does. This only knows how to put a
+ * number onto the rulers and how to read one back off them.
+ */
 class DistanceSliderState(
-    internal val kilometerTrackState: TrackSate<Int>,
-    internal val fractionTrackState: TrackSate<Int>,
+    internal val wholeTrackState: TrackSate<Int> = TrackSate((0..MaxWhole).toList(), subdivisions = 1),
+    internal val fractionTrackState: TrackSate<Int> = TrackSate((0..100 step 5).toList(), subdivisions = 5),
 ) {
-    val selectedDistance by derivedStateOf {
-        val whole = kilometerTrackState.selectedItem + kilometerTrackState.selectedSubdivision
-        val fraction = fractionTrackState.selectedItem + fractionTrackState.selectedSubdivision
-        Distance(
-            whole = whole + fraction / 100,
-            fraction = fraction % 100,
-        )
+    internal val tracks: List<TrackSate<Int>> get() = listOf(wholeTrackState, fractionTrackState)
+
+    val isUserScrolling: Boolean
+        get() = wholeTrackState.isUserScrolling || fractionTrackState.isUserScrolling
+
+    /**
+     * What the two rulers currently read, in whatever unit the caller is showing. The fraction
+     * ruler's last line is 100, a whole unit, which carries — hence the divide rather than a mask.
+     */
+    val value: Double
+        get() = (wholeTrackState.tick * 100 + fractionTrackState.tick) / 100.0
+
+    suspend fun moveTo(value: Double, animate: Boolean): Unit = coroutineScope {
+        val hundredths = hundredths(value)
+        launch { wholeTrackState.moveToTick(hundredths / 100, animate) }
+        launch { fractionTrackState.moveToTick(hundredths % 100, animate) }
     }
 
-    suspend fun animateToDistance(distance: Distance) {
-        coroutineScope {
-            launch {
-                kilometerTrackState.animateToIndex(distance.whole)
-            }
-            launch {
-                fractionTrackState.animateToIndex(distance.fraction / 5, distance.fraction % 5)
-            }
-        }
+    companion object {
+        const val MaxWhole = 800
+
+        /** The furthest hundredth the two rulers can jointly show. */
+        const val MaxTicks = MaxWhole * 100 + 99
+
+        /**
+         * This distance on the rulers' grid, in hundredths, and *not* clamped to it — a caller
+         * comparing against [MaxTicks] is how the readout knows to say `>` instead of `=`.
+         */
+        fun ticks(value: Double): Int =
+            if (value.isNaN() || !value.isFinite()) 0 else (value * 100).roundToInt()
+
+        /**
+         * The single quantiser. Ruler and readout both go through it, so they cannot disagree, and
+         * the float noise of a km-to-miles-and-back trip lands on the same line either way.
+         */
+        fun hundredths(value: Double): Int = ticks(value).coerceIn(0, MaxTicks)
     }
 }
 
@@ -74,7 +77,7 @@ fun DistanceSlider(
 ) {
     Column(modifier) {
         Track(
-            state = state.kilometerTrackState,
+            state = state.wholeTrackState,
             itemSize = 100.dp,
             showGuidelineDot = true,
             userScrollEnabled = userScrollEnabled,
@@ -99,7 +102,8 @@ fun DistanceSlider(
 private fun DistanceSliderPreview() {
     Column(Modifier.background(Color.White)) {
         val distanceState = rememberDistanceSliderState()
-        Body("Distance ${distanceState.selectedDistance.whole}.${distanceState.selectedDistance.fraction}")
+        LaunchedEffect(distanceState) { distanceState.moveTo(42.20, animate = false) }
+        Body("Distance ${distanceState.value}")
         DistanceSlider(
             state = distanceState
         )

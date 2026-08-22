@@ -36,7 +36,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.time.TimeSource
@@ -168,24 +170,15 @@ fun <T> Track(
 @Composable
 private fun <T> TrackHaptics(state: TrackSate<T>) {
     val haptics = LocalHapticFeedback.current
-    var userScrolling by remember(state) { mutableStateOf(false) }
 
     LaunchedEffect(state, haptics) {
-        launch {
-            state.listState.interactionSource.interactions.collect { interaction ->
-                if (interaction is DragInteraction.Start) userScrolling = true
-            }
-        }
-        launch {
-            // Covers the whole gesture: the drag itself and the fling it hands off to.
-            snapshotFlow { state.listState.isScrollInProgress }
-                .collect { scrolling -> if (!scrolling) userScrolling = false }
-        }
         var lastClick = TimeSource.Monotonic.markNow() - minHapticInterval
         snapshotFlow { state.tick }
             .drop(1)
             .collect { tick ->
-                if (!userScrolling || lastClick.elapsedNow() < minHapticInterval) return@collect
+                if (!state.isUserScrolling || lastClick.elapsedNow() < minHapticInterval) {
+                    return@collect
+                }
                 lastClick = TimeSource.Monotonic.markNow()
                 haptics.performHapticFeedback(
                     if (tick % state.subdivisions == 0) HapticFeedbackType.SegmentTick
@@ -207,20 +200,73 @@ fun <T> rememberTrackState(
 class TrackSate<T>(
     val trackItems: List<T>,
     val subdivisions: Int,
-    internal val listState: LazyListState,
+    internal val listState: LazyListState = LazyListState(),
 ) {
     var itemSizePx by mutableFloatStateOf(0f)
-    val selectedItem by derivedStateOf { trackItems[listState.firstVisibleItemIndex] }
-    val selectedSubdivision by derivedStateOf { (listState.firstVisibleItemScrollOffset / (itemSizePx / subdivisions)).toInt() }
+
+    /**
+     * The furthest ruler line the guideline reaches. The end contentPadding stops at the last
+     * item's leading edge, so that item's trailing subdivisions can't be scrolled onto it.
+     */
+    val maxTick: Int get() = (trackItems.size - 1) * subdivisions
 
     /** Position of the guideline counted in ruler lines from the start of the track. */
-    internal val tick by derivedStateOf {
-        listState.firstVisibleItemIndex * subdivisions + selectedSubdivision
+    val tick: Int by derivedStateOf {
+        val size = itemSizePx
+        // Before the first layout there is no pixel grid to divide by. Reading zero rather than
+        // dividing by it is the point: Infinity.toInt() is Int.MAX_VALUE, and a restored scroll
+        // offset used to turn into exactly that.
+        val subdivision = if (size <= 0f) {
+            0
+        } else {
+            (listState.firstVisibleItemScrollOffset / (size / subdivisions))
+                .toInt()
+                .coerceIn(0, subdivisions - 1)
+        }
+        listState.firstVisibleItemIndex * subdivisions + subdivision
     }
 
-    suspend fun animateToIndex(index: Int, subdivision: Int = 0) {
-        listState.animateScrollToItem(index, subdivision * (itemSizePx / subdivisions).roundToInt())
+    val selectedItem: T get() = trackItems[tick / subdivisions]
+
+    val selectedSubdivision: Int get() = tick % subdivisions
+
+    /** True from the moment the user touches this track until its fling has settled. */
+    var isUserScrolling by mutableStateOf(false)
+        private set
+
+    /**
+     * Watches the gesture. Deliberately not tied to the composition: a card scrolled out of the
+     * list is disposed mid-drag, and a flag that died with it would leave the value sync guessing.
+     */
+    suspend fun trackUserScroll(): Unit = coroutineScope {
+        launch {
+            listState.interactionSource.interactions.collect { interaction ->
+                if (interaction is DragInteraction.Start) isUserScrolling = true
+            }
+        }
+        launch {
+            // Covers the whole gesture: the drag itself and the fling it hands off to.
+            snapshotFlow { listState.isScrollInProgress }
+                .collect { scrolling -> if (!scrolling) isUserScrolling = false }
+        }
     }
+
+    suspend fun moveToTick(tick: Int, animate: Boolean) {
+        val target = tick.coerceIn(0, maxTick)
+        val size = awaitItemSize()
+        val index = target / subdivisions
+        val offset = ((target % subdivisions) * (size / subdivisions)).roundToInt()
+        if (animate) listState.animateScrollToItem(index, offset)
+        else listState.scrollToItem(index, offset)
+    }
+
+    /**
+     * A track only knows its pixel grid once it has been laid out, and a card in a lazy list may
+     * not be laid out for a long time, or ever. Waiting is the honest answer — the caller is a
+     * `collectLatest`, so a newer target simply replaces the one that is waiting.
+     */
+    private suspend fun awaitItemSize(): Float =
+        itemSizePx.takeIf { it > 0f } ?: snapshotFlow { itemSizePx }.first { it > 0f }
 }
 
 private fun DrawScope.bottomRulerLines(

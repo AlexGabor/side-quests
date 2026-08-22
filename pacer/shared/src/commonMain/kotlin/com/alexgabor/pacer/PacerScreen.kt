@@ -39,6 +39,7 @@ import com.alexgabor.design.riso.layout.computeWindowSizeClass
 import com.alexgabor.design.riso.risograph.inks.risoInk
 import com.alexgabor.pacer.slider.MetricCards
 import com.alexgabor.pacer.slider.PaceCalculator
+import com.alexgabor.pacer.slider.PaceCalculatorState
 import com.alexgabor.pacer.slider.UnitSelector
 import com.alexgabor.pacer.slider.rememberPaceCalculatorState
 
@@ -101,7 +102,7 @@ private fun PacerHeader(modifier: Modifier = Modifier) {
 
 @Composable
 private fun BoxScope.PacerSinglePane(
-    state: com.alexgabor.pacer.slider.PaceCalculatorState,
+    state: PaceCalculatorState,
     listState: LazyListState,
 ) {
     Column(
@@ -136,7 +137,7 @@ private fun BoxScope.PacerSinglePane(
 
 @Composable
 private fun BoxScope.PacerTwoPane(
-    state: com.alexgabor.pacer.slider.PaceCalculatorState,
+    state: PaceCalculatorState,
     listState: LazyListState,
     leftPaneScrollState: ScrollState,
 ) {
@@ -165,7 +166,7 @@ private fun BoxScope.PacerTwoPane(
 
 @Composable
 private fun RowScope.LeftPane(
-    state: com.alexgabor.pacer.slider.PaceCalculatorState,
+    state: PaceCalculatorState,
     scrollState: ScrollState,
 ) {
     Column(

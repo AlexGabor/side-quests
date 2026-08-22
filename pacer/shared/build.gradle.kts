@@ -37,6 +37,13 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.compose.uiTest)
+        }
+        // Composing a slider for real needs something to render into, which on the JVM means the
+        // skiko build for whichever machine is running the tests.
+        jvmTest.dependencies {
+            implementation(compose.desktop.currentOs)
         }
     }
 }

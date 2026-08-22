@@ -14,12 +14,11 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -31,203 +30,322 @@ import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Heading3
 import com.alexgabor.design.riso.components.ButtonGroup
-import com.alexgabor.design.riso.components.ButtonGroupItem
 import com.alexgabor.design.riso.components.Card
-import kotlinx.coroutines.CoroutineScope
+import com.alexgabor.pacer.track.TrackSate
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 enum class Metric {
     Distance, Pace, Time
 }
 
-enum class DistanceUnit(override val text: String) : ButtonGroupItem {
-    Kilometers("km"),
-    Miles("mi");
-
-    val paceText: String get() = "min/$text"
+/**
+ * How the number on a card relates to the value behind it.
+ *
+ * [Greater] means the ruler has run out of room and is parked at its end: the real value is past
+ * anything it can draw. The value itself is kept intact, so scrolling back into range shows the
+ * true figure rather than resuming from the end of the ruler.
+ */
+enum class Comparison(val text: String) {
+    Equal("="),
+    Greater(">"),
+    Less("<"),
 }
 
-private const val KILOMETERS_PER_MILE = 1.609344
-
+/**
+ * The run being described: a distance, a pace and a time, any one of which is computed from the
+ * other two.
+ *
+ * Distance and pace are held in kilometres whatever unit is on screen; see [Distance].
+ */
 class PaceCalculatorState(
-    val distanceSliderState: DistanceSliderState,
-    val paceSliderState: PaceSliderState,
-    val timeSliderState: TimeSliderState,
-    val coroutineScope: CoroutineScope,
-    selectedMetricState: MutableState<Metric> = mutableStateOf(Metric.Pace),
-    selectedUnitState: MutableState<DistanceUnit> = mutableStateOf(DistanceUnit.Kilometers),
+    val distanceSliderState: DistanceSliderState = DistanceSliderState(),
+    val paceSliderState: PaceSliderState = PaceSliderState(),
+    val timeSliderState: TimeSliderState = TimeSliderState(),
+    distance: Distance = Distance(42.20),
+    pace: Duration = 6.minutes,
+    time: Duration = 4.hours + 13.minutes + 12.seconds,
+    selectedMetric: Metric = Metric.Pace,
+    selectedUnit: DistanceUnit = DistanceUnit.Kilometers,
 ) {
-    var selectedMetric by selectedMetricState
-
-    var selectedUnit by selectedUnitState
+    var distance by mutableStateOf(distance)
         private set
 
-    val computedDistance: Distance? by derivedStateOf {
-        if (selectedMetric != Metric.Distance) return@derivedStateOf null
-        val time = timeSliderState.selectedTime
-        val pace = paceSliderState.selectedPace
+    /** Per kilometre, whatever unit is on screen. */
+    var pace by mutableStateOf(pace)
+        private set
 
-        val totalSeconds = time.hours * 3600 + time.minutes * 60 + time.seconds
-        val paceSecondsPerKilometer = pace.minutes * 60 + pace.seconds
-        if (paceSecondsPerKilometer <= 0) return@derivedStateOf null
+    var time by mutableStateOf(time)
+        private set
 
-        val hundredths = totalSeconds * 100 / paceSecondsPerKilometer
-        Distance(
-            whole = hundredths / 100,
-            fraction = hundredths % 100,
+    var selectedMetric by mutableStateOf(selectedMetric)
+        private set
+
+    var selectedUnit by mutableStateOf(selectedUnit)
+        private set
+
+    internal val distanceOnSlider: Double get() = distance.inUnit(selectedUnit)
+
+    internal val paceOnSlider: Duration get() = pace * selectedUnit.kilometers
+
+    internal val timeOnSlider: Duration get() = time
+
+    val displayedDistance: String get() {
+        val hundredths = DistanceSliderState.hundredths(distanceOnSlider)
+        return "${hundredths / 100}.${(hundredths % 100).twoDigits()} ${selectedUnit.text}"
+    }
+
+    val displayedPace: String get() {
+        val seconds = PaceSliderState.seconds(paceOnSlider)
+        return "${seconds / 60}:${(seconds % 60).twoDigits()} ${selectedUnit.paceText}"
+    }
+
+    val displayedTime: String get() {
+        val seconds = TimeSliderState.seconds(time)
+        return "${seconds / 3600}h ${((seconds % 3600) / 60).twoDigits()}m " +
+            "${(seconds % 60).twoDigits()}s"
+    }
+
+    val distanceComparison: Comparison
+        get() = comparison(
+            DistanceSliderState.ticks(distanceOnSlider),
+            DistanceSliderState.MaxTicks,
         )
-    }
 
-    val computedPace: Pace? by derivedStateOf {
-        if (selectedMetric != Metric.Pace) return@derivedStateOf null
-        val time = timeSliderState.selectedTime
-        val distance = distanceSliderState.selectedDistance
+    val paceComparison: Comparison
+        get() = comparison(PaceSliderState.ticks(paceOnSlider), PaceSliderState.MaxTicks)
 
-        val totalSeconds = time.hours * 3600 + time.minutes * 60 + time.seconds
-        val hundredths = distance.whole * 100 + distance.fraction
-        if (hundredths <= 0) return@derivedStateOf null
+    val timeComparison: Comparison
+        get() = comparison(TimeSliderState.ticks(time), TimeSliderState.MaxTicks)
 
-        val paceSecondsPerKilometer = totalSeconds * 100 / hundredths
-        Pace(
-            minutes = paceSecondsPerKilometer / 60,
-            seconds = paceSecondsPerKilometer % 60,
-        )
-    }
-
-    val computedTime: Time? by derivedStateOf {
-        if (selectedMetric != Metric.Time) return@derivedStateOf null
-        val distance = distanceSliderState.selectedDistance
-        val pace = paceSliderState.selectedPace
-
-        val hundredths = distance.whole * 100 + distance.fraction
-        val paceSecondsPerKilometer = pace.minutes * 60 + pace.seconds
-
-        val totalSeconds = hundredths * paceSecondsPerKilometer / 100
-        Time(
-            hours = totalSeconds / 3600,
-            minutes = (totalSeconds % 3600) / 60,
-            seconds = totalSeconds % 60,
-        )
-    }
-
-    val displayedDistance: String by derivedStateOf {
-        val whole = distanceSliderState.selectedDistance.whole
-        val fraction = distanceSliderState.selectedDistance.fraction.twoDigits()
-        "$whole.$fraction ${selectedUnit.text}"
-    }
-
-    val displayedPace: String by derivedStateOf {
-        val minutes = paceSliderState.selectedPace.minutes
-        val seconds = paceSliderState.selectedPace.seconds.twoDigits()
-        "$minutes:$seconds ${selectedUnit.paceText}"
+    fun selectMetric(metric: Metric) {
+        if (metric == selectedMetric) return
+        selectedMetric = metric
+        recompute()
     }
 
     /**
      * Distance and pace are only ever "per unit" — the sliders carry no unit of their own — so a
-     * change of unit is a change of the numbers on them, not just of the labels. Converting both
-     * leaves the time, and therefore the run being described, untouched.
+     * change of unit is a change of the numbers on them, not just of the labels. Because the values
+     * themselves are held in kilometres there is nothing to convert: the sliders read the new unit
+     * and re-draw, and the run being described is untouched.
      */
     fun selectUnit(unit: DistanceUnit) {
-        if (unit == selectedUnit) return
-        val toKilometers = unit == DistanceUnit.Kilometers
-
-        val distance = distanceSliderState.selectedDistance
-        val hundredths = distance.whole * 100 + distance.fraction
-        val converted = if (toKilometers) {
-            (hundredths * KILOMETERS_PER_MILE).roundToInt()
-        } else {
-            (hundredths / KILOMETERS_PER_MILE).roundToInt()
-        }
-
-        val pace = paceSliderState.selectedPace
-        val paceSeconds = pace.minutes * 60 + pace.seconds
-        val convertedPaceSeconds = if (toKilometers) {
-            (paceSeconds / KILOMETERS_PER_MILE).roundToInt()
-        } else {
-            (paceSeconds * KILOMETERS_PER_MILE).roundToInt()
-        }
-
         selectedUnit = unit
-        coroutineScope.launch {
-            distanceSliderState.animateToDistance(
-                Distance(
-                    whole = converted / 100,
-                    fraction = converted % 100,
-                )
-            )
-        }
-        coroutineScope.launch {
-            paceSliderState.animateToPace(
-                Pace(
-                    minutes = convertedPaceSeconds / 60,
-                    seconds = convertedPaceSeconds % 60,
-                )
-            )
+    }
+
+    /** Whichever metric is selected is the one computed; the other two are what the user sets. */
+    private fun recompute() {
+        when (selectedMetric) {
+            // A pace of zero is infinite speed, and no distance follows from it.
+            Metric.Distance -> if (pace > Duration.ZERO) updateDistance(Distance(time / pace))
+            // And no pace follows from standing still.
+            Metric.Pace -> if (distance.kilometers > 0.0) updatePace(time / distance.kilometers)
+            Metric.Time -> updateTime(pace * distance.kilometers)
         }
     }
 
-    val displayedTime: String by derivedStateOf {
-        val minutes = timeSliderState.selectedTime.minutes.twoDigits()
-        val seconds = timeSliderState.selectedTime.seconds.twoDigits()
-        "${timeSliderState.selectedTime.hours}h ${minutes}m ${seconds}s"
+    /**
+     * These keep non-finite values out of the fields but deliberately don't clamp: a value
+     * past the end of its ruler stays exact, and [Comparison] is how the card admits that the ruler
+     * can't show all of it.
+     */
+    private fun updateDistance(value: Distance) {
+        if (value.kilometers.isFinite() && value.kilometers >= 0.0) distance = value
+    }
+
+    private fun updatePace(value: Duration) {
+        if (value.isFinite() && value >= Duration.ZERO) pace = value
+    }
+
+    private fun updateTime(value: Duration) {
+        if (value.isFinite() && value >= Duration.ZERO) time = value
+    }
+
+    internal fun onDistanceScrolled(displayed: Double) {
+        if (selectedMetric == Metric.Distance) return
+        updateDistance(Distance.of(displayed, selectedUnit))
+        recompute()
+    }
+
+    internal fun onPaceScrolled(displayed: Duration) {
+        if (selectedMetric == Metric.Pace) return
+        updatePace(displayed / selectedUnit.kilometers)
+        recompute()
+    }
+
+    internal fun onTimeScrolled(displayed: Duration) {
+        if (selectedMetric == Metric.Time) return
+        updateTime(displayed)
+        recompute()
+    }
+
+    internal val tracks: List<TrackSate<Int>>
+        get() = distanceSliderState.tracks + paceSliderState.tracks + timeSliderState.tracks
+
+    /**
+     * Keeps the values and the sliders showing the same run, in both directions.
+     *
+     * Lives with the state rather than with the layout so that reflowing the screen — rotating into
+     * two panes, say — doesn't tear the sync down and re-animate all three sliders.
+     */
+    suspend fun sync(): Unit = coroutineScope {
+        tracks.forEach { launch { it.trackUserScroll() } }
+
+        launch {
+            collectUserScroll(
+                distanceSliderState::isUserScrolling,
+                distanceSliderState::value,
+                ::onDistanceScrolled,
+            )
+        }
+        launch {
+            collectUserScroll(
+                paceSliderState::isUserScrolling,
+                paceSliderState::value,
+                ::onPaceScrolled,
+            )
+        }
+        launch {
+            collectUserScroll(
+                timeSliderState::isUserScrolling,
+                timeSliderState::value,
+                ::onTimeScrolled,
+            )
+        }
+
+        launch {
+            syncDown(
+                ::distanceOnSlider,
+                distanceSliderState::isUserScrolling,
+                distanceSliderState::moveTo,
+            )
+        }
+        launch {
+            syncDown(::paceOnSlider, paceSliderState::isUserScrolling, paceSliderState::moveTo)
+        }
+        launch {
+            syncDown(::timeOnSlider, timeSliderState::isUserScrolling, timeSliderState::moveTo)
+        }
+    }
+}
+
+private fun comparison(ticks: Int, maxTicks: Int): Comparison = when {
+    ticks > maxTicks -> Comparison.Greater
+    ticks < 0 -> Comparison.Less
+    else -> Comparison.Equal
+}
+
+/**
+ * Reports what the user's own finger did to a slider, and only that — a slider being driven
+ * programmatically never emits a [androidx.compose.foundation.interaction.DragInteraction], so the
+ * two directions can't chase each other.
+ *
+ * Reporting live rather than only once the gesture ends is what makes the other two cards move
+ * under the finger. The falling edge is reported too: the settling scroll and the end of the
+ * gesture can land in the same frame, and dropping that last value would leave the field one line
+ * off the ruler — which the other direction would then correct as a visible snap-back.
+ */
+internal suspend fun <T> collectUserScroll(
+    isUserScrolling: () -> Boolean,
+    value: () -> T,
+    onValue: (T) -> Unit,
+) {
+    var touched = false
+    snapshotFlow(isUserScrolling).collectLatest { scrolling ->
+        if (scrolling) {
+            touched = true
+            snapshotFlow(value).collect(onValue)
+        } else if (touched) {
+            onValue(value())
+        }
     }
 }
 
 /**
- * Drives the metric that isn't being edited towards whatever the other two describe. Lives with the
- * state rather than with the layout so that reflowing the screen — rotating into two panes, say —
- * doesn't tear the sync down and re-animate all three sliders.
+ * Drives a slider to whatever its value has become.
+ *
+ * `collectLatest` rather than `collect`: while the user drags one card the other two change every
+ * frame, and each change has to cancel the animation in flight rather than queue behind it.
  */
-private suspend fun PaceCalculatorState.syncSliders() = coroutineScope {
-    launch {
-        snapshotFlow { computedDistance }
-            .filterNotNull()
-            .collectLatest { distanceSliderState.animateToDistance(it) }
-    }
-
-    launch {
-        snapshotFlow { computedPace }
-            .filterNotNull()
-            .collectLatest { paceSliderState.animateToPace(it) }
-    }
-
-    launch {
-        snapshotFlow { computedTime }
-            .filterNotNull()
-            .collectLatest { timeSliderState.animateToTime(it) }
+private suspend fun <T> syncDown(
+    value: () -> T,
+    isUserScrolling: () -> Boolean,
+    moveTo: suspend (T, Boolean) -> Unit,
+) {
+    var placed = false
+    snapshotFlow(value).collectLatest { target ->
+        if (isUserScrolling()) return@collectLatest
+        try {
+            // The first placement is the restored value arriving before anything is on screen, so
+            // it jumps rather than animating a scroll the user never asked for.
+            moveTo(target, placed)
+            placed = true
+        } catch (cancellation: CancellationException) {
+            // A scroll that loses the mutex to the user's finger must not take the sync down with
+            // it: a scroll animation started while a drag holds the scroll mutex at a higher
+            // priority is cancelled outright, and a coroutine that ends that way ends quietly.
+            currentCoroutineContext().ensureActive()
+        }
     }
 }
+
+internal fun paceCalculatorStateSaver(
+    distanceSliderState: DistanceSliderState,
+    paceSliderState: PaceSliderState,
+    timeSliderState: TimeSliderState,
+): Saver<PaceCalculatorState, Any> = listSaver(
+    save = { state ->
+        listOf(
+            state.distance.kilometers,
+            // Milliseconds, not seconds: in miles the pace per kilometre isn't a whole number of
+            // seconds, and rounding it on every rotation is the drift this all exists to avoid.
+            state.pace.inWholeMilliseconds,
+            state.time.inWholeMilliseconds,
+            state.selectedMetric.name,
+            state.selectedUnit.name,
+        )
+    },
+    restore = { saved ->
+        PaceCalculatorState(
+            distanceSliderState,
+            paceSliderState,
+            timeSliderState,
+            distance = Distance(saved[0] as Double),
+            pace = (saved[1] as Long).milliseconds,
+            time = (saved[2] as Long).milliseconds,
+            // By name, and falling back rather than throwing, so a bundle written by an older
+            // build with different entries degrades to a default.
+            selectedMetric = Metric.entries.firstOrNull { it.name == saved[3] } ?: Metric.Pace,
+            selectedUnit = DistanceUnit.entries.firstOrNull { it.name == saved[4] }
+                ?: DistanceUnit.Kilometers,
+        )
+    },
+)
 
 @Composable
 fun rememberPaceCalculatorState(): PaceCalculatorState {
     val distanceState = rememberDistanceSliderState()
     val paceState = rememberPaceSliderState()
     val timeState = rememberTimeSliderState()
-    val coroutineScope = rememberCoroutineScope()
 
-    val selectedMetric = rememberSaveable {
-        mutableStateOf(Metric.Pace)
+    val saver = remember(distanceState, paceState, timeState) {
+        paceCalculatorStateSaver(distanceState, paceState, timeState)
     }
-    val selectedUnit = rememberSaveable {
-        mutableStateOf(DistanceUnit.Kilometers)
-    }
-
-    val state = remember {
-        PaceCalculatorState(
-            distanceState,
-            paceState,
-            timeState,
-            coroutineScope,
-            selectedMetric,
-            selectedUnit,
-        )
+    val state = rememberSaveable(distanceState, paceState, timeState, saver = saver) {
+        PaceCalculatorState(distanceState, paceState, timeState)
     }
 
-    LaunchedEffect(state) { state.syncSliders() }
+    LaunchedEffect(state) { state.sync() }
 
     return state
 }
@@ -291,9 +409,9 @@ fun LazyListScope.metricCardItems(
 ) {
     item("time") {
         MetricCard(
-            title = "Time = ${state.displayedTime}",
+            title = "Time ${state.timeComparison.text} ${state.displayedTime}",
             selected = state.selectedMetric == Metric.Time,
-            onClick = { state.selectedMetric = Metric.Time },
+            onClick = { state.selectMetric(Metric.Time) },
             modifier = cardModifier(maxCardWidth),
         ) {
             TimeSlider(
@@ -305,9 +423,9 @@ fun LazyListScope.metricCardItems(
 
     item("distance") {
         MetricCard(
-            title = "Distance = ${state.displayedDistance}",
+            title = "Distance ${state.distanceComparison.text} ${state.displayedDistance}",
             selected = state.selectedMetric == Metric.Distance,
-            onClick = { state.selectedMetric = Metric.Distance },
+            onClick = { state.selectMetric(Metric.Distance) },
             modifier = cardModifier(maxCardWidth),
         ) {
             DistanceSlider(
@@ -319,9 +437,9 @@ fun LazyListScope.metricCardItems(
 
     item("pace") {
         MetricCard(
-            title = "Pace = ${state.displayedPace}",
+            title = "Pace ${state.paceComparison.text} ${state.displayedPace}",
             selected = state.selectedMetric == Metric.Pace,
-            onClick = { state.selectedMetric = Metric.Pace },
+            onClick = { state.selectMetric(Metric.Pace) },
             modifier = cardModifier(maxCardWidth),
         ) {
             PaceSlider(
