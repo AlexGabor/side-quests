@@ -22,6 +22,29 @@ abstract class AndroidAppPlugin : Plugin<Project> {
                 .get().requiredVersion.toInt()
             configureAndroidCompose(extension)
             configureKotlinAndroid(extension)
+            configureBuildTypes(extension)
+        }
+    }
+}
+
+private fun configureBuildTypes(applicationExtension: ApplicationExtension) {
+    applicationExtension.apply {
+        buildTypes {
+            getByName("debug") {
+                applicationIdSuffix = ".debug"
+                isDebuggable = true
+                isMinifyEnabled = false
+            }
+
+            getByName("release") {
+                isMinifyEnabled = true
+                isShrinkResources = true
+
+                proguardFiles(
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro",
+                )
+            }
         }
     }
 }
