@@ -1,4 +1,4 @@
-package com.alexgabor.design.riso.recorder
+package com.alexgabor.recorder
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable

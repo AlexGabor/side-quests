@@ -18,6 +18,9 @@ That's why the colors are not aligned in the example below.
 ## Pacer
 
 A pace calculator with a UI that allows me to adjust values and see the result update instantly.
+Tap the card you want solved for, drag the other two, and the third keeps up under your finger.
+
+<img src="pacer/docs/pacer.webp" alt="Pacer" width="484">
 
 ## Stamp 
 

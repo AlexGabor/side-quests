@@ -1,4 +1,4 @@
-package com.alexgabor.design.riso.recorder
+package com.alexgabor.recorder
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,25 +13,38 @@ import java.io.File
 import kotlin.system.exitProcess
 
 /**
- * Records the component showcases in the README.
+ * Records the showcases in the README.
  *
- * `./gradlew :design:risoRecorder:run`
+ * `./gradlew :tools:recorder:run`, or `-Ptakes=pacer` for one of them.
  *
- * Takes two arguments — where the encoded recordings go, and where the intermediate frames go — both
- * of which the Gradle task fills in.
+ * Takes the repository root and a folder to stage frames in, both of which the Gradle task fills in,
+ * and optionally the names of the takes to record.
  */
 fun main(args: Array<String>) {
-    val output = File(args.getOrNull(0) ?: error("Usage: recorder <output dir> <frames dir>"))
-    val frames = File(args.getOrNull(1) ?: error("Usage: recorder <output dir> <frames dir>"))
+    val root = File(args.getOrNull(0) ?: error("Usage: recorder <repo root> <frames dir> [takes]"))
+    val frames = File(args.getOrNull(1) ?: error("Usage: recorder <repo root> <frames dir> [takes]"))
+    val wanted = args.getOrNull(2)?.split(",")?.map(String::trim)?.toSet()
 
-    listOf(
-        recordButton(frames),
-        recordButtonGroup(frames),
-    ).forEach { encode(it, output) }
+    val takes = listOf(
+        Showcase("button", "design/riso/docs") { recordButton(frames) },
+        Showcase("button-group", "design/riso/docs") { recordButtonGroup(frames) },
+        Showcase("pacer", "pacer/docs") { recordPacer(frames) },
+    )
+
+    takes.filter { wanted == null || it.name in wanted }
+        .forEach { take -> encode(take.record(), root.resolve(take.output), take.scale) }
 
     // Skiko and the coroutine machinery both hold threads that outlive the last frame.
     exitProcess(0)
 }
+
+/** One README recording: what it is called, where it lands, and how it is made. */
+private class Showcase(
+    val name: String,
+    val output: String,
+    val scale: Float = 1f,
+    val record: () -> Recording,
+)
 
 /**
  * The press: two of them, one held long enough for the drums to come fully into register and one let
@@ -39,8 +52,8 @@ fun main(args: Array<String>) {
  */
 private fun recordButton(into: File): Recording = record(
     name = "button",
-    frames = 3.seconds,
     into = into,
+    maxFrames = 4.seconds,
     content = { Button(text = "Print", onClick = {}) },
 ) { frame ->
     val target = Offset(size.width / 2f, size.height / 2f)
@@ -54,6 +67,7 @@ private fun recordButton(into: File): Recording = record(
         118 -> release()
         134 -> exit()
     }
+    frame < 3.seconds - 1
 }
 
 /**
@@ -67,8 +81,8 @@ private fun recordButtonGroup(into: File): Recording {
 
     return record(
         name = "button-group",
-        frames = 275,
         into = into,
+        maxFrames = 350,
         content = {
             var selected by remember { mutableStateOf(Segment.Left) }
             ButtonGroup(
@@ -102,6 +116,7 @@ private fun recordButtonGroup(into: File): Recording {
             in 232..244 -> moveTo(lerp(left, entry, (frame - 232) / 12f))
             246 -> exit()
         }
+        frame < 274
     }
 }
 
@@ -123,22 +138,28 @@ private fun lerp(from: Offset, to: Offset, fraction: Float): Offset =
  * palette turns that into banding — and rather than a video, because an image is the only thing that
  * plays inline in a README wherever it is read.
  */
-private fun encode(recording: Recording, into: File) {
+private fun encode(recording: Recording, into: File, scale: Float) {
     into.mkdirs()
     val target = into.resolve("${recording.name}.webp")
     val process = ProcessBuilder(
-        "ffmpeg",
-        "-y",
-        "-loglevel", "error",
-        "-framerate", FrameRate.toString(),
-        "-i", recording.frames.resolve("frame_%04d.png").path,
-        "-c:v", "libwebp_anim",
-        "-lossless", "0",
-        "-q:v", "80",
-        "-compression_level", "6",
-        // Forever, which is what a component showcase wants.
-        "-loop", "0",
-        target.path,
+        buildList {
+            add("ffmpeg")
+            add("-y")
+            add("-loglevel"); add("error")
+            add("-framerate"); add(recording.rate.toString())
+            add("-i"); add(recording.frames.resolve("frame_%04d.png").path)
+            if (scale != 1f) {
+                // Rounded to an even width, which the encoders are happier with.
+                add("-vf"); add("scale=trunc(iw*$scale/2)*2:-2:flags=lanczos")
+            }
+            add("-c:v"); add("libwebp_anim")
+            add("-lossless"); add("0")
+            add("-q:v"); add("80")
+            add("-compression_level"); add("6")
+            // Forever, which is what a showcase wants.
+            add("-loop"); add("0")
+            add(target.path)
+        }
     ).redirectErrorStream(true).start()
 
     val log = process.inputStream.bufferedReader().readText()
