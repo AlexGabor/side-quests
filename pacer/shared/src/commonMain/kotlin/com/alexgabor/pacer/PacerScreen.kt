@@ -1,6 +1,7 @@
 package com.alexgabor.pacer
 
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Heading1
+import com.alexgabor.design.riso.components.Icon
+import com.alexgabor.design.riso.components.IconType
 import com.alexgabor.design.riso.layout.WindowHeightSizeClass
 import com.alexgabor.design.riso.layout.WindowWidthSizeClass
 import com.alexgabor.design.riso.layout.computeWindowSizeClass
@@ -65,7 +68,7 @@ fun PacerScreen(
         // Compact width is excluded because two panes of a phone-width window are narrower than a
         // single track.
         val twoPane = sizeClass.height == WindowHeightSizeClass.Compact &&
-            sizeClass.width != WindowWidthSizeClass.Compact
+                sizeClass.width != WindowWidthSizeClass.Compact
 
         if (twoPane) {
             PacerTwoPane(
@@ -86,11 +89,20 @@ fun PacerScreen(
 private fun PacerHeader(modifier: Modifier = Modifier) {
     SelectionContainer {
         Column(modifier.risoInk(RisoTheme.colors.content, RisoTheme.colors.accent)) {
-            Heading1(
-                text = "Pacer",
-                modifier = Modifier.fillMaxWidth()
-                    .padding(RisoTheme.dimens.screenPadding)
-            )
+            Box {
+                Heading1(
+                    text = "Pacer",
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(RisoTheme.dimens.screenPadding)
+                )
+                Icon(
+                    type = IconType.Settings,
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                        .padding(horizontal = 8.dp)
+                        .clickable(onClick = { })
+                        .padding(8.dp)
+                )
+            }
 
             Body(
                 text = "Tap the card you want to solve for, then scroll the other two. Pacer keeps them in sync.",
