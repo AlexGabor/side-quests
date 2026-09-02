@@ -3,7 +3,6 @@ package com.alexgabor.pacer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,7 +15,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Heading1
 import com.alexgabor.design.riso.components.Icon
@@ -56,20 +54,18 @@ private fun SettingsHeader(
 ) {
     SelectionContainer {
         Column(modifier.risoInk(RisoTheme.colors.content, RisoTheme.colors.accent)) {
-            Row {
-                Icon(
-                    type = IconType.Back,
-                    modifier = Modifier
-                        .padding(horizontal = 8.dp)
-                        .clickable(onClick = onBackClick)
-                        .padding(8.dp)
-                )
-                Heading1(
-                    text = "Settings",
-                    modifier = Modifier.fillMaxWidth()
-                        .padding(RisoTheme.dimens.screenPadding)
-                )
-            }
+            Heading1(
+                text = "Settings",
+                modifier = Modifier.fillMaxWidth()
+                    .padding(RisoTheme.dimens.screenPadding),
+                startContent = {
+                    Icon(
+                        type = IconType.Back,
+                        modifier = Modifier
+                            .clickable(onClick = onBackClick)
+                    )
+                }
+            )
         }
     }
 }

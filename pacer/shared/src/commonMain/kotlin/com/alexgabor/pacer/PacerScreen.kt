@@ -93,20 +93,18 @@ private fun PacerHeader(
 ) {
     SelectionContainer {
         Column(modifier.risoInk(RisoTheme.colors.content, RisoTheme.colors.accent)) {
-            Box {
-                Heading1(
-                    text = "Pacer",
-                    modifier = Modifier.fillMaxWidth()
-                        .padding(RisoTheme.dimens.screenPadding)
-                )
-                Icon(
-                    type = IconType.Settings,
-                    modifier = Modifier.align(Alignment.CenterEnd)
-                        .padding(horizontal = 8.dp)
-                        .clickable(onClick = onSettingsClick)
-                        .padding(8.dp)
-                )
-            }
+            Heading1(
+                text = "Pacer",
+                modifier = Modifier.fillMaxWidth()
+                    .padding(RisoTheme.dimens.screenPadding),
+                endContent = {
+                    Icon(
+                        type = IconType.Settings,
+                        modifier = Modifier
+                            .clickable(onClick = onSettingsClick)
+                    )
+                }
+            )
 
             Body(
                 text = "Tap the card you want to solve for, then scroll the other two. Pacer keeps them in sync.",
