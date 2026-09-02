@@ -3,8 +3,8 @@ package com.alexgabor.pacer
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -18,9 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.recalculateWindowInsets
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -39,6 +37,7 @@ import com.alexgabor.design.riso.components.IconType
 import com.alexgabor.design.riso.layout.WindowHeightSizeClass
 import com.alexgabor.design.riso.layout.WindowWidthSizeClass
 import com.alexgabor.design.riso.layout.computeWindowSizeClass
+import com.alexgabor.design.riso.layout.contentWidth
 import com.alexgabor.design.riso.risograph.inks.risoInk
 import com.alexgabor.pacer.slider.MetricCards
 import com.alexgabor.pacer.slider.PaceCalculator
@@ -118,16 +117,15 @@ private fun PacerHeader(
 }
 
 @Composable
-private fun BoxScope.PacerSinglePane(
+private fun BoxWithConstraintsScope.PacerSinglePane(
     state: PaceCalculatorState,
     onSettingsClick: () -> Unit,
     listState: LazyListState,
 ) {
     Column(
         modifier = Modifier.align(Alignment.TopCenter)
-            .widthIn(max = RisoTheme.dimens.contentMaxWidth)
+            .contentWidth(available = maxWidth, max = RisoTheme.dimens.contentMaxWidth)
             .fillMaxSize()
-            .recalculateWindowInsets()
     ) {
         PacerHeader(
             onSettingsClick = onSettingsClick,
@@ -155,7 +153,7 @@ private fun BoxScope.PacerSinglePane(
 }
 
 @Composable
-private fun BoxScope.PacerTwoPane(
+private fun BoxWithConstraintsScope.PacerTwoPane(
     state: PaceCalculatorState,
     onSettingsClick: () -> Unit,
     listState: LazyListState,
@@ -163,9 +161,8 @@ private fun BoxScope.PacerTwoPane(
 ) {
     Row(
         modifier = Modifier.align(Alignment.Center)
-            .widthIn(max = TwoPaneMaxWidth)
+            .contentWidth(available = maxWidth, max = TwoPaneMaxWidth)
             .fillMaxSize()
-            .recalculateWindowInsets()
     ) {
         LeftPane(
             state = state,
