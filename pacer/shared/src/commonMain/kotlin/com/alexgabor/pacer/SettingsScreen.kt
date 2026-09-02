@@ -1,8 +1,8 @@
 package com.alexgabor.pacer
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,9 +16,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.alexgabor.design.riso.RisoTheme
+import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Heading1
+import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.Icon
 import com.alexgabor.design.riso.components.IconType
+import com.alexgabor.design.riso.components.OnOff
 import com.alexgabor.design.riso.layout.contentWidth
 import com.alexgabor.design.riso.risograph.inks.risoInk
 
@@ -65,6 +68,37 @@ private fun SettingsHeader(
                     )
                 }
             )
+
+            RisoEffectSetting(
+                enabled = true,
+                onRisoEffectToggle = { enabled ->
+                    // Handle the toggle action here
+                },
+                modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
+            )
         }
+    }
+}
+
+@Composable
+fun RisoEffectSetting(
+    enabled: Boolean,
+    onRisoEffectToggle: (enabled: Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Body(
+            text = "Riso effects",
+            modifier = Modifier.weight(1f)
+                .padding(vertical = RisoTheme.dimens.screenPadding),
+        )
+        ButtonGroup(
+            selected = if (enabled) OnOff.On else OnOff.Off,
+            *OnOff.entries.toTypedArray(),
+            onSelect = { onRisoEffectToggle(it == OnOff.On) },
+        )
     }
 }
