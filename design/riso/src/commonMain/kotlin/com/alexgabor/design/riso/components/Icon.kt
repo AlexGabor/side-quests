@@ -8,10 +8,12 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.Res
 import com.alexgabor.design.riso.RisoTheme
+import com.alexgabor.design.riso.back_icon
 import com.alexgabor.design.riso.settings_icon
 import org.jetbrains.compose.resources.painterResource
 
 enum class IconType {
+    Back,
     Settings,
 }
 
@@ -29,5 +31,6 @@ fun Icon(
 }
 
 private fun IconType.toRes() = when (this) {
+    IconType.Back -> Res.drawable.back_icon
     IconType.Settings -> Res.drawable.settings_icon
 }

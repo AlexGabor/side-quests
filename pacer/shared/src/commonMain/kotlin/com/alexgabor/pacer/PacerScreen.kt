@@ -47,7 +47,6 @@ import com.alexgabor.pacer.slider.UnitSelector
 import com.alexgabor.pacer.slider.rememberPaceCalculatorState
 
 
-private val ContentMaxWidth = 600.dp
 private val TwoPaneMaxWidth = 1280.dp
 
 private const val LeftPaneWeight = 0.4f
@@ -55,6 +54,7 @@ private const val RightPaneWeight = 0.6f
 
 @Composable
 fun PacerScreen(
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state = rememberPaceCalculatorState()
@@ -73,12 +73,14 @@ fun PacerScreen(
         if (twoPane) {
             PacerTwoPane(
                 state = state,
+                onSettingsClick = onSettingsClick,
                 listState = listState,
                 leftPaneScrollState = leftPaneScrollState,
             )
         } else {
             PacerSinglePane(
                 state = state,
+                onSettingsClick = onSettingsClick,
                 listState = listState,
             )
         }
@@ -86,7 +88,10 @@ fun PacerScreen(
 }
 
 @Composable
-private fun PacerHeader(modifier: Modifier = Modifier) {
+private fun PacerHeader(
+    onSettingsClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     SelectionContainer {
         Column(modifier.risoInk(RisoTheme.colors.content, RisoTheme.colors.accent)) {
             Box {
@@ -99,7 +104,7 @@ private fun PacerHeader(modifier: Modifier = Modifier) {
                     type = IconType.Settings,
                     modifier = Modifier.align(Alignment.CenterEnd)
                         .padding(horizontal = 8.dp)
-                        .clickable(onClick = { })
+                        .clickable(onClick = onSettingsClick)
                         .padding(8.dp)
                 )
             }
@@ -115,15 +120,17 @@ private fun PacerHeader(modifier: Modifier = Modifier) {
 @Composable
 private fun BoxScope.PacerSinglePane(
     state: PaceCalculatorState,
+    onSettingsClick: () -> Unit,
     listState: LazyListState,
 ) {
     Column(
         modifier = Modifier.align(Alignment.TopCenter)
-            .widthIn(max = ContentMaxWidth)
+            .widthIn(max = RisoTheme.dimens.contentMaxWidth)
             .fillMaxSize()
             .recalculateWindowInsets()
     ) {
         PacerHeader(
+            onSettingsClick = onSettingsClick,
             modifier = Modifier.windowInsetsPadding(
                 WindowInsets.safeDrawing.only(
                     WindowInsetsSides.Top + WindowInsetsSides.Horizontal
@@ -141,7 +148,7 @@ private fun BoxScope.PacerSinglePane(
                 contentPadding = listContentPadding(
                     WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
                 ),
-                maxCardWidth = ContentMaxWidth,
+                maxCardWidth = RisoTheme.dimens.contentMaxWidth,
             )
         }
     }
@@ -150,6 +157,7 @@ private fun BoxScope.PacerSinglePane(
 @Composable
 private fun BoxScope.PacerTwoPane(
     state: PaceCalculatorState,
+    onSettingsClick: () -> Unit,
     listState: LazyListState,
     leftPaneScrollState: ScrollState,
 ) {
@@ -161,6 +169,7 @@ private fun BoxScope.PacerTwoPane(
     ) {
         LeftPane(
             state = state,
+            onSettingsClick = onSettingsClick,
             scrollState = leftPaneScrollState,
         )
 
@@ -171,7 +180,7 @@ private fun BoxScope.PacerTwoPane(
             contentPadding = listContentPadding(
                 WindowInsetsSides.End + WindowInsetsSides.Vertical
             ),
-            maxCardWidth = ContentMaxWidth,
+            maxCardWidth = RisoTheme.dimens.contentMaxWidth,
         )
     }
 }
@@ -179,6 +188,7 @@ private fun BoxScope.PacerTwoPane(
 @Composable
 private fun RowScope.LeftPane(
     state: PaceCalculatorState,
+    onSettingsClick: () -> Unit,
     scrollState: ScrollState,
 ) {
     Column(
@@ -191,7 +201,7 @@ private fun RowScope.LeftPane(
             )
             .verticalScroll(scrollState)
     ) {
-        PacerHeader()
+        PacerHeader(onSettingsClick = onSettingsClick)
 
         UnitSelector(
             state = state,

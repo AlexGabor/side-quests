@@ -14,4 +14,5 @@ val RisoDimens = Dimens()
 data class Dimens(
     val lineWidth: Dp = 2.dp,
     val screenPadding: Dp = 16.dp,
+    val contentMaxWidth: Dp = 600.dp,
 )
