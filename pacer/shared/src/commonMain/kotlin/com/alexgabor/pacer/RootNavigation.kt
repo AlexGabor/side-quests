@@ -1,44 +1,42 @@
 package com.alexgabor.pacer
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.saveable.rememberSerializable
 import androidx.compose.ui.Modifier
+import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.serialization.NavBackStackSerializer
 import androidx.navigation3.ui.NavDisplay
-import androidx.savedstate.serialization.SavedStateConfiguration
 import com.alexgabor.design.riso.risograph.paper.risoPaper
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
 
 @Serializable
-data object PacerRoute : NavKey
+private sealed interface RootDestination : NavKey {
 
-@Serializable
-data object SettingsRoute : NavKey
+    @Serializable
+    data object Pacer : RootDestination
 
-internal val PacerNavConfiguration = SavedStateConfiguration {
-    serializersModule = SerializersModule {
-        polymorphic(NavKey::class) {
-            subclass(PacerRoute::class, PacerRoute.serializer())
-            subclass(SettingsRoute::class, SettingsRoute.serializer())
-        }
-    }
+    @Serializable
+    data object Settings : RootDestination
 }
 
 @Composable
 fun RootNavigation() {
-    val backStack = rememberNavBackStack(PacerNavConfiguration, PacerRoute)
+    val backStack = rememberSerializable(
+        serializer = NavBackStackSerializer(RootDestination.serializer())
+    ) {
+        NavBackStack(RootDestination.Pacer)
+    }
 
     NavDisplay(
         backStack = backStack,
         modifier = Modifier.risoPaper(),
         entryProvider = entryProvider {
-            entry<PacerRoute> {
-                PacerScreen(onSettingsClick = { backStack.add(SettingsRoute) })
+            entry<RootDestination.Pacer> {
+                PacerScreen(onSettingsClick = { backStack.add(RootDestination.Settings) })
             }
-            entry<SettingsRoute> {
+            entry<RootDestination.Settings> {
                 SettingsScreen(onBackClick = { backStack.removeLastOrNull() })
             }
         },
