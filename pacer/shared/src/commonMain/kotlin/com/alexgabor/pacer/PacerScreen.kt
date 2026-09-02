@@ -100,8 +100,7 @@ private fun PacerHeader(
                 endContent = {
                     Icon(
                         type = IconType.Settings,
-                        modifier = Modifier
-                            .clickable(onClick = onSettingsClick)
+                        onClick = onSettingsClick,
                     )
                 }
             )

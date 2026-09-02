@@ -61,8 +61,7 @@ private fun SettingsHeader(
                 startContent = {
                     Icon(
                         type = IconType.Back,
-                        modifier = Modifier
-                            .clickable(onClick = onBackClick)
+                        onClick = onBackClick,
                     )
                 }
             )
