@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.alexgabor.design.riso.RisoTheme
@@ -24,9 +26,37 @@ import com.alexgabor.design.riso.components.IconType
 import com.alexgabor.design.riso.components.OnOff
 import com.alexgabor.design.riso.layout.contentWidth
 import com.alexgabor.design.riso.risograph.inks.risoInk
+import com.alexgabor.pacer.settings.PacerSettingsRepository
+import com.alexgabor.pacer.settings.rememberPacerSettingsRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+
+
+@Composable
+fun rememberSettingsScreenState(
+    settings: PacerSettingsRepository = rememberPacerSettingsRepository(),
+    coroutineScope: CoroutineScope = rememberCoroutineScope(),
+): SettingsScreenState {
+    return SettingsScreenState(settings, coroutineScope)
+}
+
+class SettingsScreenState(
+    private val settings: PacerSettingsRepository,
+    private val coroutineScope: CoroutineScope,
+) {
+    val risoEffectsEnabled: Boolean? by settings.risoEffectsEnabled
+        .asState(initialValue = null, coroutineScope = coroutineScope)
+
+    fun setRisoEffectsEnabled(enabled: Boolean) {
+        coroutineScope.launch {
+            settings.setRisoEffectsEnabled(enabled)
+        }
+    }
+}
 
 @Composable
 fun SettingsScreen(
+    state: SettingsScreenState = rememberSettingsScreenState(),
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -38,6 +68,10 @@ fun SettingsScreen(
         ) {
             SettingsHeader(
                 onBackClick = onBackClick,
+                risoEffectsEnabled = state.risoEffectsEnabled,
+                onRisoEffectToggle = { enabled ->
+                    state.setRisoEffectsEnabled(enabled)
+                },
                 modifier = Modifier.windowInsetsPadding(
                     WindowInsets.safeDrawing.only(
                         WindowInsetsSides.Top + WindowInsetsSides.Horizontal
@@ -53,6 +87,8 @@ fun SettingsScreen(
 @Composable
 private fun SettingsHeader(
     onBackClick: () -> Unit,
+    risoEffectsEnabled: Boolean?,
+    onRisoEffectToggle: (enabled: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     SelectionContainer {
@@ -69,13 +105,13 @@ private fun SettingsHeader(
                 }
             )
 
-            RisoEffectSetting(
-                enabled = true,
-                onRisoEffectToggle = { enabled ->
-                    // Handle the toggle action here
-                },
-                modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
-            )
+            if (risoEffectsEnabled != null) {
+                RisoEffectSetting(
+                    enabled = risoEffectsEnabled,
+                    onRisoEffectToggle = onRisoEffectToggle,
+                    modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
+                )
+            }
         }
     }
 }
