@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,7 +38,7 @@ fun rememberSettingsScreenState(
     settings: PacerSettingsRepository = rememberPacerSettingsRepository(),
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
 ): SettingsScreenState {
-    return SettingsScreenState(settings, coroutineScope)
+    return remember(settings, coroutineScope) { SettingsScreenState(settings, coroutineScope) }
 }
 
 class SettingsScreenState(
