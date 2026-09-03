@@ -39,7 +39,7 @@ import org.jetbrains.skia.RuntimeShaderBuilder
  * It also comes out slightly truer than a bake: nothing round-trips through the paper map's 8-bit
  * encoding, so the surface reaches the print pass at full precision and needs no dither.
  */
-actual fun Modifier.risoPaper(paper: RisoPaper): Modifier = composed {
+internal actual fun Modifier.risoPaperEffect(paper: RisoPaper): Modifier = composed {
     val density = LocalDensity.current.density
     var size by remember { mutableStateOf(IntSize.Zero) }
     val host = remember { RisoBypassHost() }

@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toSize
 import com.alexgabor.design.riso.RisoTheme
+import com.alexgabor.design.riso.attributes.LocalRisoEffectsEnabled
 import com.alexgabor.design.riso.attributes.Press
 import kotlin.math.PI
 import kotlin.math.roundToInt
@@ -72,6 +73,11 @@ import kotlin.math.roundToInt
  * ### Printing nothing
  * Naming no inks is a **knockout**, which is [risoKnockout] and is documented there.
  *
+ * ### With the press stood down
+ * Nothing at all: with `effectsEnabled = false` on the theme this adds no modifier, so the content
+ * reaches the canvas as it was drawn — in its own colors, flat and in register — and no pass, layer
+ * or shader is made for it. See [RisoTheme].
+ *
  * @param inks the drums to load, as the inks themselves rather than as they print. Empty is a
  *   knockout. Beyond three, only the first three are loaded.
  * @param offsetScale multiplies this pass's registration error. `1` is the rack as loaded, `0` prints
@@ -81,7 +87,8 @@ import kotlin.math.roundToInt
 @Composable
 @ReadOnlyComposable
 fun Modifier.risoInk(inks: List<Color>, offsetScale: Float = 1f): Modifier =
-    this then RisoInkElement(inks, offsetScale, RisoTheme.press, RisoTheme.colors.paper)
+    if (!LocalRisoEffectsEnabled.current) this
+    else this then RisoInkElement(inks, offsetScale, RisoTheme.press, RisoTheme.colors.paper)
 
 /** [risoInk] on one drum. */
 @Composable
@@ -122,6 +129,9 @@ fun Modifier.risoInk(first: Color, second: Color, third: Color, offsetScale: Flo
  *
  * Different from [risoBypass][com.alexgabor.design.riso.risograph.region.risoBypass], which hands
  * the content back untouched rather than taking ink away.
+ *
+ * With the press stood down there is no ink to take back off, and the frisket's own artwork — which
+ * is what the hole would have shown through — is simply drawn where it stands.
  *
  * @param offsetScale how much of the enclosing pass's own throw the hole follows — a fraction of
  *   that pass's, not a scale of the drum's error the way [risoInk]'s is. `0` pins the hole to the
