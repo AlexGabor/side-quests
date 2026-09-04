@@ -28,6 +28,7 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.design.riso)
             implementation(projects.design.navigation)
+            implementation(projects.lib.extension.compose)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)

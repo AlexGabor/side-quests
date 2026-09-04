@@ -10,6 +10,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.alexgabor.design.riso.RisoTheme
+import com.alexgabor.extension.compose.asState
 import com.alexgabor.pacer.settings.PacerSettingsRepository
 import com.alexgabor.pacer.settings.rememberPacerSettingsRepository
 import kotlinx.coroutines.CoroutineScope

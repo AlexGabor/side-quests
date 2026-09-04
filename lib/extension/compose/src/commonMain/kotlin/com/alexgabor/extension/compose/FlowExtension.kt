@@ -1,4 +1,4 @@
-package com.alexgabor.pacer
+package com.alexgabor.extension.compose
 
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
