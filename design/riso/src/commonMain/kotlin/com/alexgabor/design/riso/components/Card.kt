@@ -52,7 +52,7 @@ fun Card(
         }
         shape(shape)
         hovered {
-            background(colors.content.copy(alpha = 0.25f))
+            background(colors.accent.copy(alpha = 0.25f))
         }
     }
 
