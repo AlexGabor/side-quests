@@ -9,6 +9,8 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.serialization.NavBackStackSerializer
 import com.alexgabor.design.navigation.RisoNavigation
 import com.alexgabor.design.riso.risograph.paper.risoPaper
+import com.alexgabor.pacer.home.PacerScreen
+import com.alexgabor.pacer.settings.SettingsScreen
 import kotlinx.serialization.Serializable
 
 @Serializable

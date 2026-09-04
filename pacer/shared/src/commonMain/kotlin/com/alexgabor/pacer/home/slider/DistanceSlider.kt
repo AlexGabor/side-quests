@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.slider
+package com.alexgabor.pacer.home.slider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -13,6 +13,7 @@ import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.components.track.Track
 import com.alexgabor.design.riso.components.track.TrackAlignment
 import com.alexgabor.design.riso.components.track.TrackSate
+import com.alexgabor.pacer.home.twoDigits
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt

@@ -2,6 +2,8 @@ package com.alexgabor.pacer.slider
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.Snapshot
+import com.alexgabor.pacer.home.collectUserScroll
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -15,6 +17,7 @@ import kotlin.test.assertEquals
  * the scroll modifier, and a [androidx.compose.foundation.lazy.LazyListState] outside a composition
  * refuses to scroll at all — it waits for a first layout that never comes.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class UserScrollTest {
 
     @Test

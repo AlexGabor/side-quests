@@ -1,4 +1,4 @@
-package com.alexgabor.pacer
+package com.alexgabor.pacer.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -26,8 +26,6 @@ import com.alexgabor.design.riso.components.IconType
 import com.alexgabor.design.riso.components.OnOff
 import com.alexgabor.design.riso.layout.contentWidth
 import com.alexgabor.extension.compose.asState
-import com.alexgabor.pacer.settings.PacerSettingsRepository
-import com.alexgabor.pacer.settings.rememberPacerSettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 

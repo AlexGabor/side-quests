@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.slider
+package com.alexgabor.pacer.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +32,15 @@ import com.alexgabor.design.riso.attributes.Heading3
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.Card
 import com.alexgabor.design.riso.components.track.TrackSate
+import com.alexgabor.pacer.home.slider.DistanceSlider
+import com.alexgabor.pacer.home.slider.DistanceSliderState
+import com.alexgabor.pacer.home.slider.PaceSlider
+import com.alexgabor.pacer.home.slider.PaceSliderState
+import com.alexgabor.pacer.home.slider.TimeSlider
+import com.alexgabor.pacer.home.slider.TimeSliderState
+import com.alexgabor.pacer.home.slider.rememberDistanceSliderState
+import com.alexgabor.pacer.home.slider.rememberPaceSliderState
+import com.alexgabor.pacer.home.slider.rememberTimeSliderState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext

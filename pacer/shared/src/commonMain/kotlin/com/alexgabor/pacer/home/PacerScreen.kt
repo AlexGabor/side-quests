@@ -1,7 +1,6 @@
-package com.alexgabor.pacer
+package com.alexgabor.pacer.home
 
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
@@ -39,11 +38,6 @@ import com.alexgabor.design.riso.layout.WindowWidthSizeClass
 import com.alexgabor.design.riso.layout.computeWindowSizeClass
 import com.alexgabor.design.riso.layout.contentWidth
 import com.alexgabor.design.riso.risograph.inks.risoInk
-import com.alexgabor.pacer.slider.MetricCards
-import com.alexgabor.pacer.slider.PaceCalculator
-import com.alexgabor.pacer.slider.PaceCalculatorState
-import com.alexgabor.pacer.slider.UnitSelector
-import com.alexgabor.pacer.slider.rememberPaceCalculatorState
 
 
 private val TwoPaneMaxWidth = 1280.dp

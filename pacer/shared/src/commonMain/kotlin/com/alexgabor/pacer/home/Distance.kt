@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.slider
+package com.alexgabor.pacer.home
 
 import com.alexgabor.design.riso.components.ButtonGroupItem
 import kotlin.jvm.JvmInline
