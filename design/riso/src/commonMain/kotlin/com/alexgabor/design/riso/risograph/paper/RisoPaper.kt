@@ -46,7 +46,7 @@ data class RisoPaper(
     /** The stock's own color. */
     val colorFront: Color = RisoColors.paper,
     /** What shows through the sheet where its surface lets light past. */
-    val colorBack: Color = Color(0xFFFFFFFF),
+    val colorBack: Color = RisoColors.paper,
     /** Sharper vs smoother transitions across the surface (0..1). */
     val contrast: Float = 0.12f,
     /** Pixel noise intensity (0..1). */
