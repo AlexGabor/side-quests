@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.track
+package com.alexgabor.design.riso.components.track
 
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.DecayAnimationSpec

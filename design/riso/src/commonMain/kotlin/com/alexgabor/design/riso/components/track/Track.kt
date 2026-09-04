@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.track
+package com.alexgabor.design.riso.components.track
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.DragInteraction
@@ -47,7 +47,6 @@ import kotlin.time.Duration.Companion.milliseconds
 private val verticalPadding = 16.dp
 private val highLineHeight = 10.dp
 private val lowLineHeight = 4.dp
-private val lineWidth = 4.dp
 
 /** A fling crosses ruler lines far faster than the vibrator can play them, so clicks are spaced out. */
 private val minHapticInterval = 24.milliseconds
@@ -75,6 +74,7 @@ fun <T> Track(
     },
 ) {
     val lineColor = RisoTheme.colors.content
+    val dimens = RisoTheme.dimens
     val density = LocalDensity.current
 
     // Lay items out on a whole-pixel grid shared by every track. Compose rounds `Modifier.width` to
@@ -84,7 +84,7 @@ fun <T> Track(
     val itemWidthPx = unitPx * (with(density) { itemSize.toPx() } / unitPx).roundToInt()
     val itemWidth = with(density) { itemWidthPx.toDp() }
     val subdivisionPx = itemWidthPx.toFloat() / state.subdivisions
-    val strokeWidth = with(density) { (lineWidth.toPx() / 2f).roundToInt() * 2f }
+    val strokeWidth = with(density) { dimens.lineWidth.toPx().roundToInt() * 2f }
     state.itemSizePx = itemWidthPx.toFloat()
 
     TrackHaptics(state)

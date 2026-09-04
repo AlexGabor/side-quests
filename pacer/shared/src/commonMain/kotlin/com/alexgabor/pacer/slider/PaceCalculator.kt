@@ -31,7 +31,7 @@ import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Heading3
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.Card
-import com.alexgabor.pacer.track.TrackSate
+import com.alexgabor.design.riso.components.track.TrackSate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
