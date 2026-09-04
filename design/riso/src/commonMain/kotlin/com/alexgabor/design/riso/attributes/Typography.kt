@@ -163,8 +163,6 @@ private fun TypographyPreview() {
             modifier = Modifier.safeDrawingPadding()
                 .fillMaxSize()
                 .risoPaper()
-                // One drum, so the whole column is a single pass of black over the stock. There is
-                // no background to draw: the sheet is already under it.
                 .risoInk(RisoTheme.colors.inks.vintageBlack)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)

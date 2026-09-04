@@ -1,16 +1,14 @@
 package com.alexgabor.pacer
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,16 +16,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Heading1
-import com.alexgabor.design.riso.components.Button
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.Icon
 import com.alexgabor.design.riso.components.IconType
 import com.alexgabor.design.riso.components.OnOff
 import com.alexgabor.design.riso.layout.contentWidth
-import com.alexgabor.design.riso.risograph.inks.risoInk
 import com.alexgabor.pacer.settings.PacerSettingsRepository
 import com.alexgabor.pacer.settings.rememberPacerSettingsRepository
 import kotlinx.coroutines.CoroutineScope
@@ -62,23 +59,36 @@ fun SettingsScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    BoxWithConstraints(modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier.fillMaxSize().safeDrawingPadding()) {
         Column(
             modifier = Modifier.align(Alignment.TopCenter)
                 .contentWidth(available = maxWidth, max = RisoTheme.dimens.contentMaxWidth)
-                .fillMaxSize()
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             SettingsHeader(
                 onBackClick = onBackClick,
-                risoEffectsEnabled = state.risoEffectsEnabled,
-                onRisoEffectToggle = { enabled ->
-                    state.setRisoEffectsEnabled(enabled)
-                },
-                modifier = Modifier.windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(
-                        WindowInsetsSides.Top + WindowInsetsSides.Horizontal
-                    )
-                ),
+            )
+
+            val risoEffectsEnabled = state.risoEffectsEnabled
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                if (risoEffectsEnabled != null) {
+                    item {
+                        RisoEffectSetting(
+                            enabled = risoEffectsEnabled,
+                            onRisoEffectToggle = { enabled -> state.setRisoEffectsEnabled(enabled) },
+                            modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
+                        )
+                    }
+                }
+            }
+
+            val uriHandler = LocalUriHandler.current
+            Body(
+                text = "Made by Alex Gabor ↗",
+                modifier = Modifier
+                    .clickable(onClick = { uriHandler.openUri("https://alexgabor.com") })
+                    .padding(RisoTheme.dimens.screenPadding),
             )
         }
     }
@@ -87,32 +97,20 @@ fun SettingsScreen(
 @Composable
 private fun SettingsHeader(
     onBackClick: () -> Unit,
-    risoEffectsEnabled: Boolean?,
-    onRisoEffectToggle: (enabled: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    SelectionContainer {
-        Column(modifier.risoInk(RisoTheme.colors.content, RisoTheme.colors.accent)) {
-            Heading1(
-                text = "Settings",
-                modifier = Modifier.fillMaxWidth()
-                    .padding(RisoTheme.dimens.screenPadding),
-                startContent = {
-                    Icon(
-                        type = IconType.Back,
-                        onClick = onBackClick,
-                    )
-                }
-            )
-
-            if (risoEffectsEnabled != null) {
-                RisoEffectSetting(
-                    enabled = risoEffectsEnabled,
-                    onRisoEffectToggle = onRisoEffectToggle,
-                    modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding)
+    SelectionContainer(modifier) {
+        Heading1(
+            text = "Settings",
+            modifier = Modifier.fillMaxWidth()
+                .padding(RisoTheme.dimens.screenPadding),
+            startContent = {
+                Icon(
+                    type = IconType.Back,
+                    onClick = onBackClick,
                 )
             }
-        }
+        )
     }
 }
 
