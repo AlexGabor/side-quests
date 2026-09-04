@@ -12,6 +12,7 @@ import com.alexgabor.design.riso.attributes.Colors
 import com.alexgabor.design.riso.attributes.Dimens
 import com.alexgabor.design.riso.attributes.LocalDimens
 import com.alexgabor.design.riso.attributes.LocalPress
+import com.alexgabor.design.riso.attributes.LocalRisoEffectsEnabled
 import com.alexgabor.design.riso.attributes.LocalShapes
 import com.alexgabor.design.riso.attributes.LocalTypography
 import com.alexgabor.design.riso.attributes.Press
@@ -51,11 +52,12 @@ object RisoTheme {
 }
 
 @Composable
-fun RisoTheme(content: @Composable () -> Unit) {
+fun RisoTheme(effectsEnabled: Boolean = true, content: @Composable () -> Unit) {
     CompositionLocalProvider(
         LocalColors provides RisoColors,
         LocalDimens provides RisoDimens,
         LocalPress provides RisoPress,
+        LocalRisoEffectsEnabled provides effectsEnabled,
         LocalShapes provides RisoShapes,
         LocalTypography provides Typography(fontFamily = firaCodeFamily()),
         LocalIndication provides ripple(), // provides the material ripple.

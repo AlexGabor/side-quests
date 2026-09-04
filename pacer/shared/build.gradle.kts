@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
     alias(libs.plugins.sidequests.compose.multiplatform.library)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -34,6 +35,16 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation(libs.androidx.navigation3.ui)
+            implementation(libs.kotlinx.serialization.core)
+            implementation(libs.androidx.datastore.preferencesCore)
+            implementation(libs.okio)
+        }
+        // `WebOpfsStorage` is the one storage the preferences factory will not build for you: its
+        // `createWithPath` hardcodes session storage on the web, which is emptied when the tab
+        // closes. Naming it here is what puts settings on the Origin Private File System instead.
+        wasmJsMain.dependencies {
+            implementation(libs.androidx.datastore.coreOkio)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

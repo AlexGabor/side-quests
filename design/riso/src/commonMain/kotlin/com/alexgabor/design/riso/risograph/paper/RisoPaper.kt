@@ -1,16 +1,35 @@
 package com.alexgabor.design.riso.risograph.paper
 
+import androidx.compose.foundation.background
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.alexgabor.design.riso.attributes.LocalRisoEffectsEnabled
 import com.alexgabor.design.riso.attributes.RisoColors
 
 /**
  * Puts a sheet of paper under whatever this composable draws.
  *
  * The paper is drawn behind the content, its surface shades what is printed on it, and its
- * unevenness pushes the artwork around the way a real sheet does. 
+ * unevenness pushes the artwork around the way a real sheet does.
+ *
+ * With the press stood down — `effectsEnabled = false` on the
+ * [theme][com.alexgabor.design.riso.RisoTheme] — the stock is painted and nothing else: its color,
+ * flat, with no surface to shade or warp what sits on it. Which also means no effect layer, so a
+ * [risoBypass][com.alexgabor.design.riso.risograph.region.risoBypass] inside has nothing to report to
+ * and, as it already documents, does nothing.
  */
-expect fun Modifier.risoPaper(paper: RisoPaper = RisoPaper()): Modifier
+@Composable
+@ReadOnlyComposable
+fun Modifier.risoPaper(paper: RisoPaper = RisoPaper()): Modifier =
+    if (LocalRisoEffectsEnabled.current) risoPaperEffect(paper)
+    // The stock's own color, and [RisoPaper.None]'s is transparent — so no sheet still means no
+    // sheet here, and nothing is painted behind the ink.
+    else background(paper.colorFront)
+
+/** [risoPaper] with the press running: the sheet as this platform can put one down. */
+internal expect fun Modifier.risoPaperEffect(paper: RisoPaper): Modifier
 
 /**
  * The sheet the press prints onto: the color of the stock, and the surface that color sits on.
@@ -27,7 +46,7 @@ data class RisoPaper(
     /** The stock's own color. */
     val colorFront: Color = RisoColors.paper,
     /** What shows through the sheet where its surface lets light past. */
-    val colorBack: Color = Color(0xFFFFFFFF),
+    val colorBack: Color = RisoColors.paper,
     /** Sharper vs smoother transitions across the surface (0..1). */
     val contrast: Float = 0.12f,
     /** Pixel noise intensity (0..1). */

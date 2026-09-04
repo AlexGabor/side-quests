@@ -38,7 +38,10 @@ annotation class PreviewWindowSizeEdges
 @Composable
 private fun PacerScreenWindowSizesPreview() {
     RisoTheme {
-        PacerScreen(Modifier.background(RisoTheme.colors.paper))
+        PacerScreen(
+            onSettingsClick = {},
+            modifier = Modifier.background(RisoTheme.colors.paper),
+        )
     }
 }
 
@@ -46,6 +49,20 @@ private fun PacerScreenWindowSizesPreview() {
 @Composable
 private fun PacerScreenWindowSizeEdgesPreview() {
     RisoTheme {
-        PacerScreen(Modifier.background(RisoTheme.colors.paper))
+        PacerScreen(
+            onSettingsClick = {},
+            modifier = Modifier.background(RisoTheme.colors.paper),
+        )
+    }
+}
+
+@PreviewWindowSizes
+@Composable
+private fun SettingsScreenWindowSizesPreview() {
+    RisoTheme {
+        SettingsScreen(
+            onBackClick = {},
+            modifier = Modifier.background(RisoTheme.colors.paper),
+        )
     }
 }

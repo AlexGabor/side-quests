@@ -1,6 +1,7 @@
 package com.alexgabor.design.riso.attributes
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -10,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
@@ -57,7 +59,7 @@ class Typography(
         fontFamily = fontFamily,
         fontWeight = FontWeight.W500,
         fontSize = 15.sp
-    )
+    ),
 )
 
 val LocalTypography = staticCompositionLocalOf { Typography(fontFamily = null) }
@@ -81,13 +83,13 @@ fun Text(
 fun Heading1(
     text: String,
     modifier: Modifier = Modifier,
+    startContent: @Composable (() -> Unit)? = null,
+    endContent: @Composable (() -> Unit)? = null,
 ) {
     val lineColor = RisoTheme.colors.content
     val lineWidth = RisoTheme.dimens.lineWidth
-    Text(
-        text = text,
-        textStyle = RisoTheme.typography.heading1,
-        modifier = modifier
+    Row(
+        modifier
             .drawBehind {
                 drawRect(
                     color = lineColor,
@@ -95,7 +97,16 @@ fun Heading1(
                 )
             }
             .padding(top = RisoTheme.dimens.lineWidth),
-    )
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        startContent?.invoke()
+        Text(
+            text = text,
+            textStyle = RisoTheme.typography.heading1,
+            modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+        )
+        endContent?.invoke()
+    }
 }
 
 
@@ -152,8 +163,6 @@ private fun TypographyPreview() {
             modifier = Modifier.safeDrawingPadding()
                 .fillMaxSize()
                 .risoPaper()
-                // One drum, so the whole column is a single pass of black over the stock. There is
-                // no background to draw: the sheet is already under it.
                 .risoInk(RisoTheme.colors.inks.vintageBlack)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)

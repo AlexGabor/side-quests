@@ -14,6 +14,7 @@ data class Colors(
     val paper: Color = Color(0xFFefebe1),
     val content: Color = inks.vintageBlack,
     val accent: Color = inks.purple,
+    val accentVariant: Color = inks.fluorescentPink,
 )
 
 /**

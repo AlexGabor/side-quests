@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CornerSize
@@ -52,6 +53,7 @@ fun <T> ButtonGroup(
     Row(
         modifier = modifier
             .risoInk(RisoTheme.colors.content)
+            .requiredWidth(IntrinsicSize.Max)
             .height(IntrinsicSize.Min)
             .clip(RisoTheme.shapes.pillShape)
             .border(
@@ -128,6 +130,11 @@ fun <T> ButtonGroup(
             }
         }
     }
+}
+
+enum class OnOff(override val text: String) : ButtonGroupItem {
+    On("On"),
+    Off("Off"),
 }
 
 private enum class PreviewUnit(override val text: String) : ButtonGroupItem {

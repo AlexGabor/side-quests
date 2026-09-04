@@ -53,7 +53,7 @@ private val bakeDispatcher = Dispatchers.Default.limitedParallelism(1)
  * runs off the composition, and the sheet keeps the surface it already had until the new one is
  * ready: a resize stays at frame rate and the stock's grain is briefly stretched instead.
  */
-actual fun Modifier.risoPaper(paper: RisoPaper): Modifier = composed {
+internal actual fun Modifier.risoPaperEffect(paper: RisoPaper): Modifier = composed {
     val density = LocalDensity.current.density
     var size by remember { mutableStateOf(IntSize.Zero) }
     val host = remember { RisoBypassHost() }

@@ -27,7 +27,7 @@ import com.alexgabor.design.riso.risograph.region.risoBypassHost
  * texture (see [paperMapShader]) and shared across every usage with the same key. Nothing else here
  * is per-frame beyond one texture read and one content read.
  */
-actual fun Modifier.risoPaper(paper: RisoPaper): Modifier = composed {
+internal actual fun Modifier.risoPaperEffect(paper: RisoPaper): Modifier = composed {
     val density = LocalDensity.current.density
     var size by remember { mutableStateOf(IntSize.Zero) }
     val host = remember { RisoBypassHost() }
