@@ -13,6 +13,7 @@ val RisoDimens = Dimens()
 @Immutable
 data class Dimens(
     val lineWidth: Dp = 2.dp,
+    val iconSize: Dp = 32.dp,
     val screenPadding: Dp = 16.dp,
     val contentMaxWidth: Dp = 600.dp,
 )
