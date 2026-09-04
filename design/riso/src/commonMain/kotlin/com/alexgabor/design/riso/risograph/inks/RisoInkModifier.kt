@@ -86,6 +86,11 @@ import kotlin.math.roundToInt
  */
 @Composable
 @ReadOnlyComposable
+fun Modifier.risoInk(mix: RisoMix, offsetScale: Float = 1f): Modifier =
+    risoInk(mix.drums, offsetScale)
+
+@Composable
+@ReadOnlyComposable
 fun Modifier.risoInk(inks: List<Color>, offsetScale: Float = 1f): Modifier =
     if (!LocalRisoEffectsEnabled.current) this
     else this then RisoInkElement(inks, offsetScale, RisoTheme.press, RisoTheme.colors.paper)

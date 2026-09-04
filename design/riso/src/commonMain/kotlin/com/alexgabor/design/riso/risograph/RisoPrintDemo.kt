@@ -375,7 +375,7 @@ private fun ColorMixerChart(paper: RisoPaper, inks: List<RisoInk>) {
                 drawRect(
                     color = risoOverprint(
                         paper.colorFront,
-                        *gridInks.zip(coverages).toTypedArray()
+                        gridInks.zip(coverages).toList()
                     ),
                     topLeft = Offset(gridLeft + column * cell, gridTop + row * cell),
                     // Overdraw by a hair: exact edges leave paper-colored seams between cells.
@@ -506,7 +506,7 @@ private val INTENT_COVERAGES = listOf(0.85f, 0.55f, 0.35f)
 @Composable
 private fun IntentArtwork(paper: RisoPaper, inks: List<RisoInk>, amplify: Float) {
     val drums = inks.map { it.color }
-    val recipe = drums.zip(INTENT_COVERAGES).toTypedArray()
+    val recipe = drums.zip(INTENT_COVERAGES).toList()
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Box(
@@ -514,7 +514,7 @@ private fun IntentArtwork(paper: RisoPaper, inks: List<RisoInk>, amplify: Float)
                 .size(240.dp)
                 .risoInk(drums, offsetScale = amplify)
                 .background(
-                    color = risoOverprint(paper.colorFront, *recipe),
+                    color = risoOverprint(paper.colorFront, recipe),
                     shape = CircleShape,
                 ),
             contentAlignment = Alignment.Center,

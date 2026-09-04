@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Heading1
+import com.alexgabor.design.riso.components.Button
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.Icon
 import com.alexgabor.design.riso.components.IconType
@@ -79,8 +80,6 @@ fun SettingsScreen(
                     )
                 ),
             )
-
-            // Nothing to settle yet — the screen exists so the gear has somewhere to go.
         }
     }
 }

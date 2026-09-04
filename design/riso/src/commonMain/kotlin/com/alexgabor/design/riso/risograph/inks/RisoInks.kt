@@ -57,7 +57,7 @@ internal const val MIN_TRANSMITTANCE = 0.02f
  * mix of two inks far apart on the color wheel is indistinguishable from a mix of the inks that sit
  * between them, and the press will reach for whichever of the two it can print in one wedge.
  */
-fun risoOverprint(paper: Color = RisoColors.paper, vararg inks: Pair<Color, Float>): Color {
+fun risoOverprint(paper: Color = RisoColors.paper, inks: List<Pair<Color, Float>>): Color {
     var red = paper.red
     var green = paper.green
     var blue = paper.blue

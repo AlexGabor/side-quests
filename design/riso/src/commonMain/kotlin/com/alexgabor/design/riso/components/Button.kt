@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -25,10 +26,12 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
+import com.alexgabor.design.riso.attributes.LocalRisoEffectsEnabled
 import com.alexgabor.design.riso.attributes.Text
+import com.alexgabor.design.riso.risograph.inks.RisoMix
+import com.alexgabor.design.riso.risograph.inks.color
 import com.alexgabor.design.riso.risograph.inks.risoInk
 import com.alexgabor.design.riso.risograph.inks.risoKnockout
-import com.alexgabor.design.riso.risograph.inks.risoOverprint
 import com.alexgabor.design.riso.risograph.paper.risoPaper
 
 @Composable
@@ -39,6 +42,14 @@ fun Button(
 ) {
     var pressed by remember { mutableStateOf(false) }
     val offset by animateFloatAsState(targetValue = if (pressed) 0f else 2f)
+    val colors = RisoTheme.colors
+    val fill = RisoMix(
+        colors.inks.fluorescentPink to .7f,
+        colors.inks.purple to .7f,
+        unprinted = colors.accent,
+    )
+    val risoEffectsEnabled = LocalRisoEffectsEnabled.current
+
     Box(
         modifier = modifier
             .clickable(
@@ -56,21 +67,13 @@ fun Button(
                         pressed = false
                     }
                 }
+            }.graphicsLayer {
+                if (risoEffectsEnabled) return@graphicsLayer
+                translationX = -(2-offset) * 1.dp.toPx()
+                translationY = (2-offset) * 1.dp.toPx()
             }
-            .risoInk(
-                RisoTheme.colors.inks.fluorescentPink,
-                RisoTheme.colors.inks.purple,
-                offsetScale = offset,
-            )
-            .background(
-                risoOverprint(
-                    inks = arrayOf(
-                        RisoTheme.colors.inks.fluorescentPink to .7f,
-                        RisoTheme.colors.inks.purple to .7f,
-                    ),
-                ),
-                shape = RisoTheme.shapes.standardShape
-            )
+            .risoInk(fill, offsetScale = offset)
+            .background(fill.color(), shape = RisoTheme.shapes.standardShape)
             .padding(horizontal = 24.dp, vertical = 12.dp),
     ) {
         Text(

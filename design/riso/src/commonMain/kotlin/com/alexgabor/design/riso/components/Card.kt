@@ -16,8 +16,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.alexgabor.design.riso.RisoTheme
+import com.alexgabor.design.riso.risograph.inks.RisoMix
+import com.alexgabor.design.riso.risograph.inks.color
 import com.alexgabor.design.riso.risograph.inks.risoInk
-import com.alexgabor.design.riso.risograph.inks.risoOverprint
 
 @OptIn(ExperimentalFoundationStyleApi::class)
 @Composable
@@ -30,6 +31,12 @@ fun Card(
     val lineWith = RisoTheme.dimens.lineWidth
     val shape = RisoTheme.shapes.standardShape
     val colors = RisoTheme.colors
+    val selectedBorder = RisoMix(
+        colors.content to .5f,
+        colors.accent to 1f,
+        unprinted = colors.accent,
+    )
+    val selectedBorderColor = selectedBorder.color()
     val cardStyle = Style {
         border(
             width = lineWith,
@@ -39,9 +46,7 @@ fun Card(
             animate(spring(stiffness = Spring.StiffnessLow)) {
                 border(
                     width = lineWith * 2,
-                    color = risoOverprint(
-                        inks = arrayOf(colors.content to .5f, colors.accent to 1f),
-                    ),
+                    color = selectedBorderColor,
                 )
             }
         }
@@ -57,9 +62,7 @@ fun Card(
     Box(
         modifier = modifier
             .clickable(enabled = true, onClick = onClick, interactionSource = interactionSource, indication = null)
-            // The two drums the border is mixed from, so a selected card separates back onto exactly
-            // the inks getSelectedColor() overprinted rather than onto whatever is nearest.
-            .risoInk(RisoTheme.colors.content, RisoTheme.colors.accent)
+            .risoInk(selectedBorder)
             .styleable(styleState, cardStyle),
         content = content,
     )
