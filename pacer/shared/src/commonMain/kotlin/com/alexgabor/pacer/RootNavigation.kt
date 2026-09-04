@@ -1,8 +1,5 @@
 package com.alexgabor.pacer
 
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.saveable.rememberSerializable
 import androidx.compose.ui.Modifier
@@ -10,7 +7,7 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.serialization.NavBackStackSerializer
-import androidx.navigation3.ui.NavDisplay
+import com.alexgabor.design.navigation.RisoNavigation
 import com.alexgabor.design.riso.risograph.paper.risoPaper
 import kotlinx.serialization.Serializable
 
@@ -32,7 +29,7 @@ fun RootNavigation() {
         NavBackStack(RootDestination.Pacer)
     }
 
-    NavDisplay(
+    RisoNavigation(
         backStack = backStack,
         modifier = Modifier.risoPaper(),
         entryProvider = entryProvider {
@@ -42,21 +39,6 @@ fun RootNavigation() {
             entry<RootDestination.Settings> {
                 SettingsScreen(onBackClick = { backStack.removeLastOrNull() })
             }
-        },
-        transitionSpec = {
-            // Slide in from right when navigating forward
-            slideInHorizontally(initialOffsetX = { it }) togetherWith
-                    slideOutHorizontally(targetOffsetX = { -it })
-        },
-        popTransitionSpec = {
-            // Slide in from left when navigating back
-            slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                    slideOutHorizontally(targetOffsetX = { it })
-        },
-        predictivePopTransitionSpec = {
-            // Slide in from left when navigating back
-            slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                    slideOutHorizontally(targetOffsetX = { it })
         },
     )
 }
