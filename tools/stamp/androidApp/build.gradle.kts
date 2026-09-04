@@ -13,5 +13,5 @@ android {
 }
 
 dependencies {
-    implementation(projects.stamp.shared)
+    implementation(projects.tools.stamp.shared)
 }
