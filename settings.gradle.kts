@@ -55,6 +55,8 @@ dependencyResolutionManagement {
 }
 
 include(":pacer:androidApp")
+include(":pacer:core:settings:api")
+include(":pacer:core:settings:impl")
 include(":pacer:desktopApp")
 include(":pacer:shared")
 include(":pacer:webApp")

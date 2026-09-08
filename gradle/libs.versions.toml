@@ -76,4 +76,5 @@ kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", versio
 sidequests-android-app = { id = "sidequests.android.app" }
 sidequests-compose-multiplatform-library = { id = "sidequests.compose.multiplatform.library" }
 sidequests-desktop-app = { id = "sidequests.desktop.app" }
+sidequests-multiplatform-library = { id = "sidequests.multiplatform.library" }
 sidequests-web-app = { id = "sidequests.web.app" }

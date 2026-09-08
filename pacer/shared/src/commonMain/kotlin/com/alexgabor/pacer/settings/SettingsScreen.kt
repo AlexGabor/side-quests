@@ -26,6 +26,7 @@ import com.alexgabor.design.riso.components.IconType
 import com.alexgabor.design.riso.components.OnOff
 import com.alexgabor.design.riso.layout.contentWidth
 import com.alexgabor.extension.compose.asState
+import com.alexgabor.pacer.core.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject

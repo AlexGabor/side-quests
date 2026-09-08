@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.extension.compose.asState
-import com.alexgabor.pacer.settings.SettingsRepository
+import com.alexgabor.pacer.core.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import org.koin.compose.koinInject
 

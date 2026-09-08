@@ -24,9 +24,9 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
-            implementation(libs.koin.android)
         }
         commonMain.dependencies {
+            implementation(projects.pacer.core.settings.impl)
             implementation(projects.design.riso)
             implementation(projects.design.navigation)
             implementation(projects.lib.extension.compose)
@@ -41,14 +41,6 @@ kotlin {
             api(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.kotlinx.serialization.core)
-            implementation(libs.androidx.datastore.preferencesCore)
-            implementation(libs.okio)
-        }
-        // `WebOpfsStorage` is the one storage the preferences factory will not build for you: its
-        // `createWithPath` hardcodes session storage on the web, which is emptied when the tab
-        // closes. Naming it here is what puts settings on the Origin Private File System instead.
-        wasmJsMain.dependencies {
-            implementation(libs.androidx.datastore.coreOkio)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
