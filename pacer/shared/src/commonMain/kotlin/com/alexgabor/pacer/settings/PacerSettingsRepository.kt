@@ -7,13 +7,7 @@ import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-/**
- * What the settings are written into, on every platform that has files, and the name of the entry in
- * the browser's Origin Private File System where it doesn't.
- *
- * The `preferences_pb` suffix is the one DataStore's own factories expect; keeping it means the file
- * reads as what it is to anything that knows the format.
- */
+
 internal const val SETTINGS_FILE_NAME = "pacer.preferences_pb"
 
 private val RisoEffectsEnabledKey = booleanPreferencesKey("riso_effects_enabled")

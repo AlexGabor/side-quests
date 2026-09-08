@@ -12,12 +12,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.extension.compose.asState
 import com.alexgabor.pacer.settings.PacerSettingsRepository
-import com.alexgabor.pacer.settings.rememberPacerSettingsRepository
 import kotlinx.coroutines.CoroutineScope
+import org.koin.compose.koinInject
 
 @Composable
 fun rememberAppState(
-    settings: PacerSettingsRepository = rememberPacerSettingsRepository(),
+    settings: PacerSettingsRepository = koinInject(),
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
 ): AppState {
     return remember(settings, coroutineScope) {

@@ -1,22 +1,21 @@
 package com.alexgabor.pacer.settings
 
-import androidx.compose.runtime.Composable
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import okio.Path
 import okio.Path.Companion.toPath
+import org.koin.core.module.Module
+import org.koin.dsl.module
 import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSUserDomainMask
 
-/** See [rememberSettingsDataStore]: one store per file, and a composition is too short a life. */
-private val store: DataStore<Preferences> by lazy {
-    PreferenceDataStoreFactory.createWithPath(produceFile = ::settingsPath)
+internal val settingsStoreModule: Module = module {
+    single<DataStore<Preferences>> {
+        PreferenceDataStoreFactory.createWithPath(produceFile = ::settingsPath)
+    }
 }
-
-@Composable
-internal actual fun rememberSettingsDataStore(): DataStore<Preferences> = store
 
 /**
  * Application Support rather than Documents, which is the user's and can be handed to them by the

@@ -28,11 +28,12 @@ import com.alexgabor.design.riso.layout.contentWidth
 import com.alexgabor.extension.compose.asState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 
 @Composable
 fun rememberSettingsScreenState(
-    settings: PacerSettingsRepository = rememberPacerSettingsRepository(),
+    settings: PacerSettingsRepository = koinInject(),
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
 ): SettingsScreenState {
     return remember(settings, coroutineScope) { SettingsScreenState(settings, coroutineScope) }

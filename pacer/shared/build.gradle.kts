@@ -24,6 +24,7 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
+            implementation(libs.koin.android)
         }
         commonMain.dependencies {
             implementation(projects.design.riso)
@@ -37,6 +38,8 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            api(libs.koin.core)
+            implementation(libs.koin.compose)
             implementation(libs.kotlinx.serialization.core)
             implementation(libs.androidx.datastore.preferencesCore)
             implementation(libs.okio)
@@ -49,6 +52,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.koin.test)
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.compose.uiTest)
         }
