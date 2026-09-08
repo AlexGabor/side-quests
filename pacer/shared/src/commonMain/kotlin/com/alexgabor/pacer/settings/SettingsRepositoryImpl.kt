@@ -12,13 +12,19 @@ internal const val SETTINGS_FILE_NAME = "pacer.preferences_pb"
 
 private val RisoEffectsEnabledKey = booleanPreferencesKey("riso_effects_enabled")
 
+interface SettingsRepository {
+    val risoEffectsEnabled: Flow<Boolean>
+    suspend fun setRisoEffects(enabled: Boolean)
+}
 
-class PacerSettingsRepository(private val dataStore: DataStore<Preferences>) {
+class SettingsRepositoryImpl(
+    private val dataStore: DataStore<Preferences>,
+) : SettingsRepository {
 
-    val risoEffectsEnabled: Flow<Boolean> =
+    override val risoEffectsEnabled: Flow<Boolean> =
         dataStore.data.map { preferences -> preferences[RisoEffectsEnabledKey] ?: true }
 
-    suspend fun setRisoEffectsEnabled(enabled: Boolean) {
+    override suspend fun setRisoEffects(enabled: Boolean) {
         dataStore.edit { preferences -> preferences[RisoEffectsEnabledKey] = enabled }
     }
 }

@@ -33,14 +33,14 @@ import org.koin.compose.koinInject
 
 @Composable
 fun rememberSettingsScreenState(
-    settings: PacerSettingsRepository = koinInject(),
+    settings: SettingsRepository = koinInject(),
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
 ): SettingsScreenState {
     return remember(settings, coroutineScope) { SettingsScreenState(settings, coroutineScope) }
 }
 
 class SettingsScreenState(
-    private val settings: PacerSettingsRepository,
+    private val settings: SettingsRepository,
     private val coroutineScope: CoroutineScope,
 ) {
     val risoEffectsEnabled: Boolean? by settings.risoEffectsEnabled
@@ -48,7 +48,7 @@ class SettingsScreenState(
 
     fun setRisoEffectsEnabled(enabled: Boolean) {
         coroutineScope.launch {
-            settings.setRisoEffectsEnabled(enabled)
+            settings.setRisoEffects(enabled)
         }
     }
 }

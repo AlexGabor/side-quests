@@ -1,12 +1,13 @@
 package com.alexgabor.pacer.di
 
-import com.alexgabor.pacer.settings.PacerSettingsRepository
+import com.alexgabor.pacer.settings.SettingsRepository
+import com.alexgabor.pacer.settings.SettingsRepositoryImpl
 import org.koin.core.context.startKoin
 import org.koin.dsl.KoinAppDeclaration
 import org.koin.dsl.module
 
 val sharedModule = module {
-    single { PacerSettingsRepository(get()) }
+    single<SettingsRepository> { SettingsRepositoryImpl(get()) }
 }
 
 

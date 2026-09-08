@@ -11,13 +11,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.extension.compose.asState
-import com.alexgabor.pacer.settings.PacerSettingsRepository
+import com.alexgabor.pacer.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import org.koin.compose.koinInject
 
 @Composable
 fun rememberAppState(
-    settings: PacerSettingsRepository = koinInject(),
+    settings: SettingsRepository = koinInject(),
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
 ): AppState {
     return remember(settings, coroutineScope) {
@@ -26,7 +26,7 @@ fun rememberAppState(
 }
 
 class AppState(
-    settings: PacerSettingsRepository,
+    settings: SettingsRepository,
     coroutineScope: CoroutineScope,
 ) {
     val risoEffectsEnabled: Boolean? by settings.risoEffectsEnabled
