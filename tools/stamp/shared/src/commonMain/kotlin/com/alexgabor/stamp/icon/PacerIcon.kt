@@ -160,6 +160,16 @@ val PacerIconSplash: Color = RisoColors.inks.purple
  */
 const val PACER_ICON_SAFE_RADIUS: Float = 66f / 108f / 2f
 
+/**
+ * How much of an iOS icon the mark fills, in the same fraction as [PACER_ICON_SAFE_RADIUS].
+ *
+ * iOS masks with a squircle, which takes only the corners — the circle inscribed in the canvas
+ * survives it whole. So the allowance [PACER_ICON_SAFE_RADIUS] makes for a launcher's circular mask
+ * buys nothing here and would leave the mark swimming. This is margin rather than safety: it keeps a
+ * tenth of the canvas clear on every side, which is about where Apple's own marks sit in the grid.
+ */
+const val PACER_IOS_FIT_RADIUS: Float = 0.40f
+
 private const val SILHOUETTE_SPLASH_ALPHA = 0.28f
 
 // The mark's own bounding circle, in the same fractions as everything below. Recompute these two if

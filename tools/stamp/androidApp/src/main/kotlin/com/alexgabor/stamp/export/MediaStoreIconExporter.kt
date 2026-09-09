@@ -12,12 +12,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Writes the layers into `Download/stamp/`, one directory per density bucket, so that the pulled
- * tree can be copied straight over an app's `res/`:
+ * Writes the prints into `Download/stamp/`, one directory per density bucket and one for the asset
+ * catalog, so that the pulled tree can be copied straight over an app's resources:
  *
  * ```
  * adb pull /sdcard/Download/stamp
  * cp -R stamp/drawable-* pacer/androidApp/src/main/res/
+ * cp stamp/AppIcon.appiconset/AppIcon.png pacer/iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/
  * ```
  *
  * `MediaStore` rather than a share sheet or the app's own external directory: an app needs no
@@ -31,6 +32,7 @@ class MediaStoreIconExporter(private val context: Context) : IconExporter {
     override suspend fun write(
         dir: String,
         fileName: String,
+        opaque: Boolean,
         image: ImageBitmap,
     ): Unit = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
@@ -57,7 +59,13 @@ class MediaStoreIconExporter(private val context: Context) : IconExporter {
             ?: error("MediaStore refused $relativePath/$fileName")
 
         try {
-            val bitmap = image.asAndroidBitmap().software()
+            val bitmap = image.asAndroidBitmap().software(mutable = opaque).apply {
+                // Skia encodes a PNG from the bitmap's alpha type, so declaring the pixels opaque is
+                // what makes it write a color type carrying no alpha channel at all — which is what
+                // an iOS asset catalog requires of an app icon. Sound only because a print marked
+                // opaque is one laid on stock that covers the canvas: nothing is discarded.
+                if (opaque) setHasAlpha(false)
+            }
             resolver.openOutputStream(uri)?.use { out ->
                 if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) {
                     error("Could not encode $fileName")
@@ -78,13 +86,20 @@ class MediaStoreIconExporter(private val context: Context) : IconExporter {
 }
 
 /**
- * A copy that can be read back pixel by pixel.
+ * A copy that can be read back pixel by pixel, and written to if [mutable].
  *
  * `GraphicsLayer.toImageBitmap` renders through a `HardwareRenderer` on API 28 and up — which is the
  * only reason the print shaders run at all — and hands back a bitmap that lives on the GPU.
+ *
+ * [mutable] is for the callers that go on to change something about the copy. `setHasAlpha` happens
+ * not to be checked against mutability today, which is a thin thing to encode a file format on.
  */
-private fun Bitmap.software(): Bitmap =
-    if (config == Bitmap.Config.HARDWARE) copy(Bitmap.Config.ARGB_8888, false)!! else this
+private fun Bitmap.software(mutable: Boolean = false): Bitmap =
+    if (config == Bitmap.Config.HARDWARE || (mutable && !isMutable)) {
+        copy(Bitmap.Config.ARGB_8888, mutable)!!
+    } else {
+        this
+    }
 
 private const val DOWNLOADS = "Download"
 private const val ROOT = "stamp"
