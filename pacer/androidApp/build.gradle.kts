@@ -14,5 +14,6 @@ android {
 
 dependencies {
     implementation(projects.pacer.shared)
+    implementation(projects.lib.launch)
     implementation(libs.koin.android)
 }

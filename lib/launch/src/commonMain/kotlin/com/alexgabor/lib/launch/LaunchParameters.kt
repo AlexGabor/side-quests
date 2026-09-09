@@ -1,0 +1,161 @@
+package com.alexgabor.lib.launch
+
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+
+/**
+ * What an app was started with, flattened to strings.
+ *
+ * Android intent extras, a browser query string and command line arguments are all key/value bags,
+ * so that is the shape everything is reduced to at the boundary. Reading is deliberately total:
+ * every accessor answers null rather than throwing, because launch input is the one thing a user
+ * can type by hand and a typo in a URL should give the default screen, not a crash on start.
+ */
+class LaunchParameters(private val values: Map<String, String>) {
+
+    val isEmpty: Boolean get() = values.isEmpty()
+
+    fun asMap(): Map<String, String> = values
+
+    operator fun get(key: String): String? = values[key]
+
+    operator fun contains(key: String): Boolean = key in values
+
+    fun double(key: String): Double? = values[key]?.toDoubleOrNull()?.takeIf { it.isFinite() }
+
+    fun long(key: String): Long? = values[key]?.toLongOrNull()
+
+    fun int(key: String): Int? = values[key]?.toIntOrNull()
+
+    /** Present-but-valueless counts as true, so `--verbose` works as well as `--verbose=true`. */
+    fun boolean(key: String): Boolean? = when (values[key]?.lowercase()) {
+        null -> null
+        "", "true", "1", "yes", "on" -> true
+        "false", "0", "no", "off" -> false
+        else -> null
+    }
+
+    /**
+     * A duration written the way a runner writes one: `"1:23:45"`, `"5:30"`, or plain seconds.
+     *
+     * Only the last component may be fractional, and every component is unbounded — `"90:00"` is
+     * ninety minutes, not an error — because clamping input the user typed on purpose would be
+     * more surprising than honouring it.
+     */
+    fun duration(key: String): Duration? {
+        val parts = values[key]?.split(':') ?: return null
+        if (parts.size > 3) return null
+
+        var total = 0.0
+        for ((index, part) in parts.withIndex()) {
+            val value = part.toDoubleOrNull() ?: return null
+            if (value < 0.0 || !value.isFinite()) return null
+            // Rightmost component is always seconds, so the multiplier depends on how many follow.
+            val multiplier = POSITION_MULTIPLIERS[parts.size - 1 - index]
+            total += value * multiplier
+        }
+        return total.seconds
+    }
+
+    /** By constant name, case-insensitively; an unknown name is null rather than an exception. */
+    inline fun <reified E : Enum<E>> enum(key: String): E? {
+        val name = this[key] ?: return null
+        return enumValues<E>().firstOrNull { it.name.equals(name, ignoreCase = true) }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is LaunchParameters && values == other.values)
+
+    override fun hashCode(): Int = values.hashCode()
+
+    override fun toString(): String = "LaunchParameters($values)"
+
+    companion object {
+        val Empty = LaunchParameters(emptyMap())
+
+        private val POSITION_MULTIPLIERS = doubleArrayOf(1.0, 60.0, 3600.0)
+
+        /**
+         * Parses `"?a=1&b=2"`, `"a=1&b=2"` or a whole URL.
+         *
+         * Shared by the web, iOS and desktop entry points — only Android has a launch input that
+         * isn't already a query string.
+         */
+        fun ofQueryString(query: String?): LaunchParameters {
+            if (query.isNullOrBlank()) return Empty
+
+            // Accepts a whole url, a "?a=1" search, a "#a=1" fragment, or a bare "a=1".
+            val body = query.trimStart('#', '?').substringAfterLast('?').substringBefore('#')
+
+            val values = body
+                .split('&')
+                .filter { it.isNotEmpty() }
+                .mapNotNull { pair ->
+                    val name = pair.substringBefore('=').percentDecoded()
+                    if (name.isEmpty()) return@mapNotNull null
+                    name to pair.substringAfter('=', missingDelimiterValue = "").percentDecoded()
+                }
+                .toMap()
+
+            return if (values.isEmpty()) Empty else LaunchParameters(values)
+        }
+    }
+}
+
+/**
+ * Percent-decoding, plus the `+`-for-space that query strings inherited from form encoding.
+ *
+ * Hand-rolled because the multiplatform standard library has no URL decoder, and reaching for a
+ * platform one would mean four implementations of something this small. A malformed escape is left
+ * as written rather than throwing — same forgiveness as everything else here.
+ */
+private fun String.percentDecoded(): String {
+    if ('%' !in this && '+' !in this) return this
+
+    val decoded = StringBuilder(length)
+    // Escapes are bytes, and a character can be several of them, so they are gathered up and
+    // decoded together. Anything else is already a character and is appended as one — encoding it
+    // to bytes first would split a surrogate pair and turn an unescaped emoji into two question
+    // marks.
+    val escaped = ArrayList<Byte>(4)
+
+    fun flush() {
+        if (escaped.isEmpty()) return
+        decoded.append(escaped.toByteArray().decodeToString())
+        escaped.clear()
+    }
+
+    var index = 0
+    while (index < length) {
+        when (val char = this[index]) {
+            '%' -> {
+                val byte = if (index + 3 <= length) {
+                    substring(index + 1, index + 3).toIntOrNull(radix = 16)
+                } else {
+                    null
+                }
+                if (byte == null) {
+                    flush()
+                    decoded.append(char)
+                    index++
+                } else {
+                    escaped.add(byte.toByte())
+                    index += 3
+                }
+            }
+            '+' -> {
+                flush()
+                decoded.append(' ')
+                index++
+            }
+            else -> {
+                flush()
+                decoded.append(char)
+                index++
+            }
+        }
+    }
+    flush()
+
+    return decoded.toString()
+}

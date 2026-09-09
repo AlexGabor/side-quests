@@ -7,17 +7,19 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import com.alexgabor.lib.launch.launchParameters
 import com.alexgabor.pacer.di.initKoin
 
-fun main() {
+fun main(args: Array<String>) {
     initKoin()
+    val launch = args.launchParameters()
     application {
         val state = rememberWindowState(
             size = DpSize(420.dp, 900.dp),
             position = WindowPosition(Alignment.Center),
         )
         Window(onCloseRequest = ::exitApplication, state = state, title = "Pacer") {
-            App()
+            App(launch)
         }
     }
 }

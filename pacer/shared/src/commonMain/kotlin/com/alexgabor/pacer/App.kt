@@ -4,13 +4,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.alexgabor.design.navigation.LocalDeepLink
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.extension.compose.asState
+import com.alexgabor.lib.launch.LaunchParameters
 import com.alexgabor.pacer.core.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import org.koin.compose.koinInject
@@ -35,14 +38,21 @@ class AppState(
 
 @Composable
 fun App(
-    state: AppState = rememberAppState()
+    launch: LaunchParameters = LaunchParameters.Empty,
+    state: AppState = rememberAppState(),
 ) {
+    val deepLink = remember(launch) { pacerDeepLink(launch) }
     val risoEffectsEnabled = state.risoEffectsEnabled
+
     RisoTheme(effectsEnabled = risoEffectsEnabled != false) {
-        if (risoEffectsEnabled == null) {
-            Box(Modifier.fillMaxSize().background(RisoTheme.colors.paper))
-        } else {
-            RootNavigation()
+        // Settings arrive a frame or two after launch, and the navigation below is not composed
+        // until they do. Providing the deep link out here means it is simply waiting when it is.
+        CompositionLocalProvider(LocalDeepLink provides deepLink) {
+            if (risoEffectsEnabled == null) {
+                Box(Modifier.fillMaxSize().background(RisoTheme.colors.paper))
+            } else {
+                RootNavigation()
+            }
         }
     }
 }

@@ -29,6 +29,7 @@ kotlin {
             implementation(projects.pacer.core.settings.impl)
             implementation(projects.design.riso)
             implementation(projects.design.navigation)
+            api(projects.lib.launch)
             implementation(projects.lib.extension.compose)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
@@ -44,6 +45,9 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            // Only to prove the navigation keys survive a serialization round trip; the app itself
+            // persists them through savedstate, not json.
+            implementation(libs.kotlinx.serialization.json)
             implementation(libs.koin.test)
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.compose.uiTest)

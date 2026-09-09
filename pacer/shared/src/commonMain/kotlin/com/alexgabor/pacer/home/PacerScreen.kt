@@ -49,8 +49,8 @@ private const val RightPaneWeight = 0.6f
 fun PacerScreen(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
+    state: PaceCalculatorState = rememberPaceCalculatorState(),
 ) {
-    val state = rememberPaceCalculatorState()
     val listState = rememberLazyListState()
     val leftPaneScrollState = rememberScrollState()
 

@@ -16,6 +16,19 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!--
+                Opens pacer:// links. The host names the screen and the query carries its starting
+                values, so pacer://pacer?distance=21.1&pace=5:00 is a run to open on.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="pacer" />
+            </intent-filter>
         </activity>
     </application>
 

@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     implementation(projects.pacer.shared)
+    implementation(projects.lib.launch)
     implementation(compose.desktop.currentOs)
 }
 

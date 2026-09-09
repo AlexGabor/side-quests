@@ -80,9 +80,9 @@ class PaceCalculatorState(
     val distanceSliderState: DistanceSliderState = DistanceSliderState(),
     val paceSliderState: PaceSliderState = PaceSliderState(),
     val timeSliderState: TimeSliderState = TimeSliderState(),
-    distance: Distance = Distance(42.20),
-    pace: Duration = 6.minutes,
-    time: Duration = 4.hours + 13.minutes + 12.seconds,
+    distance: Distance = DefaultDistance,
+    pace: Duration = DefaultPace,
+    time: Duration = DefaultTime,
     selectedMetric: Metric = Metric.Pace,
     selectedUnit: DistanceUnit = DistanceUnit.Kilometers,
 ) {
@@ -246,6 +246,56 @@ class PaceCalculatorState(
             syncDown(::timeOnSlider, timeSliderState::isUserScrolling, timeSliderState::moveTo)
         }
     }
+
+    internal companion object {
+        /**
+         * A marathon at six minutes a kilometre. Consistent by hand: 42.20 km at 6:00/km is
+         * exactly 4:13:12, so a default start needs no computing and cannot drift.
+         */
+        val DefaultDistance = Distance(42.20)
+        val DefaultPace = 6.minutes
+        val DefaultTime = 4.hours + 13.minutes + 12.seconds
+
+        /**
+         * The run [args] describes, made consistent.
+         *
+         * Whichever metric is selected is the computed one, so it is derived from the other two
+         * even when the launch supplied a value for it — three independent numbers would otherwise
+         * describe a run that doesn't add up. Which metric that is comes from [PacerLaunchArgs.metric]
+         * when it was given, and otherwise from what was left out: naming exactly two of the three
+         * reads as "work out the third".
+         *
+         * Defaults are left alone when nothing was launched with, because they are already
+         * consistent and recomputing them would only round them.
+         */
+        fun launched(
+            distanceSliderState: DistanceSliderState,
+            paceSliderState: PaceSliderState,
+            timeSliderState: TimeSliderState,
+            args: PacerLaunchArgs,
+        ): PaceCalculatorState {
+            val unit = args.unit ?: DistanceUnit.Kilometers
+
+            val selectedMetric = args.metric ?: when {
+                args.distance == null && args.pace != null && args.time != null -> Metric.Distance
+                args.pace == null && args.distance != null && args.time != null -> Metric.Pace
+                args.time == null && args.distance != null && args.pace != null -> Metric.Time
+                else -> Metric.Pace
+            }
+
+            return PaceCalculatorState(
+                distanceSliderState,
+                paceSliderState,
+                timeSliderState,
+                // Both are given in the unit on screen; the state holds kilometres.
+                distance = args.distance?.let { Distance.of(it, unit) } ?: DefaultDistance,
+                pace = args.pace?.let { it / unit.kilometers } ?: DefaultPace,
+                time = args.time ?: DefaultTime,
+                selectedMetric = selectedMetric,
+                selectedUnit = unit,
+            ).apply { if (!args.isEmpty) recompute() }
+        }
+    }
 }
 
 private fun comparison(ticks: Int, maxTicks: Int): Comparison = when {
@@ -342,7 +392,9 @@ internal fun paceCalculatorStateSaver(
 )
 
 @Composable
-fun rememberPaceCalculatorState(): PaceCalculatorState {
+fun rememberPaceCalculatorState(
+    args: PacerLaunchArgs = PacerLaunchArgs.None,
+): PaceCalculatorState {
     val distanceState = rememberDistanceSliderState()
     val paceState = rememberPaceSliderState()
     val timeState = rememberTimeSliderState()
@@ -351,7 +403,7 @@ fun rememberPaceCalculatorState(): PaceCalculatorState {
         paceCalculatorStateSaver(distanceState, paceState, timeState)
     }
     val state = rememberSaveable(distanceState, paceState, timeState, saver = saver) {
-        PaceCalculatorState(distanceState, paceState, timeState)
+        PaceCalculatorState.launched(distanceState, paceState, timeState, args)
     }
 
     LaunchedEffect(state) { state.sync() }
