@@ -12,8 +12,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.v2.runComposeUiTest
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.pacer.home.Comparison
 import com.alexgabor.pacer.home.Distance
