@@ -13,11 +13,9 @@ kotlin {
         commonMain.dependencies {
             api(libs.androidx.navigation3.ui)
             api(libs.kotlinx.serialization.core)
-            implementation(libs.compose.uiToolingPreview)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
-            implementation(libs.compose.uiTest)
         }
         // Composing for real needs something to render into, which on the JVM means the skiko
         // build for whichever machine is running the tests.
@@ -25,8 +23,4 @@ kotlin {
             implementation(compose.desktop.currentOs)
         }
     }
-}
-
-dependencies {
-    androidRuntimeClasspath(libs.compose.uiTooling)
 }

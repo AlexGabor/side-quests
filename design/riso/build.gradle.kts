@@ -65,11 +65,6 @@ kotlin {
             implementation(libs.compose.components.resources)
             api(libs.compose.foundation)
             implementation(libs.compose.material3)
-            implementation(libs.compose.uiToolingPreview)
         }
     }
-}
-
-dependencies {
-    androidRuntimeClasspath(libs.compose.uiTooling)
 }
