@@ -13,7 +13,7 @@ android {
 }
 
 dependencies {
-    implementation(projects.pacer.shared)
+    implementation(projects.pacer.sharedApp)
     implementation(projects.lib.launch)
     implementation(libs.koin.android)
 }

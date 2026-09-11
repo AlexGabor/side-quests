@@ -5,7 +5,7 @@ plugins {
 kotlin {
     sourceSets {
         wasmJsMain.dependencies {
-            implementation(projects.pacer.shared)
+            implementation(projects.pacer.sharedApp)
             implementation(projects.lib.launch)
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
