@@ -9,19 +9,11 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import com.alexgabor.design.navigation.LocalDeepLink
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.lib.launch.LaunchParameters
-import com.alexgabor.pacer.core.settings.SettingsRepository
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import com.alexgabor.pacer.core.settings.fakeSettingsModule
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
-import org.koin.dsl.module
 import kotlin.test.AfterTest
 import kotlin.test.Test
-
-private class FakeSettingsRepository : SettingsRepository {
-    override val risoEffectsEnabled: Flow<Boolean> = flowOf(false)
-    override suspend fun setRisoEffects(enabled: Boolean) = Unit
-}
 
 /** The whole chain, from what the app was launched with to what is on screen. */
 @OptIn(ExperimentalTestApi::class)
@@ -33,7 +25,7 @@ class RootNavigationTest {
     private fun ComposeUiTest.launchedWith(query: String) {
         // Settings reaches the screen through Koin, so there has to be one to inject.
         startKoin {
-            modules(module { single<SettingsRepository> { FakeSettingsRepository() } })
+            modules(fakeSettingsModule)
         }
 
         setContent {

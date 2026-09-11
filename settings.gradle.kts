@@ -57,6 +57,7 @@ dependencyResolutionManagement {
 include(":pacer:androidApp")
 include(":pacer:core:settings:api")
 include(":pacer:core:settings:impl")
+include(":pacer:core:settings:test")
 include(":pacer:desktopApp")
 include(":pacer:feature:home")
 include(":pacer:feature:settings")

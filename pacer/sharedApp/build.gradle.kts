@@ -45,6 +45,7 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.koin.test)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(projects.pacer.core.settings.test)
         }
 
         // Composing for real needs something to render into, which on the JVM means the skiko
