@@ -8,7 +8,7 @@ plugins {
 kotlin {
     
     android {
-       namespace = "com.alexgabor.pacer.shared"
+       namespace = "com.alexgabor.pacer.sharedApp"
     }
 
     // The iOS targets themselves come from the convention plugin; only the binary they produce is
