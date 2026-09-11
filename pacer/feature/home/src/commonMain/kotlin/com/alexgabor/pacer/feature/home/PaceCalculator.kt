@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.home
+package com.alexgabor.pacer.feature.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -32,15 +32,15 @@ import com.alexgabor.design.riso.attributes.Heading3
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.Card
 import com.alexgabor.design.riso.components.track.TrackSate
-import com.alexgabor.pacer.home.slider.DistanceSlider
-import com.alexgabor.pacer.home.slider.DistanceSliderState
-import com.alexgabor.pacer.home.slider.PaceSlider
-import com.alexgabor.pacer.home.slider.PaceSliderState
-import com.alexgabor.pacer.home.slider.TimeSlider
-import com.alexgabor.pacer.home.slider.TimeSliderState
-import com.alexgabor.pacer.home.slider.rememberDistanceSliderState
-import com.alexgabor.pacer.home.slider.rememberPaceSliderState
-import com.alexgabor.pacer.home.slider.rememberTimeSliderState
+import com.alexgabor.pacer.feature.home.slider.DistanceSlider
+import com.alexgabor.pacer.feature.home.slider.DistanceSliderState
+import com.alexgabor.pacer.feature.home.slider.PaceSlider
+import com.alexgabor.pacer.feature.home.slider.PaceSliderState
+import com.alexgabor.pacer.feature.home.slider.TimeSlider
+import com.alexgabor.pacer.feature.home.slider.TimeSliderState
+import com.alexgabor.pacer.feature.home.slider.rememberDistanceSliderState
+import com.alexgabor.pacer.feature.home.slider.rememberPaceSliderState
+import com.alexgabor.pacer.feature.home.slider.rememberTimeSliderState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -412,7 +412,7 @@ fun rememberPaceCalculatorState(
 }
 
 @Composable
-fun UnitSelector(
+internal fun UnitSelector(
     state: PaceCalculatorState,
     modifier: Modifier = Modifier,
 ) {
@@ -464,7 +464,7 @@ private fun cardModifier(maxCardWidth: Dp): Modifier =
  * @param maxCardWidth caps how wide a card grows on a roomy window; a card is centred within
  * whatever is left over. [Dp.Unspecified] lets them fill the list.
  */
-fun LazyListScope.metricCardItems(
+internal fun LazyListScope.metricCardItems(
     state: PaceCalculatorState,
     maxCardWidth: Dp = Dp.Unspecified,
 ) {
@@ -513,7 +513,7 @@ fun LazyListScope.metricCardItems(
 
 /** The cards on their own, for a layout that places the unit selector somewhere else. */
 @Composable
-fun MetricCards(
+internal fun MetricCards(
     state: PaceCalculatorState,
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
@@ -533,7 +533,7 @@ fun MetricCards(
 
 /** The unit selector and the cards in a single column. */
 @Composable
-fun PaceCalculator(
+internal fun PaceCalculator(
     modifier: Modifier = Modifier,
     state: PaceCalculatorState = rememberPaceCalculatorState(),
     listState: LazyListState = rememberLazyListState(),

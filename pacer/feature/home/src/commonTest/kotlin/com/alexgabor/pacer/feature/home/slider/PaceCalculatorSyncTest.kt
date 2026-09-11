@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.slider
+package com.alexgabor.pacer.feature.home.slider
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,14 +15,14 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.pacer.home.Comparison
-import com.alexgabor.pacer.home.Distance
-import com.alexgabor.pacer.home.Metric
-import com.alexgabor.pacer.home.PaceCalculatorState
-import com.alexgabor.pacer.home.slider.DistanceSlider
-import com.alexgabor.pacer.home.slider.PaceSlider
-import com.alexgabor.pacer.home.slider.PaceSliderState
-import com.alexgabor.pacer.home.slider.TimeSlider
+import com.alexgabor.pacer.feature.home.Comparison
+import com.alexgabor.pacer.feature.home.Distance
+import com.alexgabor.pacer.feature.home.Metric
+import com.alexgabor.pacer.feature.home.PaceCalculatorState
+import com.alexgabor.pacer.feature.home.slider.DistanceSlider
+import com.alexgabor.pacer.feature.home.slider.PaceSlider
+import com.alexgabor.pacer.feature.home.slider.PaceSliderState
+import com.alexgabor.pacer.feature.home.slider.TimeSlider
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

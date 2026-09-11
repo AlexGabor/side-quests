@@ -7,12 +7,12 @@ import androidx.navigation3.runtime.entryProvider
 import com.alexgabor.design.navigation.RisoNavigation
 import com.alexgabor.design.navigation.rememberDeepLinkedBackStack
 import com.alexgabor.design.riso.risograph.paper.risoPaper
-import com.alexgabor.pacer.home.DistanceUnit
-import com.alexgabor.pacer.home.Metric
-import com.alexgabor.pacer.home.PacerLaunchArgs
-import com.alexgabor.pacer.home.PacerScreen
-import com.alexgabor.pacer.home.rememberPaceCalculatorState
-import com.alexgabor.pacer.settings.SettingsScreen
+import com.alexgabor.pacer.feature.home.DistanceUnit
+import com.alexgabor.pacer.feature.home.Metric
+import com.alexgabor.pacer.feature.home.PacerLaunchArgs
+import com.alexgabor.pacer.feature.home.PacerScreen
+import com.alexgabor.pacer.feature.home.rememberPaceCalculatorState
+import com.alexgabor.pacer.feature.settings.SettingsScreen
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration.Companion.milliseconds
 

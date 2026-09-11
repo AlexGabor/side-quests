@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.home.slider
+package com.alexgabor.pacer.feature.home.slider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -14,8 +14,8 @@ import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.components.track.Track
 import com.alexgabor.design.riso.components.track.TrackAlignment
 import com.alexgabor.design.riso.components.track.TrackSate
-import com.alexgabor.pacer.home.roundedSeconds
-import com.alexgabor.pacer.home.twoDigits
+import com.alexgabor.pacer.feature.home.roundedSeconds
+import com.alexgabor.pacer.feature.home.twoDigits
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
@@ -23,7 +23,7 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 @Composable
-fun rememberTimeSliderState(): TimeSliderState = remember { TimeSliderState() }
+internal fun rememberTimeSliderState(): TimeSliderState = remember { TimeSliderState() }
 
 /**
  * The three rulers that show an elapsed time, and the translation between them and a [Duration].
@@ -69,7 +69,7 @@ class TimeSliderState(
 }
 
 @Composable
-fun TimeSlider(
+internal fun TimeSlider(
     modifier: Modifier = Modifier,
     userScrollEnabled: Boolean = true,
     state: TimeSliderState = rememberTimeSliderState(),

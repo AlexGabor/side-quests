@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.home.slider
+package com.alexgabor.pacer.feature.home.slider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -13,8 +13,8 @@ import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.components.track.Track
 import com.alexgabor.design.riso.components.track.TrackAlignment
 import com.alexgabor.design.riso.components.track.TrackSate
-import com.alexgabor.pacer.home.roundedSeconds
-import com.alexgabor.pacer.home.twoDigits
+import com.alexgabor.pacer.feature.home.roundedSeconds
+import com.alexgabor.pacer.feature.home.twoDigits
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
@@ -22,7 +22,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 @Composable
-fun rememberPaceSliderState(): PaceSliderState = remember { PaceSliderState() }
+internal fun rememberPaceSliderState(): PaceSliderState = remember { PaceSliderState() }
 
 /**
  * The two rulers that show a pace — minutes and seconds per distance unit — and the translation
@@ -67,7 +67,7 @@ class PaceSliderState(
 }
 
 @Composable
-fun PaceSlider(
+internal fun PaceSlider(
     modifier: Modifier = Modifier,
     userScrollEnabled: Boolean = true,
     state: PaceSliderState = rememberPaceSliderState(),

@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.home
+package com.alexgabor.pacer.feature.home
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Box

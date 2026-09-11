@@ -2,8 +2,8 @@ package com.alexgabor.pacer
 
 import com.alexgabor.lib.launch.LaunchParameters
 import kotlinx.serialization.json.Json
-import com.alexgabor.pacer.home.DistanceUnit
-import com.alexgabor.pacer.home.Metric
+import com.alexgabor.pacer.feature.home.DistanceUnit
+import com.alexgabor.pacer.feature.home.Metric
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

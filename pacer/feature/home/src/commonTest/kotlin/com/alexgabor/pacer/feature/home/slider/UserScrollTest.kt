@@ -1,8 +1,8 @@
-package com.alexgabor.pacer.slider
+package com.alexgabor.pacer.feature.home.slider
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.Snapshot
-import com.alexgabor.pacer.home.collectUserScroll
+import com.alexgabor.pacer.feature.home.collectUserScroll
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle

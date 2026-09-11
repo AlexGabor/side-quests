@@ -1,11 +1,6 @@
-package com.alexgabor.pacer.home
+package com.alexgabor.design.riso.layout
 
-import androidx.compose.foundation.background
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.pacer.settings.SettingsScreen
 
 /**
  * The window shapes the screen has to hold up in. `widthDp`/`heightDp` set the constraints the
@@ -34,36 +29,3 @@ annotation class PreviewWindowSizes
 @Preview(name = "At medium height 600x480", widthDp = 600, heightDp = 480)
 @Preview(name = "Ultra wide short 2000x400", widthDp = 2000, heightDp = 400)
 annotation class PreviewWindowSizeEdges
-
-@PreviewWindowSizes
-@Composable
-private fun PacerScreenWindowSizesPreview() {
-    RisoTheme {
-        PacerScreen(
-            onSettingsClick = {},
-            modifier = Modifier.background(RisoTheme.colors.paper),
-        )
-    }
-}
-
-@PreviewWindowSizeEdges
-@Composable
-private fun PacerScreenWindowSizeEdgesPreview() {
-    RisoTheme {
-        PacerScreen(
-            onSettingsClick = {},
-            modifier = Modifier.background(RisoTheme.colors.paper),
-        )
-    }
-}
-
-@PreviewWindowSizes
-@Composable
-private fun SettingsScreenWindowSizesPreview() {
-    RisoTheme {
-        SettingsScreen(
-            onBackClick = {},
-            modifier = Modifier.background(RisoTheme.colors.paper),
-        )
-    }
-}

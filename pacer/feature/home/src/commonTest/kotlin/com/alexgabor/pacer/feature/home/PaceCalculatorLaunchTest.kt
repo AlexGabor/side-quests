@@ -1,8 +1,8 @@
-package com.alexgabor.pacer.home
+package com.alexgabor.pacer.feature.home
 
-import com.alexgabor.pacer.home.slider.DistanceSliderState
-import com.alexgabor.pacer.home.slider.PaceSliderState
-import com.alexgabor.pacer.home.slider.TimeSliderState
+import com.alexgabor.pacer.feature.home.slider.DistanceSliderState
+import com.alexgabor.pacer.feature.home.slider.PaceSliderState
+import com.alexgabor.pacer.feature.home.slider.TimeSliderState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.minutes

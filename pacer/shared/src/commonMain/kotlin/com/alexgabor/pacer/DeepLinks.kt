@@ -2,8 +2,8 @@ package com.alexgabor.pacer
 
 import com.alexgabor.design.navigation.DeepLink
 import com.alexgabor.lib.launch.LaunchParameters
-import com.alexgabor.pacer.home.DistanceUnit
-import com.alexgabor.pacer.home.Metric
+import com.alexgabor.pacer.feature.home.DistanceUnit
+import com.alexgabor.pacer.feature.home.Metric
 
 
 /**

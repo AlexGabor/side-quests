@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.settings
+package com.alexgabor.pacer.feature.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -116,7 +116,7 @@ private fun SettingsHeader(
 }
 
 @Composable
-fun RisoEffectSetting(
+internal fun RisoEffectSetting(
     enabled: Boolean,
     onRisoEffectToggle: (enabled: Boolean) -> Unit,
     modifier: Modifier = Modifier,

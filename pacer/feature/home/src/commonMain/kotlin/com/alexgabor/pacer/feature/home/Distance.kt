@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.home
+package com.alexgabor.pacer.feature.home
 
 import com.alexgabor.design.riso.components.ButtonGroupItem
 import kotlin.jvm.JvmInline

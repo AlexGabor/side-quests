@@ -27,6 +27,8 @@ kotlin {
         }
         commonMain.dependencies {
             implementation(projects.pacer.core.settings.impl)
+            implementation(projects.pacer.feature.home)
+            implementation(projects.pacer.feature.settings)
             implementation(projects.design.riso)
             implementation(projects.design.navigation)
             api(projects.lib.launch)

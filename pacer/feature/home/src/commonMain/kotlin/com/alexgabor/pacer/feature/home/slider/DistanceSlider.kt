@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.home.slider
+package com.alexgabor.pacer.feature.home.slider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -13,13 +13,13 @@ import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.components.track.Track
 import com.alexgabor.design.riso.components.track.TrackAlignment
 import com.alexgabor.design.riso.components.track.TrackSate
-import com.alexgabor.pacer.home.twoDigits
+import com.alexgabor.pacer.feature.home.twoDigits
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
-fun rememberDistanceSliderState(): DistanceSliderState = remember { DistanceSliderState() }
+internal fun rememberDistanceSliderState(): DistanceSliderState = remember { DistanceSliderState() }
 
 /**
  * The two rulers that show a distance, and the translation between them and a plain number.
@@ -71,7 +71,7 @@ class DistanceSliderState(
 }
 
 @Composable
-fun DistanceSlider(
+internal fun DistanceSlider(
     modifier: Modifier = Modifier,
     userScrollEnabled: Boolean = true,
     state: DistanceSliderState = rememberDistanceSliderState(),

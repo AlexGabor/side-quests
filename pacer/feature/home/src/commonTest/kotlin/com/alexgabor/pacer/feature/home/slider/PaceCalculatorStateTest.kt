@@ -1,15 +1,15 @@
-package com.alexgabor.pacer.slider
+package com.alexgabor.pacer.feature.home.slider
 
 import androidx.compose.runtime.saveable.SaverScope
-import com.alexgabor.pacer.home.Comparison
-import com.alexgabor.pacer.home.Distance
-import com.alexgabor.pacer.home.DistanceUnit
-import com.alexgabor.pacer.home.Metric
-import com.alexgabor.pacer.home.PaceCalculatorState
-import com.alexgabor.pacer.home.paceCalculatorStateSaver
-import com.alexgabor.pacer.home.slider.DistanceSliderState
-import com.alexgabor.pacer.home.slider.PaceSliderState
-import com.alexgabor.pacer.home.slider.TimeSliderState
+import com.alexgabor.pacer.feature.home.Comparison
+import com.alexgabor.pacer.feature.home.Distance
+import com.alexgabor.pacer.feature.home.DistanceUnit
+import com.alexgabor.pacer.feature.home.Metric
+import com.alexgabor.pacer.feature.home.PaceCalculatorState
+import com.alexgabor.pacer.feature.home.paceCalculatorStateSaver
+import com.alexgabor.pacer.feature.home.slider.DistanceSliderState
+import com.alexgabor.pacer.feature.home.slider.PaceSliderState
+import com.alexgabor.pacer.feature.home.slider.TimeSliderState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

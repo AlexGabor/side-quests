@@ -1,4 +1,4 @@
-package com.alexgabor.pacer.track
+package com.alexgabor.pacer.feature.home.track
 
 import androidx.compose.foundation.lazy.LazyListState
 import com.alexgabor.design.riso.components.track.TrackSate
