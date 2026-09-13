@@ -35,10 +35,11 @@ dependencyResolutionManagement {
         }
         mavenCentral()
 
-        // Where Kotlin's own Node and Yarn come from. With settings repositories taking precedence
-        // the plugin's own declarations are ignored, so these have to be spelled out here or the
-        // toolchain is looked for on Maven Central and not found. Both are narrowed to the single
-        // module they serve.
+        // Where Kotlin's own Node, Yarn and Binaryen come from. With settings repositories taking
+        // precedence the plugin's own declarations are ignored, so these have to be spelled out here
+        // or the toolchain is looked for on Maven Central and not found. Each is narrowed to the
+        // single module it serves. Binaryen only comes into play for production wasm builds, which
+        // run it to optimise the output.
         ivy("https://nodejs.org/dist") {
             name = "Node.js distributions"
             patternLayout { artifact("v[revision]/[artifact](-v[revision]-[classifier]).[ext]") }
@@ -50,6 +51,12 @@ dependencyResolutionManagement {
             patternLayout { artifact("v[revision]/[artifact](-v[revision]).[ext]") }
             metadataSources { artifact() }
             content { includeModule("com.yarnpkg", "yarn") }
+        }
+        ivy("https://github.com/WebAssembly/binaryen/releases/download") {
+            name = "Binaryen distributions"
+            patternLayout { artifact("version_[revision]/binaryen-version_[revision]-[classifier].[ext]") }
+            metadataSources { artifact() }
+            content { includeModule("com.github.webassembly", "binaryen") }
         }
     }
 }

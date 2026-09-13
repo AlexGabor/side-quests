@@ -1,0 +1,48 @@
+name: Publish Pacer (wasmJs)
+
+# GitHub Pages serves one site per repository, so each app in this repo publishes to a repository of
+# its own. The Pacer web build is pushed to AlexGabor/pacer, whose Pages site is pacer.alexgabor.com.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: publish-pacer-wasmjs
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DIST: pacer/webApp/build/dist/wasmJs/productionExecutable
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Corretto 21 is what gradle-daemon-jvm.properties asks for; installing it here saves Gradle
+      # from provisioning its own.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: corretto
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Build
+        run: ./gradlew :pacer:webApp:wasmJsBrowserDistribution
+
+      # force_orphan keeps a single commit in the publish repository, so it does not grow by a full
+      # build on every deploy.
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          deploy_key: ${{ secrets.PACER_DEPLOY_KEY }}
+          external_repository: AlexGabor/pacer
+          publish_branch: main
+          publish_dir: ${{ env.DIST }}
+          cname: pacer.alexgabor.com
+          force_orphan: true
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          full_commit_message: Publish AlexGabor/side-quests@${{ github.sha }}
