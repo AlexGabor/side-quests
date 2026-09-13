@@ -12,14 +12,14 @@ analytics, advertising or crash reporting, and it does not request network acces
 
 ## Data stored on your device
 
-Pacer saves one display preference (whether visual print effects are turned on) in the app's private
-storage on your device. It never leaves your device and is not included in device backups.
-Uninstalling the app or clearing its data deletes it.
+Pacer may save your app preferences and settings in the app's private storage on your device. This
+information never leaves your device and is not included in device backups. Uninstalling the app or
+clearing its data deletes it.
 
 ## Values you enter
 
-The distances, times and paces you enter are processed on your device to calculate results and are
-not sent anywhere. The same applies to values provided through `pacer://` links.
+Anything you enter in the app, including values provided through `pacer://` links, is processed on
+your device and is not sent anywhere.
 
 ## Permissions
 
