@@ -145,7 +145,8 @@ fun StampScreen(
             contentAlignment = Alignment.Center,
         ) {
             // The print's scale *is* the density: 108 dp at 4x is the 432 px the xxxhdpi folder
-            // holds, and at 9.48x the 1024 px an asset catalog takes. Fixed rather than taken from
+            // holds, at 4.74x the 512 px a Play listing takes, and at 9.48x the 1024 px an asset
+            // catalog takes. Fixed rather than taken from
             // the device, because the press's dot, grain and mottle sizes are all in dp — left to
             // the device's density, the same icon would print coarser on one phone than on another.
             CompositionLocalProvider(LocalDensity provides Density(staged.scale, fontScale = 1f)) {
@@ -187,8 +188,9 @@ fun StampScreen(
         // and the one it opens on is the last of them, so it starts scrolled to the end rather than
         // with its own selection off the side.
         //
-        // The selection stays live while the ios layer is staged even though it changes nothing
-        // there: it is the bucket the group will come back to, not a claim about what is on stage.
+        // The selection stays live while a flat print (ios or play) is staged even though it changes
+        // nothing there: it is the bucket the group will come back to, not a claim about what is on
+        // stage.
         val buckets = rememberScrollState()
         LaunchedEffect(Unit) { buckets.scrollTo(buckets.maxValue) }
         Box(Modifier.horizontalScroll(buckets)) {

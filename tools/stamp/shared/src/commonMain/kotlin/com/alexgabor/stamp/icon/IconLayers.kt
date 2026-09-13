@@ -52,6 +52,18 @@ const val IOS_ICON_DIR = "AppIcon.appiconset"
  */
 val IOS_ICON_SCALE: Float = IOS_ICON_SIDE_PX / ICON_SIDE.value
 
+/** The one size a Play Store listing takes for an app icon. */
+const val PLAY_ICON_SIDE_PX = 512
+
+/**
+ * Where an export writes it. The file itself is named as Android Studio's Image Asset wizard names
+ * it, which is also where it lands: beside `res/`, where it is kept but never packaged.
+ */
+const val PLAY_ICON_DIR = "playstore"
+
+/** The density the Play print is staged at, held to the same canvas as [IOS_ICON_SCALE] and why. */
+val PLAY_ICON_SCALE: Float = PLAY_ICON_SIDE_PX / ICON_SIDE.value
+
 /**
  * How much of the press's registration error this print takes.
  *
@@ -83,17 +95,18 @@ enum class IconDensity(val qualifier: String, val scale: Float) : ButtonGroupIte
  * Something the press stages on its own, and the file an exporter writes it to.
  *
  * Three of them are the layers of Android's adaptive icon, which a launcher composites itself. The
- * fourth is not a layer at all: iOS takes the finished icon flat, so [Ios] is all three of the
- * others' work done in a single pass.
+ * last two are not layers at all: iOS and the Play Store both take the finished icon flat, so [Ios]
+ * and [Play] are each all three of the others' work done in a single pass.
  */
 enum class IconLayer(override val text: String, val fileName: String) : ButtonGroupItem {
     Background("bg", "ic_launcher_background.png"),
     Foreground("fg", "ic_launcher_foreground.png"),
     Monochrome("mono", "ic_launcher_monochrome.png"),
     Ios("ios", "AppIcon.png"),
+    Play("play", "ic_launcher-playstore.png"),
 }
 
-/** The three that make up an adaptive icon, as against the one [IconLayer.Ios] finishes alone. */
+/** The three that make up an adaptive icon, as against the flat prints that finish alone. */
 val ANDROID_ICON_LAYERS: List<IconLayer> =
     listOf(IconLayer.Background, IconLayer.Foreground, IconLayer.Monochrome)
 
@@ -103,7 +116,7 @@ fun IconLayer.Content(modifier: Modifier = Modifier) {
         IconLayer.Background -> IconBackground(modifier)
         IconLayer.Foreground -> IconForeground(modifier)
         IconLayer.Monochrome -> IconMonochrome(modifier)
-        IconLayer.Ios -> IosIcon(modifier)
+        IconLayer.Ios, IconLayer.Play -> FlatIcon(modifier)
     }
 }
 
@@ -121,36 +134,42 @@ data class IconPrint(
     /**
      * Whether the PNG is written without an alpha channel.
      *
-     * An asset catalog's app icon is rejected for carrying one, and [IosIcon] prints on stock that
-     * covers the canvas, so there is nothing to lose by dropping it. The adaptive layers keep
-     * theirs: a launcher has to be able to see through the foreground.
+     * An asset catalog's app icon is rejected for carrying one, and Play shows its own background
+     * through any transparency. [FlatIcon] prints on stock that covers the canvas, so there is
+     * nothing to lose by dropping it. The adaptive layers keep theirs: a launcher has to be able to
+     * see through the foreground.
      */
-    val opaque: Boolean get() = layer == IconLayer.Ios
+    val opaque: Boolean get() = layer == IconLayer.Ios || layer == IconLayer.Play
 }
 
 /** The iOS print, which has one size and no bucket to be selected from. */
 val IOS_ICON_PRINT = IconPrint(IOS_ICON_DIR, IconLayer.Ios, IOS_ICON_SCALE)
 
+/** The Play Store print, which likewise has one size. */
+val PLAY_ICON_PRINT = IconPrint(PLAY_ICON_DIR, IconLayer.Play, PLAY_ICON_SCALE)
+
 /**
- * Everything an export writes: the three adaptive layers in each of the five buckets, and iOS's one
- * print. Stated as a list rather than as a cross product, because [IOS_ICON_PRINT] is not a cell of
- * that grid — it has one size, and it is the only layer of itself.
+ * Everything an export writes: the three adaptive layers in each of the five buckets, and the two
+ * flat prints. Stated as a list rather than as a cross product, because neither flat print is a cell
+ * of that grid — each has one size, and is the only layer of itself.
  */
 val ICON_PRINTS: List<IconPrint> =
     IconDensity.entries.flatMap { bucket ->
         ANDROID_ICON_LAYERS.map { layer -> IconPrint(bucket.qualifier, layer, bucket.scale) }
-    } + IOS_ICON_PRINT
+    } + IOS_ICON_PRINT + PLAY_ICON_PRINT
 
 /**
  * The print a layer and a bucket name between them — the inverse of [ICON_PRINTS], for a screen that
  * offers the two as separate choices.
  *
- * [IconLayer.Ios] answers with its own print whatever bucket is held alongside it, since the buckets
- * are Android resource qualifiers and none of them means anything to an asset catalog.
+ * The flat prints answer with their own whatever bucket is held alongside them, since the buckets
+ * are Android resource qualifiers and none of them means anything to an asset catalog or a listing.
  */
-fun printOf(layer: IconLayer, bucket: IconDensity): IconPrint =
-    if (layer == IconLayer.Ios) IOS_ICON_PRINT
-    else IconPrint(bucket.qualifier, layer, bucket.scale)
+fun printOf(layer: IconLayer, bucket: IconDensity): IconPrint = when (layer) {
+    IconLayer.Ios -> IOS_ICON_PRINT
+    IconLayer.Play -> PLAY_ICON_PRINT
+    else -> IconPrint(bucket.qualifier, layer, bucket.scale)
+}
 
 /**
  * The sheet, with nothing printed on it. Every other layer is composited over this one.
@@ -234,7 +253,8 @@ private fun IconMonochrome(modifier: Modifier) {
 }
 
 /**
- * The whole icon on one sheet: iOS composites nothing, so the mark is simply printed onto the stock.
+ * The whole icon on one sheet: iOS and the Play Store composite nothing, so the mark is simply
+ * printed onto the stock.
  *
  * This is [IconBackground] and [IconForeground] in one pass rather than two, and the difference is
  * not only that it saves a file. The foreground prints on [RisoPaper.None] and is then cut back by
@@ -243,14 +263,17 @@ private fun IconMonochrome(modifier: Modifier) {
  * mark takes the sheet's own surface, and there is no mask to cut, because what comes off the press
  * covers the canvas.
  *
- * Which is the other thing iOS wants. An app icon is rejected for carrying an alpha channel, and a
- * layer printed on real stock has none to carry — see [IconPrint.opaque].
+ * Which is the other thing both want. An iOS app icon is rejected for carrying an alpha channel, Play
+ * asks for a solid background, and a layer printed on real stock has no alpha to carry — see
+ * [IconPrint.opaque]. Play also wants the square left square: it rounds the corners and adds the
+ * shadow itself.
  *
  * It is also fitted wider than the adaptive layers are, to [PACER_IOS_FIT_RADIUS]: there is no
- * circular mask here to leave room for.
+ * circular mask here to leave room for. Play's rounded square, at a 30% corner radius, still spares
+ * the whole inscribed circle, so the same fit serves it.
  */
 @Composable
-private fun IosIcon(modifier: Modifier) {
+private fun FlatIcon(modifier: Modifier) {
     Box(modifier.risoPaper(RisoPaper()).drawBehind { drawRect(Color.White) }) {
         Canvas(
             Modifier

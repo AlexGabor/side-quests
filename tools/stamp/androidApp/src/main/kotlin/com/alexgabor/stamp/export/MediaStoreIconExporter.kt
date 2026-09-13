@@ -12,13 +12,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Writes the prints into `Download/stamp/`, one directory per density bucket and one for the asset
- * catalog, so that the pulled tree can be copied straight over an app's resources:
+ * Writes the prints into `Download/stamp/`, one directory per density bucket, one for the asset
+ * catalog and one for the Play listing, so that the pulled tree can be copied straight over an app's
+ * resources:
  *
  * ```
  * adb pull /sdcard/Download/stamp
  * cp -R stamp/drawable-* pacer/androidApp/src/main/res/
  * cp stamp/AppIcon.appiconset/AppIcon.png pacer/iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/
+ * cp stamp/playstore/ic_launcher-playstore.png pacer/androidApp/src/main/
  * ```
  *
  * `MediaStore` rather than a share sheet or the app's own external directory: an app needs no
