@@ -1,0 +1,44 @@
+name: Publish Pacer (Android)
+
+# Uploads a signed release bundle to the internal track through Gradle Play Publisher. The version
+# code is not bumped here: Play rejects one it has already seen, so a forgotten bump fails the upload.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: publish-pacer-android
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Corretto 21 is what gradle-daemon-jvm.properties asks for; installing it here saves Gradle
+      # from provisioning its own.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: corretto
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # keys/ is gitignored, so it travels as a single secret: a base64 tarball of keystore.properties
+      # and the keystore it names. The build then signs exactly as it does locally. Without the
+      # properties file the build would not fail but package an unsigned bundle, which Play would
+      # only reject after the whole build had run.
+      - name: Restore signing keys
+        env:
+          SIGNING_KEYS: ${{ secrets.PACER_SIGNING_KEYS }}
+        run: |
+          echo "$SIGNING_KEYS" | base64 --decode | tar -xz
+          test -f keys/keystore.properties
+
+      - name: Publish
+        env:
+          ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.PACER_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: ./gradlew :pacer:androidApp:publishReleaseBundle
