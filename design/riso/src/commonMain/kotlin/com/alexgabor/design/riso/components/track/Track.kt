@@ -230,19 +230,36 @@ class TrackSate<T>(
 
     val selectedSubdivision: Int get() = tick % subdivisions
 
-    /** True from the moment the user touches this track until its fling has settled. */
+    /**
+     * True from the moment the user touches or wheels this track until it has come to rest — the
+     * fling after a drag, and the animation after a wheel or trackpad scroll, included.
+     */
     var isUserScrolling by mutableStateOf(false)
         private set
+
+    /** Set for the length of a [moveToTick], so its scroll isn't mistaken for the user's. */
+    private var isMovingToTick by mutableStateOf(false)
 
     /**
      * Watches the gesture. Deliberately not tied to the composition: a card scrolled out of the
      * list is disposed mid-drag, and a flag that died with it would leave the value sync guessing.
+     *
+     * Any scroll this track didn't start itself is the user's. A drag is caught as it starts, a
+     * touch before anything has moved; the scroll check is what catches the rest — a mouse wheel
+     * or a trackpad scrolls without any drag interaction at all, so on the web and the desktop
+     * that is most of what the user does.
      */
     suspend fun trackUserScroll(): Unit = coroutineScope {
         launch {
             listState.interactionSource.interactions.collect { interaction ->
                 if (interaction is DragInteraction.Start) isUserScrolling = true
             }
+        }
+        launch {
+            // Read together, in one snapshot, so a moveToTick can never be seen scrolling without
+            // also being seen as the one doing it.
+            snapshotFlow { listState.isScrollInProgress && !isMovingToTick }
+                .collect { userScroll -> if (userScroll) isUserScrolling = true }
         }
         launch {
             // Covers the whole gesture: the drag itself and the fling it hands off to.
@@ -256,8 +273,13 @@ class TrackSate<T>(
         val size = awaitItemSize()
         val index = target / subdivisions
         val offset = ((target % subdivisions) * (size / subdivisions)).roundToInt()
-        if (animate) listState.animateScrollToItem(index, offset)
-        else listState.scrollToItem(index, offset)
+        isMovingToTick = true
+        try {
+            if (animate) listState.animateScrollToItem(index, offset)
+            else listState.scrollToItem(index, offset)
+        } finally {
+            isMovingToTick = false
+        }
     }
 
     /**

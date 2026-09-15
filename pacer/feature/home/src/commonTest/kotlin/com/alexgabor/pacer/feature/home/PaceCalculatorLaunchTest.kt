@@ -5,7 +5,10 @@ import com.alexgabor.pacer.feature.home.slider.PaceSliderState
 import com.alexgabor.pacer.feature.home.slider.TimeSliderState
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.DurationUnit
 
 class PaceCalculatorLaunchTest {
 
@@ -97,6 +100,49 @@ class PaceCalculatorLaunchTest {
         // Ten miles at five minutes a mile, whatever the calculator holds underneath.
         assertEquals("0h 50m 00s", state.displayedTime)
         assertEquals(Distance.of(10.0, DistanceUnit.Miles).kilometers, state.distance.kilometers)
+    }
+
+    @Test
+    fun aRunLaunchedWithItsOwnLaunchArgsIsTheSameRun() {
+        for (unit in DistanceUnit.entries) {
+            for (metric in Metric.entries) {
+                val state = launched(
+                    PacerLaunchArgs(
+                        distance = 21.1,
+                        pace = 5.minutes + 7.seconds,
+                        time = 1.hours + 45.minutes + 30.seconds,
+                        metric = metric,
+                        unit = unit,
+                    ),
+                )
+
+                val relaunched = launched(state.launchArgs)
+
+                val case = "$metric in $unit"
+                assertEquals(state.displayedDistance, relaunched.displayedDistance, case)
+                assertEquals(state.displayedPace, relaunched.displayedPace, case)
+                assertEquals(state.displayedTime, relaunched.displayedTime, case)
+                assertEquals(state.selectedMetric, relaunched.selectedMetric, case)
+                assertEquals(state.selectedUnit, relaunched.selectedUnit, case)
+            }
+        }
+    }
+
+    @Test
+    fun launchArgsAreInTheUnitOnScreen() {
+        val state = launched(
+            PacerLaunchArgs(distance = 10.0, pace = 5.minutes, unit = DistanceUnit.Miles),
+        )
+
+        val args = state.launchArgs
+
+        // Miles and minutes a mile, not the kilometres the calculator holds underneath — give or
+        // take the float noise of converting there and back, which the url rounds away.
+        assertEquals(10.0, args.distance!!, absoluteTolerance = 1e-9)
+        assertEquals(300.0, args.pace!!.toDouble(DurationUnit.SECONDS), absoluteTolerance = 1e-3)
+        assertEquals(3000.0, args.time!!.toDouble(DurationUnit.SECONDS), absoluteTolerance = 1e-3)
+        assertEquals(Metric.Time, args.metric)
+        assertEquals(DistanceUnit.Miles, args.unit)
     }
 
     @Test

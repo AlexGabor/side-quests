@@ -7,10 +7,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.ScrollWheel
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -19,12 +22,9 @@ import com.alexgabor.pacer.feature.home.Comparison
 import com.alexgabor.pacer.feature.home.Distance
 import com.alexgabor.pacer.feature.home.Metric
 import com.alexgabor.pacer.feature.home.PaceCalculatorState
-import com.alexgabor.pacer.feature.home.slider.DistanceSlider
-import com.alexgabor.pacer.feature.home.slider.PaceSlider
-import com.alexgabor.pacer.feature.home.slider.PaceSliderState
-import com.alexgabor.pacer.feature.home.slider.TimeSlider
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -186,6 +186,60 @@ class PaceCalculatorSyncTest {
         assertEquals(PaceSliderState.seconds(state.pace) % 60, state.paceSliderState.secondTrackState.tick)
         // The distance is an input here, so nothing should have moved it.
         assertEquals(10.0, state.distance.kilometers)
+    }
+
+    /**
+     * A mouse wheel or a trackpad scrolls without any drag at all, and on the web and the desktop
+     * it is the only way to move a slider — a mouse can't drag a scrollable. It used to move the
+     * ruler and leave the value, and everything that follows the value, where it was.
+     */
+    @Test
+    fun wheelingASliderMovesTheOthers() = runComposeUiTest {
+        val state = PaceCalculatorState(
+            distance = Distance(10.0),
+            pace = 5.minutes,
+            time = 50.minutes,
+            selectedMetric = Metric.Pace,
+        )
+        setContent { Sliders(state) }
+        waitForIdle()
+
+        onNodeWithTag(TimeTag).performMouseInput {
+            moveTo(center)
+            scroll(300f, ScrollWheel.Horizontal)
+        }
+        waitForIdle()
+
+        assertTrue(state.time > 50.minutes, "expected the wheel to move the time, still ${state.time}")
+        assertEquals(state.time / 10.0, state.pace)
+        assertFalse(state.isUserScrolling, "expected the wheel scroll to have come to rest")
+    }
+
+    /** Sliders the sync moves are not the user's doing, or the two directions would chase. */
+    @Test
+    fun aSliderMovedByTheSyncIsNotTheUsersScroll() = runComposeUiTest {
+        val state = PaceCalculatorState(
+            distance = Distance(10.0),
+            pace = 5.minutes,
+            time = 50.minutes,
+            selectedMetric = Metric.Pace,
+        )
+        var sawUserScroll = false
+        setContent {
+            Sliders(state)
+            LaunchedEffect(state) {
+                snapshotFlow { state.paceSliderState.isUserScrolling }
+                    .collect { if (it) sawUserScroll = true }
+            }
+        }
+        waitForIdle()
+
+        // 10 km in 25 minutes: the pace slider animates to 2:30.
+        state.onTimeScrolled(25.minutes)
+        waitForIdle()
+
+        assertEquals(2, state.paceSliderState.minuteTrackState.tick)
+        assertFalse(sawUserScroll, "expected the pace slider's animation not to count as the user's")
     }
 
     /** The slider being solved for can't be dragged, so it never reports anything back. */

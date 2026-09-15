@@ -14,6 +14,7 @@ import com.alexgabor.pacer.feature.home.PacerScreen
 import com.alexgabor.pacer.feature.home.rememberPaceCalculatorState
 import com.alexgabor.pacer.feature.settings.SettingsScreen
 import kotlinx.serialization.Serializable
+import org.koin.compose.koinInject
 import kotlin.time.Duration.Companion.milliseconds
 
 @Serializable
@@ -32,7 +33,24 @@ internal sealed interface RootDestination : NavKey {
     data object Settings : RootDestination
 }
 
-private fun RootDestination.Pacer.launchArgs() = PacerLaunchArgs(
+/** The word a screen goes by in an address, which is the one [pacerDeepLink] reads back. */
+internal val RootDestination.screenName: String
+    get() = when (this) {
+        is RootDestination.Pacer -> PACER
+        RootDestination.Settings -> SETTINGS
+    }
+
+/** The other direction: no arguments, because an address only ever names the screen here. */
+internal fun rootDestinationNamed(screen: String): RootDestination? = when (screen) {
+    PACER -> RootDestination.Pacer()
+    SETTINGS -> RootDestination.Settings
+    else -> null
+}
+
+private const val PACER = "pacer"
+private const val SETTINGS = "settings"
+
+internal fun RootDestination.Pacer.launchArgs() = PacerLaunchArgs(
     distance = distance,
     pace = paceMillis?.milliseconds,
     time = timeMillis?.milliseconds,
@@ -43,9 +61,15 @@ private fun RootDestination.Pacer.launchArgs() = PacerLaunchArgs(
 
 @Composable
 fun RootNavigation() {
-    val nav = rememberDeepLinkedBackStack(RootDestination.serializer()) {
+    val nav = rememberDeepLinkedBackStack(
+        serializer = RootDestination.serializer(),
+        appUrl = koinInject(),
+        screenName = { it.screenName },
+        keyForScreen = ::rootDestinationNamed,
+    ) {
         listOf(RootDestination.Pacer())
     }
+
     RisoNavigation(
         nav = nav,
         modifier = Modifier.risoPaper(),
@@ -55,11 +79,11 @@ fun RootNavigation() {
             entry<RootDestination.Pacer>(clazzContentKey = { "pacer" }) { key ->
                 PacerScreen(
                     state = rememberPaceCalculatorState(key.launchArgs()),
-                    onSettingsClick = { nav.backStack.add(RootDestination.Settings) },
+                    onSettingsClick = { nav.open(RootDestination.Settings) },
                 )
             }
             entry<RootDestination.Settings>(clazzContentKey = { "settings" }) {
-                SettingsScreen(onBackClick = { nav.backStack.removeLastOrNull() })
+                SettingsScreen(onBackClick = { nav.back() })
             }
         },
     )

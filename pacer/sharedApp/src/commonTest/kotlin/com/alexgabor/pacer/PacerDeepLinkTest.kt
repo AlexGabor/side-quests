@@ -1,14 +1,18 @@
 package com.alexgabor.pacer
 
 import com.alexgabor.lib.launch.LaunchParameters
-import kotlinx.serialization.json.Json
 import com.alexgabor.pacer.feature.home.DistanceUnit
+import com.alexgabor.pacer.feature.home.KILOMETERS_PER_MILE
 import com.alexgabor.pacer.feature.home.Metric
+import com.alexgabor.pacer.feature.home.PacerLaunchArgs
+import com.alexgabor.pacer.feature.home.toLaunchParameters
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -70,6 +74,39 @@ class PacerDeepLinkTest {
     @Test
     fun anUnreadableArgumentIsDroppedRatherThanFailing() {
         assertTrue(deepLinkOf("distance=banana&metric=Furlongs").isEmpty)
+    }
+
+    @Test
+    fun aWrittenRunOpensOnTheSameRun() {
+        // In miles the calculator's kilometres come back with float noise on them; writing to the
+        // grain of the rulers is what rounds it away.
+        val miles = PacerLaunchArgs(
+            distance = 10.0 / KILOMETERS_PER_MILE * KILOMETERS_PER_MILE,
+            pace = (5.minutes / KILOMETERS_PER_MILE) * KILOMETERS_PER_MILE,
+            time = 50.minutes,
+            metric = Metric.Time,
+            unit = DistanceUnit.Miles,
+        )
+        val kilometers = PacerLaunchArgs(
+            distance = 42.2,
+            pace = 6.minutes,
+            time = 4.hours + 13.minutes + 12.seconds,
+            metric = Metric.Pace,
+            unit = DistanceUnit.Kilometers,
+        )
+
+        for (args in listOf(miles, kilometers)) {
+            val query = args.toLaunchParameters().toQueryString()
+            val key = deepLinkOf(query).parts.single() as RootDestination.Pacer
+            val reopened = key.launchArgs()
+
+            assertEquals(args.distance!!, reopened.distance!!, absoluteTolerance = 0.005, query)
+            assertTrue((args.pace!! - reopened.pace!!).absoluteValue <= 500.milliseconds, query)
+            assertEquals(0L, reopened.pace!!.inWholeMilliseconds % 1000, query)
+            assertEquals(args.time, reopened.time, query)
+            assertEquals(args.metric, reopened.metric, query)
+            assertEquals(args.unit, reopened.unit, query)
+        }
     }
 
     @Test

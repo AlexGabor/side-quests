@@ -12,6 +12,8 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.navigation3.runtime.NavKey
+import com.alexgabor.lib.appstateurl.AppUrl
+import com.alexgabor.lib.appstateurl.FakeAppUrl
 import kotlinx.serialization.Serializable
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -26,6 +28,34 @@ private sealed interface Root : NavKey {
     @Serializable
     data class Detail(val id: String) : Root
 }
+
+/** What [Root]'s screens are called in an address. */
+private fun screenNameOf(key: Root): String = when (key) {
+    Root.Home -> "home"
+    is Root.Detail -> "detail"
+}
+
+private fun rootNamed(screen: String): Root? = when (screen) {
+    "home" -> Root.Home
+    "detail" -> Root.Detail("named")
+    else -> null
+}
+
+/**
+ * The back stack under test, with an address that does nothing — what every level but the top one
+ * is given, and what a platform without an address of its own has.
+ */
+@Composable
+private fun rememberRootBackStack(
+    appUrl: AppUrl = remember { FakeAppUrl() },
+    initial: () -> List<Root>,
+): DeepLinkedBackStack<Root> = rememberDeepLinkedBackStack(
+    serializer = Root.serializer(),
+    appUrl = appUrl,
+    screenName = ::screenNameOf,
+    keyForScreen = ::rootNamed,
+    initial = initial,
+)
 
 @Serializable
 private sealed interface Child : NavKey {
@@ -77,7 +107,7 @@ class RememberDeepLinkedBackStackTest {
             CompositionLocalProvider(
                 LocalDeepLink provides DeepLink(listOf(Root.Home, Root.Detail("a"))),
             ) {
-                nav = rememberDeepLinkedBackStack(Root.serializer()) { listOf(Root.Home) }
+                nav = rememberRootBackStack { listOf(Root.Home) }
             }
         }
         waitForIdle()
@@ -91,7 +121,7 @@ class RememberDeepLinkedBackStackTest {
 
         setContent {
             CompositionLocalProvider(LocalDeepLink provides DeepLink(listOf(Child.Overview))) {
-                nav = rememberDeepLinkedBackStack(Root.serializer()) { listOf(Root.Home) }
+                nav = rememberRootBackStack { listOf(Root.Home) }
             }
         }
         waitForIdle()
@@ -107,7 +137,7 @@ class RememberDeepLinkedBackStackTest {
             CompositionLocalProvider(
                 LocalDeepLink provides DeepLink(listOf(Root.Home, Child.Overview)),
             ) {
-                nav = rememberDeepLinkedBackStack(Root.serializer()) { listOf(Root.Home) }
+                nav = rememberRootBackStack { listOf(Root.Home) }
             }
         }
         waitForIdle()
@@ -127,7 +157,7 @@ class RememberDeepLinkedBackStackTest {
                 LocalDeepLink provides DeepLink(listOf(Root.Home, Root.Detail("a"))),
             ) {
                 restoration.Content {
-                    nav = rememberDeepLinkedBackStack(Root.serializer()) { listOf(Root.Home) }
+                    nav = rememberRootBackStack { listOf(Root.Home) }
                 }
             }
         }
@@ -153,7 +183,7 @@ class RememberDeepLinkedBackStackTest {
                 LocalDeepLink provides DeepLink(listOf(Root.Home, Child.Overview)),
             ) {
                 restoration.Content {
-                    nav = rememberDeepLinkedBackStack(Root.serializer()) { listOf(Root.Home) }
+                    nav = rememberRootBackStack { listOf(Root.Home) }
                 }
             }
         }

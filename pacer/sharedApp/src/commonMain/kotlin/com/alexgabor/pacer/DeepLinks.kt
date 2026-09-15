@@ -1,6 +1,7 @@
 package com.alexgabor.pacer
 
 import com.alexgabor.design.navigation.DeepLink
+import com.alexgabor.design.navigation.ScreenParameter
 import com.alexgabor.lib.launch.LaunchParameters
 import com.alexgabor.pacer.feature.home.DistanceUnit
 import com.alexgabor.pacer.feature.home.Metric
@@ -24,7 +25,8 @@ internal fun pacerDeepLink(launch: LaunchParameters): DeepLink {
         unit = launch.enum<DistanceUnit>("unit")?.name,
     )
 
-    return when (launch["screen"]?.lowercase()) {
+    // The same key the back stack writes when the user navigates, so a link and a visit read alike.
+    return when (launch[ScreenParameter]?.lowercase()) {
         "settings" -> DeepLink(listOf(pacer, RootDestination.Settings))
         "pacer" -> DeepLink(listOf(pacer))
         // An unnamed screen still carries its arguments, but only if there are any: an empty key

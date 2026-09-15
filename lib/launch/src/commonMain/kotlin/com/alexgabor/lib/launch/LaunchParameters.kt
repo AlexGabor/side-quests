@@ -63,6 +63,17 @@ class LaunchParameters(private val values: Map<String, String>) {
         return enumValues<E>().firstOrNull { it.name.equals(name, ignoreCase = true) }
     }
 
+    /**
+     * `"a=1&b=2"`, in the order the map holds them, which [ofQueryString] reads back as these same
+     * parameters.
+     *
+     * No leading `?` or `#`: which of the two it goes after is the caller's choice.
+     */
+    fun toQueryString(): String =
+        values.entries.joinToString("&") { (name, value) ->
+            "${name.percentEncoded()}=${value.percentEncoded()}"
+        }
+
     override fun equals(other: Any?): Boolean =
         this === other || (other is LaunchParameters && values == other.values)
 
@@ -74,6 +85,29 @@ class LaunchParameters(private val values: Map<String, String>) {
         val Empty = LaunchParameters(emptyMap())
 
         private val POSITION_MULTIPLIERS = doubleArrayOf(1.0, 60.0, 3600.0)
+
+        /**
+         * [value] the way [duration] reads it: `"5:30"` under an hour, `"1:45:30"` from one up.
+         *
+         * Rounded to whole seconds, which is as fine as anything a runner writes by hand. Null for
+         * what [duration] would refuse — a negative or infinite duration has no spelling.
+         */
+        fun formatDuration(value: Duration): String? {
+            if (!value.isFinite() || value < Duration.ZERO) return null
+
+            val seconds = (value.inWholeMilliseconds + 500) / 1000
+            val hours = seconds / 3600
+            val minutes = (seconds % 3600) / 60
+            val secondsPart = (seconds % 60).twoDigits()
+
+            return if (hours > 0) {
+                "$hours:${minutes.twoDigits()}:$secondsPart"
+            } else {
+                "$minutes:$secondsPart"
+            }
+        }
+
+        private fun Long.twoDigits(): String = toString().padStart(2, '0')
 
         /**
          * Parses `"?a=1&b=2"`, `"a=1&b=2"` or a whole URL.
@@ -101,6 +135,37 @@ class LaunchParameters(private val values: Map<String, String>) {
         }
     }
 }
+
+/**
+ * The inverse of [percentDecoded]: everything but the unreserved characters becomes a `%XX` escape
+ * of its UTF-8 bytes.
+ *
+ * `:` is left alone too — a query may carry it as written, and escaping it would turn every
+ * `pace=5:00` into `pace=5%3A00` for no reader's benefit. `+` is escaped, because the decoder reads
+ * a bare one as a space.
+ */
+private fun String.percentEncoded(): String {
+    if (all { it.isUnescaped() }) return this
+
+    val encoded = StringBuilder(length)
+    // A character's bytes are escaped together — a surrogate pair is one character to the encoder.
+    for (byte in encodeToByteArray()) {
+        val char = (byte.toInt() and 0xFF).toChar()
+        if (char.isUnescaped()) {
+            encoded.append(char)
+        } else {
+            encoded.append('%')
+            encoded.append(HEX_DIGITS[(byte.toInt() shr 4) and 0xF])
+            encoded.append(HEX_DIGITS[byte.toInt() and 0xF])
+        }
+    }
+    return encoded.toString()
+}
+
+private const val HEX_DIGITS = "0123456789ABCDEF"
+
+private fun Char.isUnescaped(): Boolean =
+    this in 'A'..'Z' || this in 'a'..'z' || this in '0'..'9' || this in "-._~:"
 
 /**
  * Percent-decoding, plus the `+`-for-space that query strings inherited from form encoding.

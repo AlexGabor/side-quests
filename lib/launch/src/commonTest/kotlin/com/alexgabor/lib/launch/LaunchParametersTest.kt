@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -123,6 +124,60 @@ class LaunchParametersTest {
         assertEquals(true, parameters.boolean("d"))
         assertNull(parameters.boolean("e"))
         assertNull(parameters.boolean("missing"))
+    }
+
+    @Test
+    fun writesAQueryStringInTheOrderGiven() {
+        val parameters = LaunchParameters(mapOf("distance" to "21.10", "pace" to "5:00"))
+
+        // `:` stays as written: a url reader has no trouble with it, and a person reads it easier.
+        assertEquals("distance=21.10&pace=5:00", parameters.toQueryString())
+    }
+
+    @Test
+    fun aWrittenQueryStringReadsBackAsTheSameParameters() {
+        val parameters = LaunchParameters(
+            mapOf(
+                "name" to "half marathon",
+                "a&b" to "c=d",
+                "effort" to "100%",
+                "plus" to "a+b",
+                "where" to "?here#there",
+                "emoji" to "café 🏃",
+            ),
+        )
+
+        assertEquals(parameters, LaunchParameters.ofQueryString(parameters.toQueryString()))
+    }
+
+    @Test
+    fun formatsDurationsTheWayTheyAreRead() {
+        assertEquals("5:00", LaunchParameters.formatDuration(5.minutes))
+        assertEquals("0:45", LaunchParameters.formatDuration(45.seconds))
+        assertEquals("59:59", LaunchParameters.formatDuration(59.minutes + 59.seconds))
+        assertEquals("1:45:30", LaunchParameters.formatDuration(1.hours + 45.minutes + 30.seconds))
+        assertEquals("26:00:00", LaunchParameters.formatDuration(26.hours))
+    }
+
+    @Test
+    fun formatsDurationsToTheNearestSecond() {
+        assertEquals("5:00", LaunchParameters.formatDuration(4.minutes + 59.6.seconds))
+        assertEquals("5:00", LaunchParameters.formatDuration(5.minutes + 0.4.seconds))
+    }
+
+    @Test
+    fun aFormattedDurationReadsBackAsTheSameDuration() {
+        for (value in listOf(0.seconds, 5.minutes + 30.seconds, 4.hours + 13.minutes + 12.seconds)) {
+            val parameters = LaunchParameters(mapOf("d" to LaunchParameters.formatDuration(value)!!))
+
+            assertEquals(value, parameters.duration("d"))
+        }
+    }
+
+    @Test
+    fun refusesToFormatADurationThatCannotBeRead() {
+        assertNull(LaunchParameters.formatDuration(-5.seconds))
+        assertNull(LaunchParameters.formatDuration(Duration.INFINITE))
     }
 
     @Test

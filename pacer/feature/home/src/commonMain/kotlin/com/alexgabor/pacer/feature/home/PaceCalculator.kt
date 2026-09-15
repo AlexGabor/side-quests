@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -28,6 +29,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
+import com.alexgabor.lib.appstateurl.AppUrl
+import com.alexgabor.lib.appstateurl.fakeAppUrlModule
 import com.alexgabor.design.riso.attributes.Heading3
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.Card
@@ -42,11 +45,20 @@ import com.alexgabor.pacer.feature.home.slider.rememberDistanceSliderState
 import com.alexgabor.pacer.feature.home.slider.rememberPaceSliderState
 import com.alexgabor.pacer.feature.home.slider.rememberTimeSliderState
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNot
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.koin.compose.KoinApplicationPreview
+import org.koin.compose.koinInject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
@@ -201,6 +213,28 @@ class PaceCalculatorState(
     internal val tracks: List<TrackSate<Int>>
         get() = distanceSliderState.tracks + paceSliderState.tracks + timeSliderState.tracks
 
+    /** True while any slider is under the user's finger or still flinging from it. */
+    internal val isUserScrolling: Boolean
+        get() = distanceSliderState.isUserScrolling ||
+            paceSliderState.isUserScrolling ||
+            timeSliderState.isUserScrolling
+
+    /**
+     * This run as a launch would describe it — in the unit on screen, as [PacerLaunchArgs] is — so
+     * that [launched] with it opens on the run being shown.
+     *
+     * All five are given, the computed one included: [launched] recomputes it from the other two
+     * anyway, and naming the metric outright means it doesn't depend on which one was left out.
+     */
+    internal val launchArgs: PacerLaunchArgs
+        get() = PacerLaunchArgs(
+            distance = distanceOnSlider,
+            pace = paceOnSlider,
+            time = timeOnSlider,
+            metric = selectedMetric,
+            unit = selectedUnit,
+        )
+
     /**
      * Keeps the values and the sliders showing the same run, in both directions.
      *
@@ -331,6 +365,48 @@ internal suspend fun <T> collectUserScroll(
 }
 
 /**
+ * Keeps the address describing the run, for as long as this is collected.
+ *
+ * Replaced rather than pushed: the user is adjusting one run, not visiting a series of them, and an
+ * entry per adjustment would bury wherever they came from.
+ *
+ * @param appUrl read afresh each time, so an address that arrives late — or is swapped — is still
+ * the one written to.
+ */
+internal suspend fun PaceCalculatorState.writeSettledRunsTo(appUrl: () -> AppUrl) {
+    settledValues(::isUserScrolling, ::launchArgs).collect { run ->
+        appUrl().replace(run.toLaunchParameters())
+    }
+}
+
+/** How long the values have to sit still before [settledValues] reports them. */
+internal val SettleDelay = 300.milliseconds
+
+/**
+ * Each value the calculator comes to rest on — once no slider is moving and nothing has changed for
+ * [SettleDelay] — and nothing it passes through on the way.
+ *
+ * Settling is read off the gesture rather than the values: a slider is still moving through its
+ * fling long after the finger has lifted, and a card tap moves nothing at all.
+ *
+ * The value it starts on is not reported; it is what the screen was opened with, so there is
+ * nothing new to say about it. The delay is there for the frame in which the gesture has ended
+ * but [collectUserScroll] has not yet written its last value, and so that a burst of taps is
+ * reported once rather than per tap.
+ */
+@OptIn(FlowPreview::class)
+internal fun <T> settledValues(
+    isUserScrolling: () -> Boolean,
+    value: () -> T,
+): Flow<T> =
+    snapshotFlow { isUserScrolling() to value() }
+        .filterNot { (scrolling, _) -> scrolling }
+        .map { (_, settled) -> settled }
+        .distinctUntilChanged()
+        .drop(1)
+        .debounce(SettleDelay)
+
+/**
  * Drives a slider to whatever its value has become.
  *
  * `collectLatest` rather than `collect`: while the user drags one card the other two change every
@@ -391,9 +467,15 @@ internal fun paceCalculatorStateSaver(
     },
 )
 
+/**
+ * @param appUrl told about the run each time the calculator comes to rest on a new one — see
+ * [settledValues] — so that the address of the page describes what is on it. Replaced rather than
+ * pushed: a run is something the user is adjusting, not somewhere they went.
+ */
 @Composable
 fun rememberPaceCalculatorState(
     args: PacerLaunchArgs = PacerLaunchArgs.None,
+    appUrl: AppUrl = koinInject(),
 ): PaceCalculatorState {
     val distanceState = rememberDistanceSliderState()
     val paceState = rememberPaceSliderState()
@@ -407,6 +489,9 @@ fun rememberPaceCalculatorState(
     }
 
     LaunchedEffect(state) { state.sync() }
+
+    val currentAppUrl by rememberUpdatedState(appUrl)
+    LaunchedEffect(state) { state.writeSettledRunsTo { currentAppUrl } }
 
     return state
 }
@@ -565,8 +650,10 @@ internal fun PaceCalculator(
 @Preview(widthDp = 411, heightDp = 891)
 @Composable
 private fun PaceCalculatorPreview() {
-    RisoTheme {
-        PaceCalculator(Modifier.background(RisoTheme.colors.paper))
+    KoinApplicationPreview(application = { modules(fakeAppUrlModule) }) {
+        RisoTheme {
+            PaceCalculator(Modifier.background(RisoTheme.colors.paper))
+        }
     }
 }
 

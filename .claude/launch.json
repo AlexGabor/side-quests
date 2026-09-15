@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pacer-web",
+      "runtimeExecutable": "./gradlew",
+      "runtimeArgs": [":pacer:webApp:wasmJsBrowserDevelopmentRun", "-q"],
+      "port": 8080
+    }
+  ]
+}
