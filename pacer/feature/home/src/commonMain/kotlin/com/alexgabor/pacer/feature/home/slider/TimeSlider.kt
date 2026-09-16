@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.components.track.Track
 import com.alexgabor.design.riso.components.track.TrackAlignment
-import com.alexgabor.design.riso.components.track.TrackSate
+import com.alexgabor.design.riso.components.track.TrackState
 import com.alexgabor.pacer.feature.home.roundedSeconds
 import com.alexgabor.pacer.feature.home.twoDigits
 import kotlinx.coroutines.coroutineScope
@@ -29,11 +29,11 @@ internal fun rememberTimeSliderState(): TimeSliderState = remember { TimeSliderS
  * The three rulers that show an elapsed time, and the translation between them and a [Duration].
  */
 class TimeSliderState(
-    internal val hourTrackState: TrackSate<Int> = TrackSate((0..120).toList(), subdivisions = 1),
-    internal val minuteTrackState: TrackSate<Int> = TrackSate((0..59).toList(), subdivisions = 1),
-    internal val secondTrackState: TrackSate<Int> = TrackSate((0..60 step 5).toList(), subdivisions = 5),
+    internal val hourTrackState: TrackState<Int> = TrackState((0..120).toList(), subdivisions = 1),
+    internal val minuteTrackState: TrackState<Int> = TrackState((0..59).toList(), subdivisions = 1),
+    internal val secondTrackState: TrackState<Int> = TrackState((0..60 step 5).toList(), subdivisions = 5),
 ) {
-    internal val tracks: List<TrackSate<Int>>
+    internal val tracks: List<TrackState<Int>>
         get() = listOf(hourTrackState, minuteTrackState, secondTrackState)
 
     val isUserScrolling: Boolean

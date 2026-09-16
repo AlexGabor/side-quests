@@ -62,7 +62,7 @@ class Typography(
     ),
 )
 
-val LocalTypography = staticCompositionLocalOf { Typography(fontFamily = null) }
+internal val LocalTypography = staticCompositionLocalOf { Typography(fontFamily = null) }
 
 @Composable
 fun Text(

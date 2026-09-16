@@ -61,7 +61,7 @@ enum class TrackAlignment {
  */
 @Composable
 fun <T> Track(
-    state: TrackSate<T>,
+    state: TrackState<T>,
     modifier: Modifier = Modifier,
     itemSize: Dp = 200.dp,
     trackAlignment: TrackAlignment = TrackAlignment.Bottom,
@@ -168,7 +168,7 @@ fun <T> Track(
  * driving programmatically stays quiet.
  */
 @Composable
-private fun <T> TrackHaptics(state: TrackSate<T>) {
+private fun <T> TrackHaptics(state: TrackState<T>) {
     val haptics = LocalHapticFeedback.current
 
     LaunchedEffect(state, haptics) {
@@ -194,10 +194,10 @@ fun <T> rememberTrackState(
     subdivision: Int,
     listState: LazyListState,
 ) = remember(trackItems, subdivision, listState) {
-    TrackSate(trackItems, subdivision, listState)
+    TrackState(trackItems, subdivision, listState)
 }
 
-class TrackSate<T>(
+class TrackState<T>(
     val trackItems: List<T>,
     val subdivisions: Int,
     internal val listState: LazyListState = LazyListState(),

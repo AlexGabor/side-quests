@@ -135,16 +135,3 @@ private fun Project.releaseSigningCredentials(): SigningCredentials? {
 
     return SigningCredentials(storeFile, storePassword, keyAlias, keyPassword)
 }
-
-internal fun Project.configurePackaging(
-    applicationExtension: ApplicationExtension,
-) {
-    applicationExtension.apply {
-        packaging {
-            resources {
-                excludes.add("META-INF/AL2.0")
-                excludes.add("META-INF/LGPL2.1")
-            }
-        }
-    }
-}

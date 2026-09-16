@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.components.track.Track
 import com.alexgabor.design.riso.components.track.TrackAlignment
-import com.alexgabor.design.riso.components.track.TrackSate
+import com.alexgabor.design.riso.components.track.TrackState
 import com.alexgabor.pacer.feature.home.twoDigits
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -28,10 +28,10 @@ internal fun rememberDistanceSliderState(): DistanceSliderState = remember { Dis
  * number onto the rulers and how to read one back off them.
  */
 class DistanceSliderState(
-    internal val wholeTrackState: TrackSate<Int> = TrackSate((0..MaxWhole).toList(), subdivisions = 1),
-    internal val fractionTrackState: TrackSate<Int> = TrackSate((0..100 step 5).toList(), subdivisions = 5),
+    internal val wholeTrackState: TrackState<Int> = TrackState((0..MaxWhole).toList(), subdivisions = 1),
+    internal val fractionTrackState: TrackState<Int> = TrackState((0..100 step 5).toList(), subdivisions = 5),
 ) {
-    internal val tracks: List<TrackSate<Int>> get() = listOf(wholeTrackState, fractionTrackState)
+    internal val tracks: List<TrackState<Int>> get() = listOf(wholeTrackState, fractionTrackState)
 
     val isUserScrolling: Boolean
         get() = wholeTrackState.isUserScrolling || fractionTrackState.isUserScrolling

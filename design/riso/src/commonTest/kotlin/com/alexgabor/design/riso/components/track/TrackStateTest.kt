@@ -1,11 +1,10 @@
-package com.alexgabor.pacer.feature.home.track
+package com.alexgabor.design.riso.components.track
 
 import androidx.compose.foundation.lazy.LazyListState
-import com.alexgabor.design.riso.components.track.TrackSate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TrackSateTest {
+class TrackStateTest {
 
     /**
      * The case this whole refactor exists for: a track carrying a scroll offset restored from a
@@ -14,7 +13,7 @@ class TrackSateTest {
      */
     @Test
     fun anUnmeasuredTrackReadsZeroRatherThanGarbage() {
-        val track = TrackSate((0..100).toList(), subdivisions = 5, LazyListState(3, 40))
+        val track = TrackState((0..100).toList(), subdivisions = 5, LazyListState(3, 40))
 
         assertEquals(15, track.tick)
         assertEquals(3, track.selectedItem)
@@ -23,7 +22,7 @@ class TrackSateTest {
 
     @Test
     fun aMeasuredTrackReadsTheSubdivisionUnderTheGuideline() {
-        val track = TrackSate((0..100).toList(), subdivisions = 5, LazyListState(3, 40))
+        val track = TrackState((0..100).toList(), subdivisions = 5, LazyListState(3, 40))
         track.itemSizePx = 100f
 
         // 40px into an item whose five subdivisions are 20px apart.
@@ -35,7 +34,7 @@ class TrackSateTest {
     /** An offset of a whole item belongs to the next item, never to a sixth subdivision of this one. */
     @Test
     fun aSubdivisionCannotSpillIntoTheNextItem() {
-        val track = TrackSate((0..100).toList(), subdivisions = 5, LazyListState(3, 100))
+        val track = TrackState((0..100).toList(), subdivisions = 5, LazyListState(3, 100))
         track.itemSizePx = 100f
 
         assertEquals(4, track.selectedSubdivision)
@@ -48,7 +47,7 @@ class TrackSateTest {
      */
     @Test
     fun theLastReachableLineIsTheStartOfTheLastItem() {
-        assertEquals(100, TrackSate((0..20).toList(), subdivisions = 5, LazyListState()).maxTick)
-        assertEquals(59, TrackSate((0..59).toList(), subdivisions = 1, LazyListState()).maxTick)
+        assertEquals(100, TrackState((0..20).toList(), subdivisions = 5, LazyListState()).maxTick)
+        assertEquals(59, TrackState((0..59).toList(), subdivisions = 1, LazyListState()).maxTick)
     }
 }

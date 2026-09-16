@@ -34,7 +34,7 @@ import com.alexgabor.lib.appstateurl.fakeAppUrlModule
 import com.alexgabor.design.riso.attributes.Heading3
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.Card
-import com.alexgabor.design.riso.components.track.TrackSate
+import com.alexgabor.design.riso.components.track.TrackState
 import com.alexgabor.pacer.feature.home.slider.DistanceSlider
 import com.alexgabor.pacer.feature.home.slider.DistanceSliderState
 import com.alexgabor.pacer.feature.home.slider.PaceSlider
@@ -210,7 +210,7 @@ class PaceCalculatorState(
         recompute()
     }
 
-    internal val tracks: List<TrackSate<Int>>
+    internal val tracks: List<TrackState<Int>>
         get() = distanceSliderState.tracks + paceSliderState.tracks + timeSliderState.tracks
 
     /** True while any slider is under the user's finger or still flinging from it. */

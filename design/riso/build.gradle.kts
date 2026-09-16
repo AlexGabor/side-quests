@@ -66,5 +66,8 @@ kotlin {
             api(libs.compose.foundation)
             implementation(libs.compose.material3)
         }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+        }
     }
 }

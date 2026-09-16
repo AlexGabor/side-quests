@@ -33,8 +33,6 @@ kotlin {
             implementation(projects.lib.extension.compose)
             implementation(libs.compose.material3)
             implementation(libs.compose.components.resources)
-            implementation(libs.androidx.lifecycle.viewmodelCompose)
-            implementation(libs.androidx.lifecycle.runtimeCompose)
             api(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.kotlinx.serialization.core)
@@ -44,7 +42,6 @@ kotlin {
             // Only to prove the navigation keys survive a serialization round trip; the app itself
             // persists them through savedstate, not json.
             implementation(libs.kotlinx.serialization.json)
-            implementation(libs.koin.test)
             implementation(libs.kotlinx.coroutines.test)
             implementation(projects.pacer.core.settings.test)
             implementation(projects.lib.appstateurl.test)

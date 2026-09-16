@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.components.track.Track
 import com.alexgabor.design.riso.components.track.TrackAlignment
-import com.alexgabor.design.riso.components.track.TrackSate
+import com.alexgabor.design.riso.components.track.TrackState
 import com.alexgabor.pacer.feature.home.roundedSeconds
 import com.alexgabor.pacer.feature.home.twoDigits
 import kotlinx.coroutines.coroutineScope
@@ -33,10 +33,10 @@ internal fun rememberPaceSliderState(): PaceSliderState = remember { PaceSliderS
  * silently dropped.
  */
 class PaceSliderState(
-    internal val minuteTrackState: TrackSate<Int> = TrackSate((0..59).toList(), subdivisions = 1),
-    internal val secondTrackState: TrackSate<Int> = TrackSate((0..60 step 10).toList(), subdivisions = 10),
+    internal val minuteTrackState: TrackState<Int> = TrackState((0..59).toList(), subdivisions = 1),
+    internal val secondTrackState: TrackState<Int> = TrackState((0..60 step 10).toList(), subdivisions = 10),
 ) {
-    internal val tracks: List<TrackSate<Int>> get() = listOf(minuteTrackState, secondTrackState)
+    internal val tracks: List<TrackState<Int>> get() = listOf(minuteTrackState, secondTrackState)
 
     val isUserScrolling: Boolean
         get() = minuteTrackState.isUserScrolling || secondTrackState.isUserScrolling

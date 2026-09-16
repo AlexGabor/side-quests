@@ -37,7 +37,7 @@ private fun screenNamed(name: String): Screen? = when (name) {
  * neither direction has anything to do with what is drawn.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class AddressedBackStackTest {
+class DeepLinkedBackStackTest {
 
     private val appUrl = FakeAppUrl()
 
