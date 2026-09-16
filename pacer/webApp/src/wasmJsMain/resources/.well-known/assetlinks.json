@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.alexgabor.pacer",
+      "sha256_cert_fingerprints": [
+        "F7:8D:30:68:DA:12:0F:89:76:BC:B4:05:7A:CA:86:28:8D:74:C3:B4:0D:15:EC:DB:9A:85:24:05:1B:A7:FE:C9"
+      ]
+    }
+  }
+]

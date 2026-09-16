@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["694N83H483.com.alexgabor.pacer"],
+        "components": [
+          { "/": "/privacy/*", "exclude": true },
+          { "/": "/" }
+        ]
+      }
+    ]
+  }
+}
