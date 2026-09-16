@@ -15,7 +15,7 @@ internal class SettingsRepositoryImpl(
 ) : SettingsRepository {
 
     override val risoEffectsEnabled: Flow<Boolean> =
-        dataStore.data.map { preferences -> preferences[RisoEffectsEnabledKey] ?: true }
+        dataStore.data.map { preferences -> preferences[RisoEffectsEnabledKey] ?: RisoEffectsEnabledDefault }
 
     override suspend fun setRisoEffects(enabled: Boolean) {
         dataStore.edit { preferences -> preferences[RisoEffectsEnabledKey] = enabled }

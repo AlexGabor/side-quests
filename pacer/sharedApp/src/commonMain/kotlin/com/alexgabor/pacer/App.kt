@@ -1,5 +1,6 @@
 package com.alexgabor.pacer
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,10 +49,12 @@ fun App(
         // Settings arrive a frame or two after launch, and the navigation below is not composed
         // until they do. Providing the deep link out here means it is simply waiting when it is.
         CompositionLocalProvider(LocalDeepLink provides deepLink) {
-            if (risoEffectsEnabled == null) {
-                Box(Modifier.fillMaxSize().background(RisoTheme.colors.paper))
-            } else {
-                RootNavigation()
+            Crossfade(targetState = risoEffectsEnabled != null) { loaded ->
+                if (loaded) {
+                    RootNavigation()
+                } else {
+                    Box(Modifier.fillMaxSize().background(RisoTheme.colors.paper))
+                }
             }
         }
     }
