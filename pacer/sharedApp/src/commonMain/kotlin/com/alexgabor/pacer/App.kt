@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.alexgabor.design.navigation.LocalDeepLink
 import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.extension.compose.asState
+import com.alexgabor.lib.extension.compose.asState
 import com.alexgabor.lib.launch.LaunchParameters
 import com.alexgabor.pacer.core.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope

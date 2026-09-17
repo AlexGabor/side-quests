@@ -1,4 +1,4 @@
-package com.alexgabor.extension.compose
+package com.alexgabor.lib.extension.compose
 
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
