@@ -14,8 +14,13 @@ kotlin {
         commonMain.dependencies {
             api(projects.pacer.core.settings.api)
             api(libs.koin.core)
+            implementation(projects.lib.coroutine.dispatchers)
             implementation(libs.androidx.datastore.preferencesCore)
             implementation(libs.okio)
+        }
+        commonTest.dependencies {
+            implementation(projects.lib.coroutine.test)
+            implementation(libs.kotlin.test)
         }
         wasmJsMain.dependencies {
             implementation(libs.androidx.datastore.coreOkio)

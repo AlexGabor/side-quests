@@ -21,3 +21,12 @@ Navigation 3 wrapped in [design/navigation](../../design/navigation) (to become 
 - Root destinations are a `@Serializable sealed interface <App>Destination : NavKey` with stable screen names, and entries use fixed content keys. See [RootNavigation.kt](../../pacer/sharedApp/src/commonMain/kotlin/com/alexgabor/pacer/RootNavigation.kt).
 - Use AppUrl to interact with the browser history.
 
+
+## Coroutines
+
+### Dispatchers
+
+- Never use `Dispatchers.*` directly. Use `CoroutineDispatchers.IO` / `Default` / `Main` from [lib/coroutine/dispatchers](../../lib/coroutine/dispatchers).
+- Blocking or disk/network work (e.g. DataStore) is offloaded to `CoroutineDispatchers.IO` with `withContext` or `flowOn`. See [SettingsRepositoryImpl.kt](../../pacer/core/settings/impl/src/commonMain/kotlin/com/alexgabor/pacer/core/settings/SettingsRepositoryImpl.kt).
+- Read `CoroutineDispatchers` when the work starts, not when a class is built, so tests can swap them.
+- In tests, use `TestScopeRule` from [lib/coroutine/test](../../lib/coroutine/test): `install()` in `@BeforeTest`, `reset()` in `@AfterTest`, run the test body in `rule.testScope.runTest`.
