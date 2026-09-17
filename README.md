@@ -6,7 +6,8 @@ This KMP project is meant to be a collection of apps that I use.
 
 A custom theme, inspired by risograph printing. The theme provides a paper-like surface, and ink 
 drums. Each ink pass has an alignment "error", which is amplified for effect in this case.
-That's why the colors are not aligned in the example below.
+That's why the colors are not aligned in the example below. See the [Riso README](design/riso/README.md)
+for how to use it.
 
 <table>
   <tr>
@@ -18,7 +19,4 @@ That's why the colors are not aligned in the example below.
 ## Pacer
 
 A pace calculator with a UI that allows me to adjust values and see the result update instantly.
-
-## Stamp 
-
-A bad way of generating the Pacer Icon.
+See the [Pacer README](pacer/README.md).
