@@ -11,4 +11,4 @@ import platform.UIKit.UIViewController
  * Swift can always call the same way.
  */
 fun MainViewController(launchUrl: String?): UIViewController =
-    ComposeUIViewController { App(LaunchParameters.ofQueryString(launchUrl)) }
+    ComposeUIViewController { App(LaunchParameters.ofUrl(launchUrl)) }

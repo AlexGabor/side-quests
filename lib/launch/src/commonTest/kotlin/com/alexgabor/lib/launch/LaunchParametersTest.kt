@@ -188,4 +188,39 @@ class LaunchParametersTest {
         assertNull(parameters.enum<Unit>("b"))
         assertNull(parameters.enum<Unit>("missing"))
     }
+
+    @Test
+    fun readsTheHostOfACustomSchemeUrlAsTheScreen() {
+        assertEquals(
+            mapOf("screen" to "settings"),
+            LaunchParameters.ofUrl("pacer://settings").asMap(),
+        )
+        assertEquals(
+            mapOf("screen" to "pacer", "distance" to "21.10"),
+            LaunchParameters.ofUrl("pacer://pacer/?distance=21.10#top").asMap(),
+        )
+    }
+
+    @Test
+    fun letsTheQueryOverrideTheHost() {
+        assertEquals(
+            mapOf("screen" to "settings"),
+            LaunchParameters.ofUrl("pacer://pacer?screen=settings").asMap(),
+        )
+    }
+
+    @Test
+    fun ignoresTheHostOfAWebUrl() {
+        assertEquals(
+            mapOf("distance" to "10"),
+            LaunchParameters.ofUrl("https://pacer.alexgabor.com/?distance=10").asMap(),
+        )
+        assertTrue(LaunchParameters.ofUrl("https://pacer.alexgabor.com/").isEmpty)
+    }
+
+    @Test
+    fun readsNothingFromNoUrl() {
+        assertTrue(LaunchParameters.ofUrl(null).isEmpty)
+        assertTrue(LaunchParameters.ofUrl(" ").isEmpty)
+    }
 }

@@ -133,6 +133,37 @@ class LaunchParameters(private val values: Map<String, String>) {
 
             return if (values.isEmpty()) Empty else LaunchParameters(values)
         }
+
+        /**
+         * What a url the app was opened with asks for.
+         *
+         * The host of a custom-scheme url names a screen, so `pacer://settings` works without a
+         * query string; the query is read on top of it and wins, so `?screen=` still decides. An
+         * http(s) url is an app link, whose host is the website's domain rather than a screen, so
+         * there the screen can only come from the query, the same as it does in the browser.
+         */
+        fun ofUrl(url: String?): LaunchParameters {
+            if (url.isNullOrBlank()) return Empty
+
+            val values = mutableMapOf<String, String>()
+
+            val scheme = url.substringBefore("://", missingDelimiterValue = "")
+            if (scheme.isNotEmpty() && scheme.lowercase() !in WebSchemes) {
+                val host = url.substringAfter("://")
+                    .substringBefore('/').substringBefore('?').substringBefore('#')
+                    .substringAfterLast('@').substringBefore(':')
+                    .percentDecoded()
+                if (host.isNotBlank()) values["screen"] = host
+            }
+
+            // Only what follows a `?`: a url without one has no query, and reading it whole would
+            // turn `pacer://settings` itself into a parameter.
+            if ('?' in url) values += ofQueryString(url.substringAfter('?')).asMap()
+
+            return if (values.isEmpty()) Empty else LaunchParameters(values)
+        }
+
+        private val WebSchemes = setOf("http", "https")
     }
 }
 

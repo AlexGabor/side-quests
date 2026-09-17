@@ -1,0 +1,16 @@
+# Opens LINK in the app. iOS first asks "Open in Pacer?" for a custom scheme, so the flow waits for
+# that prompt and accepts it; if the simulator stops asking, the wait just times out.
+appId: ${APP_ID}
+---
+- openLink: ${LINK}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: "Open"
+          timeout: 5000
+          optional: true
+      - tapOn:
+          text: "Open"
+          optional: true

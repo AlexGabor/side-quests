@@ -1,0 +1,17 @@
+# The opposite of assert_selected.yaml.
+appId: ${APP_ID}
+---
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertNotVisible:
+          checked: true
+          containsChild: ${LABEL}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertNotVisible:
+          selected: true
+          containsChild: ${LABEL}

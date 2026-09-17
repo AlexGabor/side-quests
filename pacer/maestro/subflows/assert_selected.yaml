@@ -1,0 +1,18 @@
+# Asserts the card or segment holding LABEL is the selected one. Android reports selection as
+# checked, iOS as selected.
+appId: ${APP_ID}
+---
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          checked: true
+          containsChild: ${LABEL}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          selected: true
+          containsChild: ${LABEL}

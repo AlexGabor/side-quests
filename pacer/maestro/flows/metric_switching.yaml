@@ -1,0 +1,67 @@
+# The card you tap is the one Pacer solves for.
+#
+# Scenario: solving for time
+#   Given Pacer opens with Pace as the solved card
+#   When I tap the Time card
+#   Then Time is the solved card and Pace is not
+#   When I scroll the distance ruler
+#   Then the distance and the time change
+#   And the pace stays at 6:00 min/km
+#
+# Scenario: the solved card's ruler is locked
+#   Given Distance is the solved card
+#   When I scroll the distance ruler
+#   Then the distance doesn't change
+#
+# Run with -e APP_ID=com.alexgabor.pacer.debug (Android) or -e APP_ID=com.alexgabor.pacer (iOS).
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- runFlow:
+    file: ../subflows/assert_selected.yaml
+    env:
+      LABEL: "Pace = 6:00 min/km"
+
+- tapOn: "Time = 4h 13m 12s"
+- runFlow:
+    file: ../subflows/assert_selected.yaml
+    env:
+      LABEL: "Time = 4h 13m 12s"
+- runFlow:
+    file: ../subflows/assert_not_selected.yaml
+    env:
+      LABEL: "Pace = 6:00 min/km"
+
+# Pace is now held, so a new distance moves only the time. The swipe starts on the second tick
+# label: from the first, iOS doesn't register a drag that short.
+- swipe:
+    from:
+      text: "\\d+"
+      below: "Distance = 42.20 km"
+      rightOf:
+        text: "\\d+"
+        below: "Distance = 42.20 km"
+    direction: LEFT
+- waitForAnimationToEnd
+- assertNotVisible: "Distance = 42.20 km"
+- assertNotVisible: "Time = 4h 13m 12s"
+- assertVisible: "Pace = 6:00 min/km"
+
+# Once distance is the computed one, its ruler no longer scrolls.
+- tapOn: "Distance = .*"
+- runFlow:
+    file: ../subflows/assert_selected.yaml
+    env:
+      LABEL: "Distance = .*"
+- copyTextFrom: "Distance = .*"
+- swipe:
+    from:
+      text: "\\d+"
+      below: "Distance = .*"
+      rightOf:
+        text: "\\d+"
+        below: "Distance = .*"
+    direction: LEFT
+- waitForAnimationToEnd
+- assertVisible: "${maestro.copiedText}"

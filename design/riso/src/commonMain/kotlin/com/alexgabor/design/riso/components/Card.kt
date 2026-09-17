@@ -15,6 +15,8 @@ import androidx.compose.foundation.style.styleable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.risograph.inks.RisoMix
 import com.alexgabor.design.riso.risograph.inks.color
@@ -62,6 +64,8 @@ fun Card(
     Box(
         modifier = modifier
             .clickable(enabled = true, onClick = onClick, interactionSource = interactionSource, indication = null)
+            // The border is the only other sign of selection, so assistive tech is told too.
+            .semantics { selected = isSelected }
             .risoInk(selectedBorder)
             .styleable(styleState, cardStyle),
         content = content,

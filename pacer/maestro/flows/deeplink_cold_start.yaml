@@ -1,0 +1,63 @@
+# Deep links open Pacer on the run they describe when the app isn't running.
+#
+# Scenario: a run in kilometres
+#   Given Pacer is not running
+#   When I open pacer://pacer?distance=21.10&pace=5:00&metric=time
+#   Then the Time card is the one being solved
+#   And it shows 21.10 km at 5:00 min/km, which takes 1h 45m 30s
+#
+# Scenario: a run in miles, with the solved card left out
+#   Given Pacer is not running
+#   When I open a link with a distance and a pace in miles, but no metric
+#   Then the unit is miles
+#   And the time is solved: 13.10 mi at 8:00 min/mi takes 1h 44m 48s
+#
+# Scenario: a link to Settings
+#   Given Pacer is not running
+#   When I open pacer://settings
+#   Then the Settings screen is shown
+#
+# Run with -e APP_ID=com.alexgabor.pacer.debug (Android) or -e APP_ID=com.alexgabor.pacer (iOS).
+appId: ${APP_ID}
+---
+# A run in kilometres
+- launchApp:
+    clearState: true
+- stopApp
+- runFlow:
+    file: ../subflows/open_link.yaml
+    env:
+      LINK: "pacer://pacer?distance=21.10&pace=5:00&metric=time"
+- runFlow:
+    file: ../subflows/assert_selected.yaml
+    env:
+      LABEL: "Time = 1h 45m 30s"
+- assertVisible: "Distance = 21.10 km"
+- assertVisible: "Pace = 5:00 min/km"
+
+# A run in miles, with the solved card left out
+- stopApp
+- runFlow:
+    file: ../subflows/open_link.yaml
+    env:
+      LINK: "pacer://pacer?distance=13.10&pace=8:00&unit=miles"
+- runFlow:
+    file: ../subflows/assert_selected.yaml
+    env:
+      LABEL: "mi"
+- runFlow:
+    file: ../subflows/assert_selected.yaml
+    env:
+      LABEL: "Time = 1h 44m 48s"
+- assertVisible: "Distance = 13.10 mi"
+- assertVisible: "Pace = 8:00 min/mi"
+
+# A link to Settings
+- stopApp
+- runFlow:
+    file: ../subflows/open_link.yaml
+    env:
+      LINK: "pacer://settings"
+- assertVisible: "Settings"
+# Not the "Pacer" title: on iOS the app window itself is labeled Pacer.
+- assertNotVisible: "Tap the card you want to solve for.*"
