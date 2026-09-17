@@ -1,0 +1,25 @@
+schema: spec-driven
+
+context: |
+  SideQuests is a Kotlin Multiplatform repo of personal apps (Android, iOS, Desktop/JVM, Web/wasmJs)
+  sharing one architecture, the Riso design system and reusable libraries.
+  - Apps live under `<app>/` (currently `pacer/`), shared app-agnostic libraries under `lib/`,
+    the design system under `design/` (`riso`, `navigation`), convention plugins under `build-logic/`.
+  - Read `docs/architecture/README.md` and the nearest `CLAUDE.md` (root, `pacer/`, `lib/`) first.
+  - Don't follow patterns used in `tools/`.
+  - Spec capabilities are prefixed by area: `pacer-*`, `riso-*`, `lib-*`.
+
+rules:
+  proposal:
+    - Name the affected modules (e.g. `pacer/feature/home`, `pacer/core/settings/api`, `lib/launch`).
+    - Call out any change to Pacer's public link parameters (`distance`, `pace`, `time`, `metric`, `unit`, `screen`); old links must keep working.
+  design:
+    - Follow `docs/architecture/modules.md` and `docs/architecture/architecture.md`.
+    - Feature modules depend on `core/*/api`, never `impl`; bindings live in `sharedApp`.
+    - "`lib/` modules stay app agnostic: no dependency on `<app>/` modules and no app-specific names."
+    - Any intentional deviation from the architecture docs is recorded in `docs/architecture/known-deviations.md`.
+  tasks:
+    - End with verification tasks; ask which platforms to verify on rather than assuming.
+    - Include the relevant unit tests, e.g. `./gradlew :pacer:feature:home:jvmTest :pacer:sharedApp:jvmTest`.
+    - When Pacer UI behavior changes, add or update Maestro flows in `pacer/maestro/flows`.
+    - Keep the feature list in `pacer/README.md` in sync with user-visible changes.
