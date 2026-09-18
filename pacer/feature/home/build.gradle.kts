@@ -11,10 +11,12 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.design.riso)
             api(projects.lib.appstateurl.api)
+            api(projects.lib.share.api)
             implementation(libs.koin.compose)
 
             // Normaly this should be a test dependency, but it is needed in previews. It will be shrinked away.
             implementation(projects.lib.appstateurl.test)
+            implementation(projects.lib.share.test)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

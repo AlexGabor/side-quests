@@ -25,6 +25,7 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.pacer.core.settings.impl)
             implementation(projects.lib.appstateurl.impl)
+            implementation(projects.lib.share.impl)
             implementation(projects.pacer.feature.home)
             implementation(projects.pacer.feature.settings)
             implementation(projects.design.riso)
@@ -45,6 +46,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
             implementation(projects.pacer.core.settings.test)
             implementation(projects.lib.appstateurl.test)
+            implementation(projects.lib.share.test)
         }
 
         // Composing for real needs something to render into, which on the JVM means the skiko

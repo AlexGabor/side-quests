@@ -4,7 +4,7 @@
 - Module layout follows [modules.md](../docs/architecture/modules.md); state holders, navigation and deep links follow [architecture.md](../docs/architecture/architecture.md).
 - Feature modules depend on `core/*/api`, never `impl`. Bindings live in `sharedApp`.
 - `feature/*` depending on `core:settings:test` for previews is a known deviation; don't copy it. See [known-deviations.md](../docs/architecture/known-deviations.md).
-- Launch/deep link parameters (`distance`, `pace`, `time`, `metric`, `unit`, `screen`) are public URLs: keep old links working when changing them. A url becomes parameters in `LaunchParameters.ofUrl` (`lib/launch`, shared by Android and iOS); they become a screen in `sharedApp/.../DeepLinks.kt` and a run in `feature/home/.../PacerLaunchArgs.kt`.
+- Launch/deep link parameters (`distance`, `pace`, `time`, `metric`, `unit`, `screen`) are public URLs: keep old links working when changing them. A url becomes parameters in `LaunchParameters.ofUrl` (`lib/launch`, shared by Android and iOS); they become a screen in `sharedApp/.../DeepLinks.kt` and a run in `feature/home/.../PacerLaunchArgs.kt`. The share button's link and the web address bar are both written by `PacerLaunchArgs.toLaunchParameters()`, so links already out in the world use that format too.
 
 ## Running
 

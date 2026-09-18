@@ -1,6 +1,7 @@
 package com.alexgabor.pacer.feature.home
 
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
@@ -38,6 +39,8 @@ import com.alexgabor.design.riso.layout.WindowWidthSizeClass
 import com.alexgabor.design.riso.layout.computeWindowSizeClass
 import com.alexgabor.design.riso.layout.contentWidth
 import com.alexgabor.design.riso.risograph.inks.risoInk
+import com.alexgabor.lib.share.Share
+import org.koin.compose.koinInject
 
 
 private val TwoPaneMaxWidth = 1280.dp
@@ -50,7 +53,11 @@ fun PacerScreen(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
     state: PaceCalculatorState = rememberPaceCalculatorState(),
+    share: Share = koinInject(),
 ) {
+    // Null where there is no share sheet, and the header then leaves the icon out.
+    val onShareClick = if (share.isAvailable) ({ share.text(state.shareText) }) else null
+
     val listState = rememberLazyListState()
     val leftPaneScrollState = rememberScrollState()
 
@@ -67,6 +74,7 @@ fun PacerScreen(
             PacerTwoPane(
                 state = state,
                 onSettingsClick = onSettingsClick,
+                onShareClick = onShareClick,
                 listState = listState,
                 leftPaneScrollState = leftPaneScrollState,
             )
@@ -74,6 +82,7 @@ fun PacerScreen(
             PacerSinglePane(
                 state = state,
                 onSettingsClick = onSettingsClick,
+                onShareClick = onShareClick,
                 listState = listState,
             )
         }
@@ -83,6 +92,7 @@ fun PacerScreen(
 @Composable
 private fun PacerHeader(
     onSettingsClick: () -> Unit,
+    onShareClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     SelectionContainer {
@@ -92,10 +102,20 @@ private fun PacerHeader(
                 modifier = Modifier.fillMaxWidth()
                     .padding(RisoTheme.dimens.screenPadding),
                 endContent = {
-                    Icon(
-                        type = IconType.Settings,
-                        onClick = onSettingsClick,
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(RisoTheme.dimens.screenPadding)) {
+                        if (onShareClick != null) {
+                            Icon(
+                                type = IconType.Share,
+                                onClick = onShareClick,
+                                contentDescription = "Share",
+                            )
+                        }
+                        Icon(
+                            type = IconType.Settings,
+                            onClick = onSettingsClick,
+                            contentDescription = "Settings",
+                        )
+                    }
                 }
             )
 
@@ -111,6 +131,7 @@ private fun PacerHeader(
 private fun BoxWithConstraintsScope.PacerSinglePane(
     state: PaceCalculatorState,
     onSettingsClick: () -> Unit,
+    onShareClick: (() -> Unit)?,
     listState: LazyListState,
 ) {
     Column(
@@ -120,6 +141,7 @@ private fun BoxWithConstraintsScope.PacerSinglePane(
     ) {
         PacerHeader(
             onSettingsClick = onSettingsClick,
+            onShareClick = onShareClick,
             modifier = Modifier.windowInsetsPadding(
                 WindowInsets.safeDrawing.only(
                     WindowInsetsSides.Top + WindowInsetsSides.Horizontal
@@ -147,6 +169,7 @@ private fun BoxWithConstraintsScope.PacerSinglePane(
 private fun BoxWithConstraintsScope.PacerTwoPane(
     state: PaceCalculatorState,
     onSettingsClick: () -> Unit,
+    onShareClick: (() -> Unit)?,
     listState: LazyListState,
     leftPaneScrollState: ScrollState,
 ) {
@@ -158,6 +181,7 @@ private fun BoxWithConstraintsScope.PacerTwoPane(
         LeftPane(
             state = state,
             onSettingsClick = onSettingsClick,
+            onShareClick = onShareClick,
             scrollState = leftPaneScrollState,
         )
 
@@ -177,6 +201,7 @@ private fun BoxWithConstraintsScope.PacerTwoPane(
 private fun RowScope.LeftPane(
     state: PaceCalculatorState,
     onSettingsClick: () -> Unit,
+    onShareClick: (() -> Unit)?,
     scrollState: ScrollState,
 ) {
     Column(
@@ -189,7 +214,7 @@ private fun RowScope.LeftPane(
             )
             .verticalScroll(scrollState)
     ) {
-        PacerHeader(onSettingsClick = onSettingsClick)
+        PacerHeader(onSettingsClick = onSettingsClick, onShareClick = onShareClick)
 
         DistancePresets(
             state = state,

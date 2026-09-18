@@ -1,0 +1,16 @@
+# Share hands the run to the platform share sheet: the three cards as they read, and a link that
+# opens the same run. The exact text is pinned by ShareTextTest; this only proves the button is there
+# and that the sheet opens with the link in it.
+#
+# Scenario: sharing the default run
+#   Given Pacer opens on the default run
+#   When I tap Share
+#   Then the share sheet opens, showing the link to pacer.alexgabor.com
+#
+# Run with -e APP_ID=com.alexgabor.pacer.debug (Android) or -e APP_ID=com.alexgabor.pacer (iOS).
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- tapOn: "Share"
+- assertVisible: ".*pacer\\.alexgabor\\.com.*"

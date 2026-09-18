@@ -11,6 +11,7 @@ import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.lib.appstateurl.AppUrl
 import com.alexgabor.lib.appstateurl.FakeAppUrl
 import com.alexgabor.lib.launch.LaunchParameters
+import com.alexgabor.lib.share.fakeShareModule
 import com.alexgabor.pacer.core.settings.fakeSettingsModule
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -29,12 +30,13 @@ class RootNavigationTest {
     fun tearDown() = stopKoin()
 
     private fun ComposeUiTest.launchedWith(query: String) {
-        // Settings and the url both reach the screens through Koin, so there has to be one to
+        // Settings, sharing and the url all reach the screens through Koin, so there has to be one to
         // inject. The url starts on what the app was launched with, as a real one would.
         appUrl.moveTo(LaunchParameters.ofQueryString(query))
         startKoin {
             modules(
                 fakeSettingsModule,
+                fakeShareModule,
                 module { single<AppUrl> { appUrl } },
             )
         }

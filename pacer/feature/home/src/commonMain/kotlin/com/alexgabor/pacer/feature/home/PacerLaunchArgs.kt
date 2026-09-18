@@ -26,6 +26,9 @@ data class PacerLaunchArgs(
     }
 }
 
+/** Where Pacer runs on the web; a link here with a run's launch parameters opens on that run. */
+const val PacerWebUrl = "https://pacer.alexgabor.com/"
+
 /**
  * The launch that opens on this run — what a deep link into it would have said.
  *

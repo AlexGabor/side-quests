@@ -7,12 +7,13 @@ import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.layout.PreviewWindowSizeEdges
 import com.alexgabor.design.riso.layout.PreviewWindowSizes
 import com.alexgabor.lib.appstateurl.fakeAppUrlModule
+import com.alexgabor.lib.share.fakeShareModule
 import org.koin.compose.KoinApplicationPreview
 
 @PreviewWindowSizes
 @Composable
 private fun PacerScreenWindowSizesPreview() {
-    KoinApplicationPreview(application = { modules(fakeAppUrlModule) }) {
+    KoinApplicationPreview(application = { modules(fakeAppUrlModule, fakeShareModule) }) {
         RisoTheme {
             PacerScreen(
                 onSettingsClick = {},
@@ -25,7 +26,7 @@ private fun PacerScreenWindowSizesPreview() {
 @PreviewWindowSizeEdges
 @Composable
 private fun PacerScreenWindowSizeEdgesPreview() {
-    KoinApplicationPreview(application = { modules(fakeAppUrlModule) }) {
+    KoinApplicationPreview(application = { modules(fakeAppUrlModule, fakeShareModule) }) {
         RisoTheme {
             PacerScreen(
                 onSettingsClick = {},

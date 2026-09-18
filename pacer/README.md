@@ -22,3 +22,5 @@ Try it at [pacer.alexgabor.com](https://pacer.alexgabor.com).
 - **Shareable links:** the URL tracks the current run, for example
   `https://pacer.alexgabor.com/?distance=21.10&pace=5:00&metric=time&unit=kilometers`. Opening
   the link restores that run. Android also handles `pacer://` links.
+- **Share:** on Android and iOS, the share button sends the three values as the cards show them,
+  plus a link that opens the same run.

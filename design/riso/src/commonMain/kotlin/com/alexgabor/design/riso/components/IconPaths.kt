@@ -19,3 +19,6 @@ internal val SettingsIconPaths = listOf(
     "M17,12.5m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0",
     "M17,14L17,18",
 )
+
+/** Each platform's own share glyph, so the action reads as the one the user already knows. */
+internal expect val ShareIconPaths: List<String>

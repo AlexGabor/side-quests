@@ -24,6 +24,7 @@ import com.alexgabor.design.riso.RisoTheme
 enum class IconType {
     Back,
     Settings,
+    Share,
 }
 
 @OptIn(ExperimentalFoundationStyleApi::class)
@@ -32,6 +33,7 @@ fun Icon(
     type: IconType,
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    contentDescription: String? = null,
 ) {
     val colors = RisoTheme.colors
     val dimens = RisoTheme.dimens
@@ -42,7 +44,7 @@ fun Icon(
         painter = rememberVectorPainter(
             rememberIconVector(type, dimens.iconSize, dimens.lineWidth, colors.content)
         ),
-        contentDescription = null,
+        contentDescription = contentDescription,
         modifier = modifier.size(dimens.iconSize)
             .clickable(
                 onClick = { onClick?.invoke() },
@@ -94,4 +96,5 @@ private fun rememberIconVector(
 private fun IconType.paths() = when (this) {
     IconType.Back -> BackIconPaths
     IconType.Settings -> SettingsIconPaths
+    IconType.Share -> ShareIconPaths
 }

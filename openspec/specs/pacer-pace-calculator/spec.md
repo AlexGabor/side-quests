@@ -98,3 +98,45 @@ The calculator SHALL offer distance presets that follow the selected unit. In ki
 - **THEN** the presets are not shown
 - **WHEN** the user taps the Pace card
 - **THEN** the presets are shown again
+
+### Requirement: Share the run
+On Android and iOS the Pacer header SHALL show a Share icon, left of the Settings icon. Its glyph SHALL follow the platform: on Android, one dot branching to two dots; on iOS, an up arrow rising out of an open box. Platforms without a share sheet (web and desktop) SHALL NOT show the icon. Tapping it SHALL open the platform share sheet with plain text of four lines:
+1. The Time card title.
+2. The Distance card title.
+3. The Pace card title.
+4. A link to `https://pacer.alexgabor.com/` whose query holds the run's `distance`, `pace`, `time`, `metric` and `unit`.
+
+Each title SHALL be exactly as the card displays it, comparison sign included. The link SHALL use the same parameters and formatting the web app writes to its own address, so opening it shows the same run. Values travel to the grain of the rulers: the distance to the hundredth, and pace and time to the second. Opening the link then recomputes the computed metric from those rounded inputs, so it MAY differ from the shared text by that rounding.
+
+#### Scenario: Sharing the default run
+- **WHEN** Pacer opens with no launch parameters and the user taps Share
+- **THEN** the share sheet receives:
+  ```
+  Time = 4h 13m 12s
+  Distance = 42.20 km
+  Pace = 6:00 min/km
+  https://pacer.alexgabor.com/?distance=42.20&pace=6:00&time=4:13:12&metric=pace&unit=kilometers
+  ```
+
+#### Scenario: Sharing in miles
+- **WHEN** the user selects `mi` and taps Share
+- **THEN** the text reads `Distance = 26.22 mi` and `Pace = 9:39 min/mi`
+- **AND** the link ends with `unit=miles`
+
+#### Scenario: Sharing an out-of-range value
+- **WHEN** the Time card reads `Time > ...` and the user taps Share
+- **THEN** the shared text's first line is that same `Time > ...` title
+
+#### Scenario: The link opens the same run
+- **WHEN** the shared link is opened in the web app, or as a deep link on Android or iOS
+- **THEN** the two input cards show the same titles as the shared text
+- **AND** the same metric is computed and the same unit is selected
+
+#### Scenario: Computed value recomputed from rounded inputs
+- **WHEN** the user selects `mi`, taps the Time card, taps `HM` and shares
+- **THEN** the shared text reads `Time = 2h 06m 36s` and `Pace = 9:39 min/mi`
+- **AND** opening the link shows `Pace = 9:39 min/mi` and `Distance = 13.11 mi`, with a time recomputed from the rounded 9:39 pace
+
+#### Scenario: No share sheet
+- **WHEN** Pacer runs on the web or on desktop
+- **THEN** the header shows only the Settings icon

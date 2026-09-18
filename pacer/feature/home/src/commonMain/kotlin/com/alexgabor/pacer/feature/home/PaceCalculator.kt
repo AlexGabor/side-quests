@@ -139,6 +139,26 @@ class PaceCalculatorState(
             "${(seconds % 60).twoDigits()}s"
     }
 
+    /** What each card is headed with; also the first three lines of [shareText]. */
+    internal val timeTitle: String get() = "Time ${timeComparison.text} $displayedTime"
+
+    internal val distanceTitle: String
+        get() = "Distance ${distanceComparison.text} $displayedDistance"
+
+    internal val paceTitle: String get() = "Pace ${paceComparison.text} $displayedPace"
+
+    /**
+     * The run as someone else would be sent it: the card titles, in card order, and a link that
+     * opens the web app on the same run — the same address it writes for itself as the run settles.
+     */
+    internal val shareText: String
+        get() = listOf(
+            timeTitle,
+            distanceTitle,
+            paceTitle,
+            "$PacerWebUrl?${launchArgs.toLaunchParameters().toQueryString()}",
+        ).joinToString("\n")
+
     val distanceComparison: Comparison
         get() = comparison(
             DistanceSliderState.ticks(distanceOnSlider),
@@ -594,7 +614,7 @@ internal fun LazyListScope.metricCardItems(
 ) {
     item("time") {
         MetricCard(
-            title = "Time ${state.timeComparison.text} ${state.displayedTime}",
+            title = state.timeTitle,
             selected = state.selectedMetric == Metric.Time,
             onClick = { state.selectMetric(Metric.Time) },
             modifier = cardModifier(maxCardWidth),
@@ -608,7 +628,7 @@ internal fun LazyListScope.metricCardItems(
 
     item("distance") {
         MetricCard(
-            title = "Distance ${state.distanceComparison.text} ${state.displayedDistance}",
+            title = state.distanceTitle,
             selected = state.selectedMetric == Metric.Distance,
             onClick = { state.selectMetric(Metric.Distance) },
             modifier = cardModifier(maxCardWidth),
@@ -622,7 +642,7 @@ internal fun LazyListScope.metricCardItems(
 
     item("pace") {
         MetricCard(
-            title = "Pace ${state.paceComparison.text} ${state.displayedPace}",
+            title = state.paceTitle,
             selected = state.selectedMetric == Metric.Pace,
             onClick = { state.selectMetric(Metric.Pace) },
             modifier = cardModifier(maxCardWidth),
