@@ -1,6 +1,8 @@
 package com.alexgabor.design.riso.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -94,7 +96,7 @@ fun <T> ButtonGroup(
 
             val segmentStyle = Style {
                 selected {
-                    animate {
+                    animate(toSpec = spring(), fromSpec = spring(stiffness = Spring.StiffnessLow)) {
                         background(colors.accent.onRisoPaper())
                     }
                 }

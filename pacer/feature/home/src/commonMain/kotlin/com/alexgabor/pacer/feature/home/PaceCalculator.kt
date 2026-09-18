@@ -1,7 +1,6 @@
 package com.alexgabor.pacer.feature.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,17 +26,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.lib.appstateurl.AppUrl
-import com.alexgabor.lib.appstateurl.fakeAppUrlModule
 import com.alexgabor.design.riso.attributes.Heading3
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.Card
+import com.alexgabor.design.riso.components.FlatButton
 import com.alexgabor.design.riso.components.track.TrackState
+import com.alexgabor.lib.appstateurl.AppUrl
+import com.alexgabor.lib.appstateurl.fakeAppUrlModule
+import com.alexgabor.pacer.feature.home.PaceCalculatorState.Companion.launched
 import com.alexgabor.pacer.feature.home.slider.DistanceSlider
 import com.alexgabor.pacer.feature.home.slider.DistanceSliderState
 import com.alexgabor.pacer.feature.home.slider.PaceSlider
@@ -540,10 +540,9 @@ internal fun DistancePresets(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DistancePreset.forUnit(state.selectedUnit).forEach { preset ->
-            Heading3(
+            FlatButton(
                 text = preset.text,
-                modifier = Modifier.clickable(role = Role.Button) { state.selectPreset(preset) }
-                    .padding(8.dp),
+                onClick = { state.selectPreset(preset) },
             )
         }
     }
