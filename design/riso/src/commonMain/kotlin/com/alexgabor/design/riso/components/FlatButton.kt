@@ -4,6 +4,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -78,8 +80,10 @@ fun FlatButton(
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
+                        awaitFirstDown()
                         mutableStyleState.isPressed = true
-                        mutableStyleState.isPressed = false
+                        waitForUpOrCancellation()
+                        mutableStyleState.isPressed = false // Triggers instantly on finger up
                     }
                 }
             }
