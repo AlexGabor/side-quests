@@ -20,11 +20,13 @@ import androidx.compose.ui.platform.LocalUriHandler
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Heading1
+import com.alexgabor.design.riso.attributes.Heading3
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.Icon
 import com.alexgabor.design.riso.components.IconType
 import com.alexgabor.design.riso.components.OnOff
 import com.alexgabor.design.riso.layout.contentWidth
+import com.alexgabor.design.riso.risograph.inks.risoInk
 import com.alexgabor.lib.extension.compose.asState
 import com.alexgabor.pacer.core.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
@@ -103,7 +105,8 @@ private fun SettingsHeader(
     SelectionContainer(modifier) {
         Heading1(
             text = "Settings",
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.risoInk(RisoTheme.colors.content)
+                .fillMaxWidth()
                 .padding(RisoTheme.dimens.screenPadding),
             startContent = {
                 Icon(
@@ -125,7 +128,7 @@ internal fun RisoEffectSetting(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Body(
+        Heading3(
             text = "Riso effects",
             modifier = Modifier.weight(1f)
                 .padding(vertical = RisoTheme.dimens.screenPadding),
