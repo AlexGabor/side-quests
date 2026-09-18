@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Heading1
-import com.alexgabor.design.riso.components.Icon
+import com.alexgabor.design.riso.components.FlatButton
 import com.alexgabor.design.riso.components.IconType
 import com.alexgabor.design.riso.layout.WindowHeightSizeClass
 import com.alexgabor.design.riso.layout.WindowWidthSizeClass
@@ -102,16 +102,16 @@ private fun PacerHeader(
                 modifier = Modifier.fillMaxWidth()
                     .padding(RisoTheme.dimens.screenPadding),
                 endContent = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(RisoTheme.dimens.screenPadding)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (onShareClick != null) {
-                            Icon(
-                                type = IconType.Share,
+                            FlatButton(
+                                icon = IconType.Share,
                                 onClick = onShareClick,
                                 contentDescription = "Share",
                             )
                         }
-                        Icon(
-                            type = IconType.Settings,
+                        FlatButton(
+                            icon = IconType.Settings,
                             onClick = onSettingsClick,
                             contentDescription = "Settings",
                         )

@@ -30,13 +30,46 @@ import com.alexgabor.design.riso.risograph.inks.RisoMix
 import com.alexgabor.design.riso.risograph.inks.color
 import com.alexgabor.design.riso.risograph.inks.risoInk
 
-@OptIn(ExperimentalFoundationStyleApi::class)
 @Composable
 fun FlatButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isSelected: Boolean = false,
+) {
+    FlatButtonContainer(onClick = onClick, modifier = modifier, isSelected = isSelected) {
+        Heading3(
+            text = text,
+            modifier = Modifier.risoInk(RisoTheme.colors.content)
+                .padding(8.dp),
+        )
+    }
+}
+
+@Composable
+fun FlatButton(
+    icon: IconType,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isSelected: Boolean = false,
+) {
+    FlatButtonContainer(onClick = onClick, modifier = modifier, isSelected = isSelected) {
+        Icon(
+            type = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.risoInk(RisoTheme.colors.content),
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationStyleApi::class)
+@Composable
+private fun FlatButtonContainer(
+    onClick: () -> Unit,
+    modifier: Modifier,
+    isSelected: Boolean,
+    content: @Composable () -> Unit,
 ) {
     val lineWidth = RisoTheme.dimens.lineWidth
     val shape = RisoTheme.shapes.standardShape
@@ -90,12 +123,7 @@ fun FlatButton(
             .semantics { selected = isSelected }
             .risoInk(selectedBorder)
             .styleable(mutableStyleState, cardStyle),
-        content = {
-            Heading3(
-                text = text,
-                modifier = Modifier.risoInk(RisoTheme.colors.content)
-                    .padding(8.dp),
-            )
-        },
-    )
+    ) {
+        content()
+    }
 }

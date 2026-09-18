@@ -22,7 +22,7 @@ import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Heading1
 import com.alexgabor.design.riso.attributes.Heading3
 import com.alexgabor.design.riso.components.ButtonGroup
-import com.alexgabor.design.riso.components.Icon
+import com.alexgabor.design.riso.components.FlatButton
 import com.alexgabor.design.riso.components.IconType
 import com.alexgabor.design.riso.components.OnOff
 import com.alexgabor.design.riso.layout.contentWidth
@@ -109,9 +109,10 @@ private fun SettingsHeader(
                 .fillMaxWidth()
                 .padding(RisoTheme.dimens.screenPadding),
             startContent = {
-                Icon(
-                    type = IconType.Back,
+                FlatButton(
+                    icon = IconType.Back,
                     onClick = onBackClick,
+                    contentDescription = "Back"
                 )
             }
         )

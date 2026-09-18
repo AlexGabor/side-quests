@@ -31,14 +31,11 @@ enum class IconType {
 @Composable
 fun Icon(
     type: IconType,
-    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
 ) {
     val colors = RisoTheme.colors
     val dimens = RisoTheme.dimens
-    val interactionSource = remember { MutableInteractionSource() }
-    val styleState = remember { MutableStyleState(interactionSource) }
 
     Image(
         painter = rememberVectorPainter(
@@ -46,17 +43,6 @@ fun Icon(
         ),
         contentDescription = contentDescription,
         modifier = modifier.size(dimens.iconSize)
-            .clickable(
-                onClick = { onClick?.invoke() },
-                enabled = onClick != null,
-                interactionSource = interactionSource,
-                indication = null,
-            )
-            .styleable(styleState) {
-                hovered {
-                    background(colors.content.copy(alpha = 0.25f))
-                }
-            },
     )
 }
 
