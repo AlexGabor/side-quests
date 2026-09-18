@@ -289,11 +289,13 @@ internal class RisoPassNode(
             // a frame. It cannot loop: on that frame this node draws inside the ancestor's
             // recording, which is the one case that asks for nothing.
             //
-            // Recording waits for that frame rather than happening here as well. A recording taken
-            // outside the ancestor's is only overwritten by the one taken inside it a moment later,
-            // and never reaches the sheet in between — on a list being scrolled that is every
-            // pass's whole subtree recorded twice a frame.
+            // Recorded here all the same, and not left for that frame. A layer between the two — a
+            // styled shape, a graphicsLayer — is replayed from its own display list when the
+            // ancestor re-records, so this draw may never run again inside the ancestor's
+            // recording. Left unrecorded, the ancestor would lay down this pass's last artwork: a
+            // label changed but printed as it was.
             if (!above.recording) {
+                recordContent()
                 above.invalidateDraw()
                 return
             }
