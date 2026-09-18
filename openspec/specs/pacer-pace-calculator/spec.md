@@ -62,3 +62,39 @@ The run (distance, pace, time, selected metric and unit) SHALL survive configura
 #### Scenario: Rotation in miles
 - **WHEN** the device rotates while miles are selected
 - **THEN** the same run, metric and unit are shown with no change to any figure
+
+### Requirement: Distance presets
+The calculator SHALL offer distance presets that follow the selected unit. In kilometres they SHALL be `5K`, `10K`, `HM` and `M`, setting the distance to 5.00 km, 10.00 km, 21.10 km and 42.20 km. In miles they SHALL be `5mi`, `10mi`, `HM` and `M`, setting it to 5.00 mi, 10.00 mi, 21.10 km and 42.20 km. `HM` and `M` are the same distances in both units. Selecting a preset SHALL behave like scrolling the distance ruler to that value: the computed metric is recomputed from the new distance and the other input is kept. The presets SHALL be hidden while Distance is the computed metric. Switching units SHALL NOT change the distance, even when the preset that set it is not offered in the new unit.
+
+#### Scenario: Half marathon with pace computed
+- **WHEN** the default run is shown and the user taps `HM`
+- **THEN** it shows `Distance = 21.10 km`, `Time = 4h 13m 12s` and `Pace = 12:00 min/km`
+
+#### Scenario: 10K with time computed
+- **WHEN** the default run is shown, the user taps the Time card and then taps `10K`
+- **THEN** it shows `Distance = 10.00 km`, `Pace = 6:00 min/km` and `Time = 1h 00m 00s`
+
+#### Scenario: Presets in miles
+- **WHEN** the user selects `mi`
+- **THEN** the presets are `5mi`, `10mi`, `HM` and `M`
+- **AND** `5K` and `10K` are not shown
+
+#### Scenario: 10 miles with time computed
+- **WHEN** the default run is shown, the user selects `mi`, taps the Time card and then taps `10mi`
+- **THEN** it shows `Distance = 10.00 mi`, `Pace = 9:39 min/mi` and `Time = 1h 36m 34s`
+
+#### Scenario: Half marathon in miles
+- **WHEN** the user selects `mi` and taps `HM`
+- **THEN** it shows `Distance = 13.11 mi`
+
+#### Scenario: Switching units after a unit-specific preset
+- **WHEN** the user taps `5K` and then selects `mi`
+- **THEN** it shows `Distance = 3.11 mi`
+- **WHEN** the user selects `km` again
+- **THEN** it shows `Distance = 5.00 km`
+
+#### Scenario: Hidden while distance is computed
+- **WHEN** the user taps the Distance card
+- **THEN** the presets are not shown
+- **WHEN** the user taps the Pace card
+- **THEN** the presets are shown again

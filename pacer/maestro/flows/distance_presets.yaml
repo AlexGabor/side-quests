@@ -1,0 +1,85 @@
+# A preset sets the distance in one tap, as if the distance ruler had been scrolled to it.
+#
+# Scenario: half marathon with pace computed
+#   Given Pacer opens on the default run: 42.20 km at 6:00 min/km in 4h 13m 12s
+#   When I tap "HM"
+#   Then the run is 21.10 km in the same 4h 13m 12s, at 12:00 min/km
+#
+# Scenario: 10K with time computed
+#   Given the default run with Time as the solved card
+#   When I tap "10K"
+#   Then the run is 10.00 km at the same 6:00 min/km, in 1h 00m 00s
+#
+# Scenario: presets in miles
+#   Given miles are selected
+#   Then the presets are 5mi, 10mi, HM and M
+#   When I solve for time and tap "10mi"
+#   Then the run is 10.00 mi at 9:39 min/mi in 1h 36m 34s
+#   When I tap "HM"
+#   Then the distance is 13.11 mi
+#
+# Scenario: switching units after a unit-specific preset
+#   When I tap "5K" and select miles
+#   Then the distance is 3.11 mi, not 5 mi
+#   When I select km again
+#   Then the distance is 5.00 km
+#
+# Scenario: hidden while distance is computed
+#   When I tap the Distance card
+#   Then the presets are gone
+#   When I tap the Pace card
+#   Then they are back
+#
+# Run with -e APP_ID=com.alexgabor.pacer.debug (Android) or -e APP_ID=com.alexgabor.pacer (iOS).
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- tapOn: "HM"
+- waitForAnimationToEnd
+- assertVisible: "Distance = 21.10 km"
+- assertVisible: "Time = 4h 13m 12s"
+- assertVisible: "Pace = 12:00 min/km"
+
+- launchApp:
+    clearState: true
+- tapOn: "Time = 4h 13m 12s"
+- tapOn: "10K"
+- waitForAnimationToEnd
+- assertVisible: "Distance = 10.00 km"
+- assertVisible: "Pace = 6:00 min/km"
+- assertVisible: "Time = 1h 00m 00s"
+
+- launchApp:
+    clearState: true
+- tapOn: "mi"
+- assertVisible: "5mi"
+- assertVisible: "10mi"
+- assertVisible: "HM"
+- assertVisible: "M"
+- assertNotVisible: "5K"
+- assertNotVisible: "10K"
+- tapOn: "Time = 4h 13m 12s"
+- tapOn: "10mi"
+- waitForAnimationToEnd
+- assertVisible: "Distance = 10.00 mi"
+- assertVisible: "Pace = 9:39 min/mi"
+- assertVisible: "Time = 1h 36m 34s"
+- tapOn: "HM"
+- waitForAnimationToEnd
+- assertVisible: "Distance = 13.11 mi"
+
+- launchApp:
+    clearState: true
+- tapOn: "5K"
+- waitForAnimationToEnd
+- assertVisible: "Distance = 5.00 km"
+- tapOn: "mi"
+- assertVisible: "Distance = 3.11 mi"
+- tapOn: "km"
+- assertVisible: "Distance = 5.00 km"
+
+- tapOn: "Distance = .*"
+- assertNotVisible: "HM"
+- tapOn: "Pace = .*"
+- assertVisible: "HM"

@@ -1,10 +1,12 @@
 package com.alexgabor.pacer.feature.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -25,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -162,6 +165,16 @@ class PaceCalculatorState(
      */
     fun selectUnit(unit: DistanceUnit) {
         selectedUnit = unit
+    }
+
+    /**
+     * The same as scrolling the distance ruler to [preset]: the computed metric follows and the
+     * other input is kept. The rulers catch up through [sync], and the address once the run settles.
+     */
+    fun selectPreset(preset: DistancePreset) {
+        if (selectedMetric == Metric.Distance) return
+        updateDistance(preset.distance)
+        recompute()
     }
 
     /** Whichever metric is selected is the one computed; the other two are what the user sets. */
@@ -509,6 +522,33 @@ internal fun UnitSelector(
     )
 }
 
+/**
+ * One tap to a race distance, for the unit on screen. Plain headings rather than a button group:
+ * the presets are actions, and none of them stays chosen once the rulers move on.
+ *
+ * Draws nothing while distance is the computed metric, for the same reason its ruler doesn't scroll.
+ */
+@Composable
+internal fun DistancePresets(
+    state: PaceCalculatorState,
+    modifier: Modifier = Modifier,
+) {
+    if (state.selectedMetric == Metric.Distance) return
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        DistancePreset.forUnit(state.selectedUnit).forEach { preset ->
+            Heading3(
+                text = preset.text,
+                modifier = Modifier.clickable(role = Role.Button) { state.selectPreset(preset) }
+                    .padding(8.dp),
+            )
+        }
+    }
+}
+
 @Composable
 private fun MetricCard(
     title: String,
@@ -633,14 +673,15 @@ internal fun PaceCalculator(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item("unit") {
-            Box(
-                modifier = Modifier.widthIn(max = maxCardWidth).fillMaxWidth(),
-                contentAlignment = Alignment.CenterEnd,
+            Row(
+                modifier = Modifier.widthIn(max = maxCardWidth)
+                    .fillMaxWidth()
+                    .padding(horizontal = RisoTheme.dimens.screenPadding),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                UnitSelector(
-                    state = state,
-                    modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding),
-                )
+                DistancePresets(state = state)
+                Spacer(Modifier.weight(1f))
+                UnitSelector(state = state)
             }
         }
         metricCardItems(state, maxCardWidth)

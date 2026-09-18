@@ -191,6 +191,13 @@ private fun RowScope.LeftPane(
     ) {
         PacerHeader(onSettingsClick = onSettingsClick)
 
+        DistancePresets(
+            state = state,
+            modifier = Modifier.align(Alignment.End)
+                .padding(horizontal = RisoTheme.dimens.screenPadding)
+                .padding(top = RisoTheme.dimens.screenPadding),
+        )
+
         UnitSelector(
             state = state,
             modifier = Modifier.align(Alignment.End)

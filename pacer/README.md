@@ -14,6 +14,8 @@ Try it at [pacer.alexgabor.com](https://pacer.alexgabor.com).
 ## Features
 
 - **Distance, pace and time:** choose which one is computed; drag the rulers for the other two.
+- **Distance presets:** one tap to 5K, 10K, half marathon or marathon — or 5 and 10 miles when
+  miles are selected.
 - **Live results:** the computed value updates while you drag, not only when you let go.
 - **Kilometers or miles:** switching units doesn't change the run itself.
 - **Out-of-range values:** a value beyond the end of its ruler is kept exactly and marked with `>` or `<`.
