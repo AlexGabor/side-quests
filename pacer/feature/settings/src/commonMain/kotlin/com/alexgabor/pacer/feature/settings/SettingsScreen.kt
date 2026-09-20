@@ -21,6 +21,7 @@ import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Heading1
 import com.alexgabor.design.riso.attributes.Heading3
+import com.alexgabor.design.riso.attributes.RisoColors
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.FlatButton
 import com.alexgabor.design.riso.components.IconType
@@ -132,6 +133,7 @@ internal fun RisoEffectSetting(
         Heading3(
             text = "Riso effects",
             modifier = Modifier.weight(1f)
+                .risoInk(RisoColors.content)
                 .padding(vertical = RisoTheme.dimens.screenPadding),
         )
         ButtonGroup(
