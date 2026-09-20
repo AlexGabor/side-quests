@@ -76,11 +76,12 @@ there is nothing to opt out of. Put it once on the screen's root.
   as cheap to change. `fiberSize`, `scale` and `seed` set its shape.
 - **Nested sheets:** a `risoPaper` inside another paints its own stock over the outer one, and the
   ink inside prints onto that.
-- **Loading:** the surface is baked once per shape and density into small repeating tiles. The
-  default stock's tiles ship with the library, so the default stock appears fully grained on the
-  first frame at 1×–3× densities. Other surfaces are baked on first use and cached on disk (except on
-  the web); until they land, the stock is drawn flat. Anything that captures a single frame can wait
-  for `RisoPaper.isSurfaceReady()`.
+- **Loading:** the surface is baked once per shape and density into small repeating tiles, at 1×,
+  2× or 3× — a denser screen than that reads the 3× tile magnified rather than baking one of its
+  own. The default stock's tiles ship with the library, so it appears fully grained on the first
+  frame at any density. Other surfaces are baked on first use and cached on disk (except on the
+  web); until they land, the stock is drawn flat. Anything that captures a single frame can wait for
+  `RisoPaper.isSurfaceReady()`.
 
 ### Ink
 

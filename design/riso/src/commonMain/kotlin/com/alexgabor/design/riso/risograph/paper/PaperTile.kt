@@ -45,8 +45,17 @@ internal const val ROUGH_CELLS_PER_DP = 0.15f
  */
 internal const val SURFACE_VERSION = 1
 
-/** The density a tile is baked at: the next whole density up, so a handful of tiles cover every screen. */
-internal fun densityBucket(density: Float): Int = ceil(density - 1e-3f).toInt().coerceIn(1, 4)
+/**
+ * The density a tile is baked at: the next whole density up, so a handful of tiles cover every screen.
+ *
+ * Capped at 3, which is the highest tile that ships. Past that the 3x tile is sampled magnified
+ * rather than a 4x one baked — `u_fineScale` is `bucket / density`, so the grain keeps the size it
+ * should have either way, and the only cost is a little softness on a screen denser than any that
+ * ships a tile. Worth it: a 4x tile is 1024px square, which is four times the pixels of the 3x one
+ * to bake and about 1.8MB to ship, and in the browser those pixels are rastered on the CPU — see
+ * `karma.config.d/bake-timeout.js` for what that costs.
+ */
+internal fun densityBucket(density: Float): Int = ceil(density - 1e-3f).toInt().coerceIn(1, 3)
 
 /** One baked tile's identity. Two sheets whose surfaces round to the same lattice share one tile. */
 internal sealed interface TileKey {

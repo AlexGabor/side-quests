@@ -131,7 +131,19 @@ class PaperSurfaceTest {
         assertEquals(2, densityBucket(2f))
         assertEquals(3, densityBucket(2.625f))
         assertEquals(3, densityBucket(3f))
-        assertEquals(4, densityBucket(3.5f))
+    }
+
+    /**
+     * A screen denser than any tile that ships reads the densest one there is, rather than baking a
+     * tile of its own — on the browser, where the bake is rastered on the CPU, that bake would cost
+     * the better part of a minute. It is sampled magnified, and [setSheetSurface]'s `u_fineScale`
+     * keeps the grain the size it should be.
+     */
+    @Test
+    fun aDensityPastTheLastShippedTileReadsThatTile() {
+        assertEquals(3, densityBucket(3.5f))
+        assertEquals(3, densityBucket(4f))
+        assertTrue(RisoPaper().fineTileKey(density = 3.5f) in PaperTiles.shippedKeys)
     }
 
     @Test
