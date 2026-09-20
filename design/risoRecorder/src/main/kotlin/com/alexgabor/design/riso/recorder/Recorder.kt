@@ -210,7 +210,7 @@ class Take internal constructor(
  * to finish. Queued here instead, and drained by the recorder between frames, they land on the one
  * thread that touches the scene.
  */
-private class QueueDispatcher : CoroutineDispatcher() {
+internal class QueueDispatcher : CoroutineDispatcher() {
     private val queue = ConcurrentLinkedQueue<Runnable>()
 
     override fun dispatch(context: CoroutineContext, block: Runnable) {

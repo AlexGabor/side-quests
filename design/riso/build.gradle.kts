@@ -24,17 +24,12 @@ kotlin {
     // duplicated per target. Android stays outside the group because it reaches skia
     // through `android.graphics` instead, which is a different API for the same engine.
     //
-    // Within skia they then split again, on one question: whether the paper's surface
-    // can be baked into a texture once instead of computed for every pixel of every
-    // frame. It costs about a hundred noise reads per pixel, so where it can be baked
-    // it must be — only the browser cannot, having no offscreen surface to bake into
-    // that is not a CPU raster, and it pays per frame in `inlinePaperMain` instead.
-    //
-    // How the bake is drawn then differs once more, which is all `metalBake` carries:
-    // iOS renders it on the GPU through a Metal context of its own, while the desktop
-    // JVM has no reachable GPU surface and falls back to a raster one. That is slow
-    // enough to need the settle-and-stand-in dance in `bakedPaperMain`, but it happens
-    // once per layout rather than once per frame.
+    // Every platform bakes the paper's surface into small repeating tiles, once per shape
+    // of sheet and density, and most of the time loads a shipped or cached tile instead.
+    // Where the bake lands is all that splits skia again: iOS renders it on the GPU
+    // through a Metal context of its own (`metalBake`), while the desktop JVM and the
+    // browser have no GPU surface they can reach and render it on a raster one
+    // (`rasterBake`) — slow, but a tile is small and the bake is rare.
     applyDefaultHierarchyTemplate {
         common {
             group("skiko") {
@@ -44,16 +39,12 @@ kotlin {
 
                 // Named rather than left to the template's own `iosMain`, which hangs
                 // off `appleMain` and so cannot see `skikoMain` at all.
-                group("bakedPaper") {
-                    withJvm()
+                group("metalBake") {
                     withIos()
-
-                    group("metalBake") {
-                        withIos()
-                    }
                 }
 
-                group("inlinePaper") {
+                group("rasterBake") {
+                    withJvm()
                     withWasmJs()
                 }
             }
@@ -69,5 +60,24 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
+        // Composing and baking for real needs something to render into, which on the JVM
+        // means the skiko runtime for this machine.
+        jvmTest.dependencies {
+            implementation(compose.desktop.currentOs)
+        }
     }
+}
+// Regenerates the paper tiles shipped in composeResources, from the bake as it stands. Run after
+// anything that changes a tile's pixels, with SURFACE_VERSION bumped. See ShippedTilesTest.
+tasks.register<Test>("bakeTiles") {
+    group = "riso"
+    description = "Regenerates the paper tiles shipped with the library."
+    val jvmTest = tasks.named<Test>("jvmTest")
+    testClassesDirs = jvmTest.get().testClassesDirs
+    classpath = jvmTest.get().classpath
+    workingDir = projectDir
+    filter { includeTestsMatching("*ShippedTilesTest") }
+    systemProperty("riso.tiles.write", "true")
+    testLogging { showStandardStreams = true }
+    outputs.upToDateWhen { false }
 }

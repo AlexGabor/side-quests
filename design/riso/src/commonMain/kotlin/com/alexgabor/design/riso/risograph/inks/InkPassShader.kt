@@ -2,6 +2,9 @@ package com.alexgabor.design.riso.risograph.inks
 
 import com.alexgabor.design.riso.risograph.ShaderUniforms
 import com.alexgabor.design.riso.risograph.float3
+import com.alexgabor.design.riso.risograph.paper.RisoPaper
+import com.alexgabor.design.riso.risograph.paper.SHEET_SURFACE_SKSL
+import com.alexgabor.design.riso.risograph.paper.setSheetSurface
 import kotlin.math.ln
 
 /**
@@ -30,7 +33,21 @@ internal fun ShaderUniforms.setInkPass(spec: InkPassSpec) {
     float("u_grain", spec.grain.coerceIn(0f, 1f))
     float("u_grainSize", spec.grainSize.coerceAtLeast(1f))
     float("u_spread", spec.spread.coerceIn(0f, 1f))
+
+    // The sheet's surface, which the artwork is read across. Its tiles are children, bound by each
+    // platform; with no sheet the surface reads flat and the warp is zero anyway.
+    setSheetSurface(spec.surface?.paper ?: RisoPaper.None, spec.density, spec.surface?.ready == true)
+    float2("u_sheetOffset", spec.sheetOffset.x, spec.sheetOffset.y)
+    float("u_warp", if (spec.surface?.ready == true) spec.warp else 0f)
+    float2("u_imageSize", spec.imageSize.width, spec.imageSize.height)
 }
+
+/**
+ * How far, in dp, one unit of the sheet's displacement moves the artwork. The ported shader pushed
+ * the content by 2% of the layer, which on a phone-width sheet is about this; held in dp instead, it
+ * moves the ink by the same physical amount on a window of any size.
+ */
+internal const val WARP_DP = 8f
 
 /**
  * One drum, end to end. There is no loop and no array here: this shader runs on a layer that is
@@ -48,7 +65,7 @@ internal fun ShaderUniforms.setInkPass(spec: InkPassSpec) {
  */
 // The IDE has no SkSL injection, and AGSL's highlighter is the right one for this dialect.
 // language=AGSL
-internal val INK_PASS_SKSL = """
+internal val INK_PASS_SKSL = SHEET_SURFACE_SKSL + "\n" + """
 const float PI = 3.14159265359;
 
 /**
@@ -82,6 +99,12 @@ uniform float u_mottleSize;
 uniform float u_grain;
 uniform float u_grainSize;
 uniform float u_spread;
+
+// Where this pass's origin sits on its sheet, and how far the sheet's surface pushes the artwork:
+// the same surface the stock under it is shaded by, so ink and paper dip together.
+uniform float2 u_sheetOffset;
+uniform float u_warp;
+uniform float2 u_imageSize;
 
 float2 rotate(float2 p, float th) {
     float s = sin(th);
@@ -152,7 +175,14 @@ float screenDots(float coverage, float2 sheet) {
 }
 
 half4 main(float2 fragCoord) {
-    half4 src = u_image.eval(fragCoord);
+    float2 read = fragCoord;
+    if (u_warp > 0.0) {
+        float2 normalImage;
+        float res;
+        sheetSurface(fragCoord + u_sheetOffset, normalImage, res);
+        read = clamp(fragCoord + u_warp * normalImage, float2(0.0), u_imageSize);
+    }
+    half4 src = u_image.eval(read);
     float2 sheet = fragCoord + u_origin;
 
     // Unpremultiplied, so that an antialiased edge is read as its own color at partial coverage

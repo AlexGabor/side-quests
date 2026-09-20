@@ -19,8 +19,8 @@ internal actual fun newBakeSurface(width: Int, height: Int): Surface {
     val info = ImageInfo.makeN32Premul(width, height)
     // A device that will not give us a render target is not worth failing the sheet over: a raster
     // surface is slow, not wrong, and it is the only way back from here.
-    return Surface.makeRenderTarget(BakeContext, false, info)
-        ?: Surface.makeRasterN32Premul(width, height)
+    return runCatching { Surface.makeRenderTarget(BakeContext, false, info) }
+        .getOrElse { Surface.makeRasterN32Premul(width, height) }
 }
 
 /** The Metal context the bake renders through, made once and held. */

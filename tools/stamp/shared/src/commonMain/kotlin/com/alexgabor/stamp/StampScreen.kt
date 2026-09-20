@@ -22,6 +22,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import com.alexgabor.design.riso.risograph.paper.isSurfaceReady
+import com.alexgabor.design.riso.risograph.paper.RisoPaper
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -41,7 +46,6 @@ import com.alexgabor.design.riso.attributes.Heading2
 import com.alexgabor.design.riso.components.Button
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.risograph.inks.risoInk
-import com.alexgabor.design.riso.risograph.region.risoBypass
 import com.alexgabor.stamp.icon.Content
 import com.alexgabor.stamp.icon.ICON_PRINTS
 import com.alexgabor.stamp.icon.ICON_SIDE
@@ -96,6 +100,10 @@ fun StampScreen(
     var status by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
 
+    // Whether the stage's paper has its surface at the stage's own density. The surface loads off
+    // the frame, and a capture taken before it lands would print on flat stock.
+    var surfaceReady by remember { mutableStateOf(false) }
+
     /** Runs [block] only if nothing else is using the stage, so two captures never overlap. */
     fun onStage(block: suspend () -> Unit) {
         if (busy) return
@@ -114,6 +122,9 @@ fun StampScreen(
     /** Stages one print and reads back what it printed. */
     suspend fun stage(next: IconPrint): ImageBitmap {
         staged = next
+        // One frame to compose the new stage at its own density, then as long as its paper takes.
+        withFrameNanos {}
+        snapshotFlow { surfaceReady }.first { it }
         return capture.settled().also { inspected = it }
     }
 
@@ -150,14 +161,14 @@ fun StampScreen(
             // the device, because the press's dot, grain and mottle sizes are all in dp — left to
             // the device's density, the same icon would print coarser on one phone than on another.
             CompositionLocalProvider(LocalDensity provides Density(staged.scale, fontScale = 1f)) {
+                val ready = RisoPaper().isSurfaceReady()
+                SideEffect { surfaceReady = ready }
                 Box(
                     modifier = Modifier
                         .size(ICON_SIDE)
-                        // The screen is a printed page too, and the stage has its own sheet under
-                        // it. Without this window the outer press would read the layer's pixels as
-                        // ink and print them a second time, and the stage would stop matching the
-                        // PNG — which is recorded before any of that reaches it.
-                        .risoBypass()
+                        // The screen is a printed page too, but the stage is not inked by it: it
+                        // carries its own sheet, which paints over the screen's, so what is shown is
+                        // exactly the PNG — which is recorded here, before it reaches the screen.
                         .drawWithContent {
                             capture.record { this@drawWithContent.drawContent() }
                             drawLayer(capture)
@@ -174,7 +185,7 @@ fun StampScreen(
             Image(
                 painter = BitmapPainter(image, filterQuality = FilterQuality.None),
                 contentDescription = "${staged.layer.text} at ${staged.sidePx} px, magnified",
-                modifier = Modifier.size(InspectorSide).risoBypass(),
+                modifier = Modifier.size(InspectorSide),
             )
         }
 

@@ -5,6 +5,7 @@ import android.graphics.RuntimeShader
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import com.alexgabor.design.riso.risograph.RuntimeShaderUniforms
+import com.alexgabor.design.riso.risograph.paper.PlaceholderTile
 
 /**
  * One drum's pass, as an AGSL effect over the recorded artwork.
@@ -21,9 +22,11 @@ internal actual class InkPass actual constructor() {
     private var held: InkPassSpec? = null
     private var effect: RenderEffect? = null
 
-    actual fun effect(spec: InkPassSpec): RenderEffect? {
+    actual fun effect(spec: InkPassSpec): RenderEffect {
         effect?.let { if (held == spec) return it }
         uniforms.setInkPass(spec)
+        shader.setInputShader("u_fineTile", spec.surface?.fine ?: PlaceholderTile)
+        shader.setInputShader("u_coarseTile", spec.surface?.coarse ?: PlaceholderTile)
         return AndroidRenderEffect
             .createRuntimeShaderEffect(shader, "u_image")
             .asComposeRenderEffect()

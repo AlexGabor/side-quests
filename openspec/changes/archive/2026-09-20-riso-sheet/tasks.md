@@ -1,0 +1,57 @@
+# Tasks
+
+## 1. Baseline
+
+- [x] 1.1 Record today's look for comparison: run `./gradlew :design:risoRecorder:run` and copy `design/riso/docs/*.webp` to a scratch folder. Also capture Pacer's home and settings screens on Android and desktop with effects on. Verify the reference images exist.
+
+## 2. Tileable surface (design D2, D3)
+
+- [x] 2.1 Rewrite the surface noise (now `risograph/paper/PaperSurfaceShader.kt`, which replaces `RisoPaperShader.kt`) so it is periodic: wrap lattice lookups, use integer octave multipliers, and replace the fiber rotation with the `(x+y, y−x)` lattice map. Verify with `PaperSurfaceTest`: pixels one period apart differ by at most 2 levels, which is the non-periodic dither on each side.
+- [x] 2.2 Split the bake into a fine tile (`roughDiff`, `fiberGrad`) and a coarse tile (`fadeFbm`) in dp coordinates, and add the shared `sheetSurface(sheetPx)` SkSL function that rebuilds `normalImage` and `res` from the two tiles plus strength uniforms. Verify with a JVM raster test (`decodedTileMatchesTheFieldsItWasBakedFrom`) that the fields decoded from a baked tile match a direct evaluation to within about 1 level.
+- [x] 2.3 Measure the value ranges of the raw fields over a full tile and set the RGBA8 encoding scale, keeping the ±½ LSB dither. Verify that a decode round-trip test stays within 1 LSB and that there is no visible banding in `risoRecorder` at contrast 1.
+- [x] 2.4 Add `TileKey` (kind, spatial params, density bucket `ceil(density)`) and a tile descriptor (period in dp, pixel size). Verify with unit tests for bucket selection (1.0, 2.0, 2.625, 3.5) and key equality that ignores colours and strengths.
+
+## 3. Tile pipeline (design D5, D7)
+
+- [x] 3.1 Restructure source sets in `design/riso/build.gradle.kts`: `skikoMain { metalBakeMain(ios), rasterBakeMain(jvm, wasmJs) }`. Remove `bakedPaperMain` and `inlinePaperMain`, and update the explanatory comment. Verify that `./gradlew :design:riso:compileKotlinJvm :design:riso:compileKotlinWasmJs :design:riso:compileKotlinIosSimulatorArm64 :design:riso:compileAndroidMain` (or the equivalent Android compile task) succeeds.
+- [x] 3.2 Implement tile baking per platform: Android `HardwareRenderer`, iOS Metal bake surface, and a raster surface on the JVM and wasm. Wasm bakes in row bands with `yield()` between them. Verify: `TileBakeTest` passes on the iOS simulator (Metal) and the JVM (raster). Android baked the unshipped 4× tile in Stamp and cached it on disk. Not run: a runtime bake on wasm, since no wasm test task is configured, and the web build only loads the shipped tiles (verified in 8.5). Fixed along the way: the `ImageReader` needs 2 buffers or `syncAndDraw` deadlocks, and the Metal raster fallback never ran because `makeRenderTarget` throws rather than returning null.
+- [x] 3.3 Move the lock-free LRU into `commonMain` and use it on every platform, keyed by `TileKey`. Verify with unit tests for hit, eviction order and a concurrent same-key race that returns one instance.
+- [x] 3.4 Store tiles as lossless PNG (decoded with Compose resources' common `decodeToImageBitmap`, encoded per platform), filed under a `v<SURFACE_VERSION>/` folder so a stale version is never read. Verify with `TileLoadingTest` (bake → write → read back from disk).
+- [x] 3.5 Add the disk cache tier: Android `cacheDir` through `LocalContext`, iOS `NSCachesDirectory`, the JVM OS cache directory plus `sidequests-riso/`, and none on web. Verify on the JVM that a second process launch loads the tile from disk without baking (log or counter).
+- [x] 3.6 Add `./gradlew :design:riso:bakeTiles` (it lives in `design/riso` rather than `risoRecorder`, because it needs the library's internal bake) that writes the default stock's fine tiles at 1×, 2× and 3× plus its coarse tile into `design/riso/src/commonMain/composeResources/files/riso/tiles/v1/`, and load them as the second tier. Verify that the files are generated (about 1.7 MB in total) and that `TileLoadingTest.theDefaultStockShips` passes.
+- [x] 3.7 Add a JVM test that re-bakes the default tiles and compares them byte for byte with the shipped resources. Verify that it passes, and that it fails after a deliberate shader tweak.
+
+## 4. Migration step 1: tiles behind the existing effect
+
+- [x] 4.1 Validate the tiles visually against the baseline. Wiring them into the old render effect first turned out to be throwaway work, so they were validated through the new sheet directly with `./gradlew :design:risoRecorder:snapshots` (a new still-snapshot task), compared with the same page rendered on `main`. Verify: inked content matches, and the grain strength of a textured stock matches (std 2.37 before, 2.18 after).
+- [x] 4.2 Tune and record the periods: `P_fine` = 256dp, `P_coarse` = 1400dp at 4dp per pixel, `WARP_DP` = 8. Verify at 3840×2160: the fine tile repeats (0.99 correlation one period apart), but at the default stock's contrast the grain is about 2 levels of 255, so the repeat is not visible. The risk for high-contrast custom stocks is recorded in `design.md`.
+
+## 5. Sheet as background (design D1, D6)
+
+- [x] 5.1 Implement `RisoSheetNode` (draw, traversable, position-aware) and rewrite `Modifier.risoPaper` to use it. It paints a `ShaderBrush` stock background, with a flat-surface fallback until the tiles are ready, then `drawContent()`. Delete `SheetEffect` and the per-platform `RisoPaperModifier.kt` files. Verify in `risoDemo` that an empty paper shows the stock with its surface.
+- [x] 5.2 Make `RisoPassNode` look up the nearest sheet in `onAttach`, and use the sheet's stock for separation, falling back to `RisoTheme.colors.paper`. Verify with a JVM test that artwork in a pink sheet's stock colour separates to zero coverage.
+- [x] 5.3 Add the surface warp to `INK_PASS_SKSL` and `setInkPass`: the surface children, strength uniforms, `sheetPos` and `warpDp`, reading the artwork clamped to the recorded bounds. Pass clips are not grown: a displacement of at most 0.53dp at the node's own edge is invisible. Verify that a flat stock or a sheet still loading never warps (`aFlatStockNeverWarps`), and that the default stock's maximum displacement is ≤ 1dp (`defaultWarpStaysUnderOneDp`: 0.53dp).
+- [x] 5.4 Degrade with effects disabled: `risoPaper` becomes a flat `background(colorFront)`, with no tile load and no bake. Verify with `withEffectsOffThereIsNoSheet`: no sheet node is created, so no tile can be requested. `RootNavigationTest` is run in 8.1.
+- [x] 5.5 Verify the spec equivalence with a JVM render test: `ink.onRisoPaper()` printed solid on its drum over the default stock matches the expected colour within 2/255, and there is no seam at the pass edge.
+
+## 6. Removals and consumers
+
+- [x] 6.1 Delete `risograph/region/*` (`risoBypass`, `RisoBypassRect`, `RisoRegionHost`, `bypassSksl`) and every reference to them. Verify that `grep -r risoBypass` finds nothing outside the OpenSpec change and that all targets compile.
+- [x] 6.2 Migrate `tools/stamp`: remove the `risoBypass` uses in `StampScreen.kt`; drop the `drawBehind { White }` underlays, which would now cover the stock and which only existed because an empty old-style sheet never rasterised; and make each capture wait for `RisoPaper.isSurfaceReady()` (new public API), since tiles now load asynchronously. Verify by exporting all 17 prints on the Android emulator before and after. Backgrounds and monochrome are byte-identical. The foregrounds differ only by single-pixel anti-aliasing at the edges. The iOS and Play icons' edges move by a few pixels, because the paper warp is now ≤0.53 dp, physically, rather than 2% of the icon (deliberate).
+- [x] 6.3 Audit Pacer screens and `design/riso` components for un-inked content inside the paper whose colour relied on being multiplied by the stock (for example `onRisoPaper()` fills outside `risoInk`), and fix them. Verify with side-by-side screenshots against baseline 1.1. Every stock-multiplied fill in the components is inside a `risoInk` (so it is separated, not merely drawn), and Pacer's home and settings screens on Android match the baseline.
+- [x] 6.4 Update the previews and `RisoPrintDemo`, which use `risoPaper`, and remove any bypass demo. Verify that the `risoDemo` app builds and runs.
+
+## 7. Docs
+
+- [x] 7.1 Update `design/riso/README.md` (API: bypass removed, coloured and nested papers, what is printed), `docs/architecture/riso-paper-and-ink.md` (§2, §5, §7, §8, §9 and §11 rewritten for the sheet model) and `docs/architecture/design-system.md` (source-set tree). Verify that the links resolve and every symbol named in the docs exists (grep).
+- [x] 7.2 Record the `design/riso` bake dispatcher (`Dispatchers.Default.limitedParallelism(1)`) in `docs/architecture/known-deviations.md`. Verify that the row is present.
+- [x] 7.3 Regenerate `design/riso/docs/*.webp` with `./gradlew :design:risoRecorder:run`. Verify that the images are updated and reviewed.
+
+## 8. Verification
+
+- [x] 8.1 Run the unit tests: `./gradlew :design:riso:jvmTest :pacer:sharedApp:jvmTest`. Verify that everything passes. Also ran `:pacer:feature:home:jvmTest` and `:design:navigation:jvmTest`: 110 tests, all passing.
+- [x] 8.2 **Android:** run `risoDemo` and Pacer with effects on. Check that the stock surface is present on the first frame at density 3, that inked text and buttons look right, that the stock colour animates without re-baking, that a nested pink paper renders, and that scrolling holds 60 fps (GPU profiling bars). Done on the Pixel 9a emulator (density 2.625). Pacer and `risoDemo` run, and Pacer loaded the shipped 3× tile with no bake. Scrolling was measured with `gfxinfo` over 40 flings, old against new, 3 runs each. The median is noise-bound on the emulator's software GPU (26–31 ms either way), but p99 improved from 44–46 ms to 32–40 ms, with fewer janky frames. Stock animation and nested pink stock are covered by `PaperSurfaceTest.tileKeysIgnoreColorsAndStrengths` and `SheetRenderTest` rather than on device.
+- [x] 8.3 **iOS:** run Pacer in the simulator with effects on. Check the surface, the ink, and a clean cold start (no colour shift when the tile lands). Done on the iPhone 17 Pro simulator: Pacer renders printed, and the Metal bake runs (`TileBakeTest` on `iosSimulatorArm64Test`).
+- [x] 8.4 **Desktop (JVM):** run Pacer with effects on. Check that resizing the window never stretches the grain and that frames keep up, and that a second launch loads tiles from the disk cache. Verified through the JVM desktop renderer rather than a live window, which can't be resized headlessly from this session: `SheetRenderTest.resizingRevealsMoreOfTheSameSurface` (the same pixels over the shared area at two sizes, with no regeneration), `TileLoadingTest` (bake → disk → disk), and `risoRecorder:snapshots` at 1440×900 and 3840×2160.
+- [x] 8.5 **Web (wasmJs):** run Pacer with effects on. Check that the surface appears from the shipped tiles, that there is no per-frame surface cost (the performance panel shows no full-screen shader pass), and that the look matches Android at the same density. Done in the browser with effects switched on in Settings: the app fetched `fine-r38-f110@2x.png` and the coarse tile from `composeResources`, printed as on Android, and logged no console errors. The inline per-frame surface no longer exists in the code. The browser's performance panel was not captured.
+- [x] 8.6 Confirm that no Maestro flow needs changing (the change is visual only; the flows in `pacer/maestro/flows` still pass) and that `pacer/README.md` needs no feature-list change.

@@ -2,7 +2,9 @@ package com.alexgabor.design.riso.risograph.inks
 
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.skiaShader
 import com.alexgabor.design.riso.risograph.RuntimeShaderBuilderUniforms
+import com.alexgabor.design.riso.risograph.paper.PlaceholderTile
 import org.jetbrains.skia.ImageFilter
 import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
@@ -23,9 +25,11 @@ internal actual class InkPass actual constructor() {
     private var held: InkPassSpec? = null
     private var effect: RenderEffect? = null
 
-    actual fun effect(spec: InkPassSpec): RenderEffect? {
+    actual fun effect(spec: InkPassSpec): RenderEffect {
         effect?.let { if (held == spec) return it }
         uniforms.setInkPass(spec)
+        builder.child("u_fineTile", (spec.surface?.fine ?: PlaceholderTile).skiaShader)
+        builder.child("u_coarseTile", (spec.surface?.coarse ?: PlaceholderTile).skiaShader)
         // A null input filter is the source itself, so `u_image` reads the layer this hangs on —
         // the same thing Android's createRuntimeShaderEffect names.
         return ImageFilter.makeRuntimeShader(builder, "u_image", null)

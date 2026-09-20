@@ -28,6 +28,10 @@ import androidx.compose.ui.unit.toSize
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.LocalRisoEffectsEnabled
 import com.alexgabor.design.riso.attributes.Press
+import com.alexgabor.design.riso.risograph.paper.RisoSheetKey
+import com.alexgabor.design.riso.risograph.paper.RisoSheetNode
+import com.alexgabor.design.riso.risograph.paper.SheetSurface
+import com.alexgabor.design.riso.risograph.paper.separationColor
 import kotlin.math.PI
 import kotlin.math.roundToInt
 
@@ -132,8 +136,8 @@ fun Modifier.risoInk(first: Color, second: Color, third: Color, offsetScale: Flo
  * the bare stock the frisket left. It is also a hole in the frisket, so the enclosing pass keeps its
  * ink underneath it.
  *
- * Different from [risoBypass][com.alexgabor.design.riso.risograph.region.risoBypass], which hands
- * the content back untouched rather than taking ink away.
+ * Different from simply not inking something: content outside every `risoInk` is never printed at
+ * all, where a knockout takes ink back off a region that would have been.
  *
  * With the press stood down there is no ink to take back off, and the frisket's own artwork — which
  * is what the hole would have shown through — is simply drawn where it stands.
@@ -226,6 +230,13 @@ internal class RisoPassNode(
     /** Lays no ink of its own down: a hole, not a plate. See [risoKnockout]. */
     private val isKnockout: Boolean get() = inks.isEmpty()
 
+    /**
+     * The sheet this pass prints onto: the nearest one above it. Its stock is what the artwork is
+     * separated against and what the ink multiplies onto, and its surface pushes the ink around.
+     * Null outside any sheet, where the theme's paper stands in and nothing moves.
+     */
+    private var sheet: RisoSheetNode? = null
+
     /** The nearest pass above this one, which this one takes precedence over. */
     private var above: RisoPassNode? = null
 
@@ -254,6 +265,10 @@ internal class RisoPassNode(
             above = (ancestor as RisoPassNode).also { it.below.add(this) }
             false
         }
+        traverseAncestors(RisoSheetKey) { ancestor ->
+            sheet = (ancestor as RisoSheetNode).also { it.addDependent(this) }
+            false
+        }
     }
 
     override fun onDetach() {
@@ -263,6 +278,8 @@ internal class RisoPassNode(
         above?.invalidateDraw()
         above?.below?.remove(this)
         above = null
+        sheet?.removeDependent(this)
+        sheet = null
         coordinates = null
         val context = requireGraphicsContext()
         content?.let(context::releaseGraphicsLayer)
@@ -335,6 +352,12 @@ internal class RisoPassNode(
         val artwork = visibleArtwork(host)
         if (content != null && !artwork.isEmpty) {
             val onPage = (coordinates?.takeIf { it.isAttached }?.positionInRoot() ?: Offset.Zero)
+            // Read here, at draw time. The sheet redraws this pass when its stock changes or its
+            // tiles land — see [RisoSheetNode.addDependent].
+            val sheet = sheet
+            val surface = sheet?.surface(scope.density)
+            val sheetOrigin = sheet?.positionInRoot ?: Offset.Zero
+            val stock = sheet?.paper?.separationColor ?: paper
             resolveDrums().forEachIndexed { index, drum ->
                 val pass = pass(index)
                 // Anything but SrcOver forces the layer through an offscreen buffer, and that path
@@ -375,7 +398,16 @@ internal class RisoPassNode(
                     // the punches depend on there being one, rather than leaving that to whether
                     // this pass happens to have an effect to run.
                     pass.layer.compositingStrategy = CompositingStrategy.Offscreen
-                    pass.layer.renderEffect = pass.shader.effect(drum.spec(density, onPage))
+                    pass.layer.renderEffect = pass.shader.effect(
+                        drum.spec(
+                            density = density,
+                            onPage = onPage,
+                            stock = stock,
+                            surface = surface,
+                            // The surface is read where the ink lands, which is where the drum threw it.
+                            sheetOffset = onPage + slip - sheetOrigin,
+                        ),
+                    )
                     drawLayer(pass.layer)
                 }
             }
@@ -523,10 +555,16 @@ internal class RisoPassNode(
         }
     }
 
-    private fun Drum.spec(density: Float, onPage: Offset) = InkPassSpec(
+    private fun Drum.spec(
+        density: Float,
+        onPage: Offset,
+        stock: Color,
+        surface: SheetSurface?,
+        sheetOffset: Offset,
+    ) = InkPassSpec(
         ink = ink,
         row = row,
-        paper = paper,
+        paper = stock,
         tolerance = press.tolerance,
         origin = onPage,
         screenAngle = screenAngle,
@@ -538,6 +576,11 @@ internal class RisoPassNode(
         grain = press.grain,
         grainSize = press.grainSize * density,
         spread = press.spread,
+        surface = surface,
+        sheetOffset = sheetOffset,
+        warp = WARP_DP * density,
+        density = density,
+        imageSize = contentSize.toSize(),
     )
 }
 
