@@ -392,6 +392,12 @@ internal class RisoPassNode(
                     pass.layer.clip = true
                     pass.layer.translationX = shift.x
                     pass.layer.translationY = shift.y
+                    // Ink on stock is a multiply, and on the stock this is exact. It is not always
+                    // the stock underneath, though: anything between this pass and its sheet that
+                    // draws into a layer of its own — a list stretching at its end, a fade, a
+                    // predictive back — hands the multiply an empty buffer instead, and multiply
+                    // against nothing is just the source. What keeps that honest is the pass being
+                    // clear where no ink was laid, which is the shader's end, not this line.
                     pass.layer.blendMode = BlendMode.Multiply
                     // The punches take alpha out of this pass and out of nothing else. Multiply and
                     // the shader each force a buffer of their own already; naming it is what says

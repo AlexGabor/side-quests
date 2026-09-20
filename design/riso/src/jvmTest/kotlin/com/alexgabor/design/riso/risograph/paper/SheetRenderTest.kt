@@ -11,6 +11,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.use
@@ -65,6 +67,40 @@ class SheetRenderTest {
         // Just outside the artwork and its registration error: the stock as it is, with no halo.
         assertClose(RisoColors.paper, pixels.at(sizeDp / 2, 12), levels = 1)
         assertClose(RisoColors.paper, pixels.at(12, sizeDp / 2), levels = 1)
+    }
+
+    /**
+     * A pass that lands in a layer of its own instead of on the stock.
+     *
+     * This is what a scroll container does for as long as its overscroll stretch is live: the
+     * content is recorded into a fresh render node, which starts empty, and the sheet stays outside
+     * it. A pass composited onto nothing must still come off as ink and bare paper, not as a fill.
+     */
+    @Test
+    fun inkInsideAnIsolatedLayerStillLeavesBarePaper() {
+        val ink = RisoColors.inks.vintageBlack
+        val pixels = render {
+            Box(Modifier.fillMaxSize().risoPaper(), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .size(96.dp)
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .risoInk(ink, offsetScale = 0f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(Modifier.size(32.dp).background(ink.onRisoPaper()))
+                }
+            }
+        }
+        // Inside the pass, well away from the artwork: the stock, not the white a drum hands back
+        // where it laid no ink.
+        assertClose(RisoColors.paper, pixels.at(20, 20), levels = 1)
+        assertClose(RisoColors.paper, pixels.at(sizeDp - 20, 20), levels = 1)
+        // And the artwork still prints. Straight onto the stock the composite is exact; through a
+        // layer it is rebuilt from a premultiplied pass, which cannot be exact for an ink that is
+        // not neutral — it comes out light by (1 - stock) * (transmittance - its own minimum), so
+        // about a level for this ink and around twenty on the strongest channel of a saturated one.
+        assertClose(ink.onRisoPaper(), pixels.at(sizeDp / 2, sizeDp / 2), levels = 2)
     }
 
     @Test

@@ -53,10 +53,11 @@ internal const val WARP_DP = 8f
  * One drum, end to end. There is no loop and no array here: this shader runs on a layer that is
  * already one pass, and knows about exactly one ink.
  *
- * It returns opaque color, never transparency, because the pass is composited with
- * [BlendMode.Multiply][androidx.compose.ui.graphics.BlendMode.Multiply]. White is what a drum that
- * laid no ink hands back, and white multiplies to nothing — so bare paper comes through the pass
- * untouched, and there is no seam where the artwork stops.
+ * It returns the ink's transmittance premultiplied, because the pass is composited with
+ * [BlendMode.Multiply][androidx.compose.ui.graphics.BlendMode.Multiply]. Where a drum laid no ink
+ * that comes out clear, so bare paper comes through the pass untouched and there is no seam where
+ * the artwork stops — and, unlike the opaque white this used to hand back, it stays right when the
+ * pass is composited somewhere other than straight onto the stock. See the return at the end.
  *
  * The source lives here rather than beside a platform's binding because AGSL is SkSL with Android's
  * uniform plumbing around it: the same text compiles under `RuntimeShader` on Android and under
@@ -187,7 +188,7 @@ half4 main(float2 fragCoord) {
 
     // Unpremultiplied, so that an antialiased edge is read as its own color at partial coverage
     // rather than as that color fading towards black. Nothing drawn at all reads as bare paper,
-    // which separates to no ink and comes back as white below.
+    // which separates to no ink and comes back clear below.
     float alpha = float(src.a);
     float3 rgb = alpha > 0.001 ? float3(src.rgb) / alpha : float3(1.0);
 
@@ -202,6 +203,29 @@ half4 main(float2 fragCoord) {
         coverage = inkTexture(coverage, sheet);
     }
 
-    return half4(half3(mix(float3(1.0), u_ink, coverage)), 1.0);
+    // The printed transmittance, handed over premultiplied rather than as opaque color. Where the
+    // pass lands on the stock the two are the same thing: against an opaque backdrop the multiply
+    // works out to dst*(1 - a) + rgb*dst, which is dst*T for any alpha this could pick.
+    //
+    // What the alpha buys is the case where the pass does not land on the stock — something between
+    // the ink and its sheet recorded this into a layer of its own, which starts out empty. Multiply
+    // against nothing is just the source, so opaque color would be painted as-is and the white a
+    // drum hands back where it laid no ink would come off as a white fill over the page. Carrying
+    // alpha, the pass leaves that layer clear there instead, and reaches the stock when the layer
+    // does.
+    //
+    // Through a layer the ink comes out light by (1 - stock) * rgb, so the alpha taken is the least
+    // that keeps rgb non-negative. That is exact for a neutral ink, which is what text and rules
+    // print with, and about twenty levels on the strongest channel of a saturated one — the floor
+    // for a single alpha, since being exact at every stock would need one per channel.
+    //
+    // What keeps the multiply itself exact is rgb and the alpha adding back up to the
+    // transmittance, so the alpha is rounded to the buffer first and rgb is measured from what that
+    // rounding left. Taken from the unrounded value instead, the two disagree by half a level each
+    // and the print drifts over screened and mottled edges, where rounding has the most to do.
+    float3 transmittance = mix(float3(1.0), u_ink, coverage);
+    float clear = min(transmittance.r, min(transmittance.g, transmittance.b));
+    float alpha8 = floor((1.0 - clear) * 255.0 + 0.5) / 255.0;
+    return half4(half3(transmittance - (1.0 - alpha8)), half(alpha8));
 }
 """.trimIndent()

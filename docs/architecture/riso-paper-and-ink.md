@@ -325,7 +325,9 @@ if c > FAINT_COVERAGE (0.012):
     c = c^(1 / (1 + spread))                                    ink gain (dot growth)
     c = screenDots(c, sheet)                                    halftone
     c = inkTexture(c, sheet)                                    mottle, then grain
-out      = (mix(1, u_ink, c), 1)                                opaque
+T        = mix(1, u_ink, c)                                     printed transmittance
+a        = round₈(1 − min T)                                    rounded to the buffer first
+out      = (T − (1 − a), a)                                     premultiplied
 ```
 
 The steps, in order:
@@ -335,7 +337,8 @@ The steps, in order:
 - **Halftone.** `q = rotate(sheet, angle)·π/dotSize` and `field = ½ − ½·cos qₓ·cos q_y`. The dots grow from the field's minima at `(m·dotSize, n·dotSize)` with `m + n` even: a checkerboard lattice with nearest-neighbour spacing `√2·dotSize` px. The threshold is softened over `w = clamp(2/dotSize, 0.06, 0.45)`, and coverage is stretched by `(1 + 2w)` so that `c = 1` fills solid. `u_screen` blends between continuous tone and dots. Because each drum screens at its own angle, overprinted tints sit side by side and mix additively, which is why pink over blue reads purple rather than navy.
 - **Texture.** `c ·= 1 − mottle·(1 − fbm(sheet/mottleSize + phase))`, then `c ·= 1 − grain·hash(⌊sheet/grainSize⌋ + phase)`. Both are applied after the screen so the grain mottles solids instead of punching holes in the dots.
 - **Page anchoring.** `u_origin` is the pass's `positionInRoot()`, so the screen and mottle belong to the page. Adjacent components share one dot grid, and two identical buttons don't carry identical blotches.
-- **Opaque output.** White is the Multiply identity, so an uninked part of the pass leaves the destination untouched and there is no seam where the artwork stops.
+- **Premultiplied output.** Where a drum laid no ink, `T = 1`, so the pass comes out clear: the destination is left untouched and there is no seam where the artwork stops. Over the stock this is exactly the old opaque encoding — `dst·(1 − a) + rgb·dst = dst·T` for any `a`, because `rgb` and `1 − a` are built to add back up to `T`. What the alpha buys is the case where the pass *doesn't* land on the stock; see §6.
+- **Rounding.** `a` is rounded to the 8-bit buffer before `rgb` is measured from it, so the two agree at the value actually stored. Taken from the unrounded minimum they disagree by half a level each, and the print drifts by up to 3/255 over screened and mottled edges.
 
 **Uniform coercions** (in `setInkPass`):
 - `screen`, `mottle`, `grain` and `spread` are clamped to `0..1`.
@@ -359,12 +362,16 @@ The interface is explicit, and one-directional:
 
 1. The sheet paints `S`, with opacity `σ`, over its bounds.
 2. Content draws on top. Un-inked content is plain source-over, drawn as authored.
-3. Each pass draws opaque `mix(1, Iᵢ, cᵢ)` over its clipped artwork rect with Multiply. Skia's Multiply is `src·(1 − da) + dst·(1 − sa) + src·dst`, so with an opaque pass (`sa = 1`) over the stock the result is `T·(1 − σ) + T·S`. Stacked passes give `T = ∏ᵢ (1 − cᵢ(1 − Iᵢ))`.
+3. Each pass draws `mix(1, Iᵢ, cᵢ)` premultiplied (§5.6) over its clipped artwork rect with Multiply. Skia's Multiply is `src·(1 − da) + dst·(1 − sa) + src·dst`, so over an opaque stock the result is `T·(1 − σ) + T·S`, the same as an opaque pass would give. Stacked passes give `T = ∏ᵢ (1 − cᵢ(1 − Iᵢ))`.
 
 That is exactly the old sheet shader's composite for inked pixels, `S·(1 − c + c·T) + T·c·(1 − σ)` at `c = 1`. So moving the stock under the content changed nothing about how ink prints, which `SheetRenderTest` pins:
 - **Over an opaque stock** the ink multiplies the paper: `S·T`.
-- **Over `RisoPaper.None`** (`σ = 0`) the pass lands on whatever is below, usually a transparent layer, and leaves its own transmittance `T`. Stamp's adaptive foreground relies on this.
+- **Over `RisoPaper.None`** (`σ = 0`) the pass lands on whatever is below and leaves its own transmittance `T`, now carrying alpha, so the areas no drum reached are clear rather than white. Stamp's adaptive foreground is built around the old opaque square and its `drawPacerMask` cut-back; it still works, but its exports change.
 - **A knockout** removes the pass's alpha (`DstOut`), so the stock shows through unchanged.
+
+**When the pass does not land on the stock.** Anything between a pass and its sheet that draws into a layer of its own — a list stretching at its end, a fade, a predictive-back transition, an explicit `CompositingStrategy.Offscreen` — hands the Multiply an empty buffer, where `da = 0` reduces it to `src`. An opaque pass was simply painted there, so the white a drum hands back where it laid no ink came off as a white fill over the page; that is what made Pacer's cards go white under overscroll. A premultiplied pass instead lands in that layer as ink and clear, and reaches the stock when the layer does.
+
+That reconstruction, `S·(1 − a) + rgb`, cannot be exact for a coloured ink: keeping the Multiply exact forces `rgb = T − 1 + a`, and being exact through a layer as well would need `a = 1 − T` per channel, which one alpha cannot express. Taking the least `a` that keeps `rgb ≥ 0` minimises the shortfall on every channel at once. It is nil for a neutral ink — which is what text and rules print with — about a level for `vintageBlack`, and up to ~20/255 on the strongest channel of a saturated ink, visible only as a slight lightening while a stretch is held. `SheetRenderTest.inkInsideAnIsolatedLayerStillLeavesBarePaper` pins this.
 
 **Worked pixel.** Take the default stock `P = #EFEBE1` and `risoInk(purple)` over a fill drawn in `purple.onRisoPaper()` (`= P·I`), with no mottle or grain:
 - `D = D(P·I / P) − floor = D(I) − floor`. The separation row gives `c ≈ 0.99`, and the screen rounds it to a solid dot. The pass outputs `I`.
@@ -413,7 +420,7 @@ Check these before changing anything in `risograph/`:
 3. **A uniform is declared exactly once per assembled shader.** `SHEET_SURFACE_SKSL` owns the surface uniforms, and anything it is prepended to must not redeclare them.
 4. **The stock and the ink read the surface through `sheetSurface`,** never through their own copies.
 5. **`MIN_TRANSMITTANCE` is shared** by `separationRows`, `setInkPass` and `risoOverprint`/`onRisoPaper`.
-6. **Ink pass output is opaque, with white meaning no ink.** Any transparency would open a seam under Multiply.
+6. **Ink pass output is premultiplied, and `rgb` plus `1 − a` add back up to the transmittance.** That identity is what keeps the Multiply exact on the stock; the alpha is what keeps the pass honest when something isolates it into a layer of its own. Derive `rgb` from the *rounded* alpha, never the other way round.
 7. **Nothing un-inked is touched by the paper.** The sheet paints behind its content and never reads it.
 8. **Anything that changes a tile's pixels bumps `SURFACE_VERSION` and runs `./gradlew :design:riso:bakeTiles`.** `ShippedTilesTest` fails until the shipped tiles match a fresh bake. Old versions' disk-cache folders are simply never read again.
 9. **Tiles are CPU-backed** (read back after the bake) and belong to no GPU context. Never CPU-raster the bake on Android or iOS.
