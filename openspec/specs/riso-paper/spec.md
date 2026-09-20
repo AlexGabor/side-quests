@@ -70,6 +70,19 @@ Where a drum lays no ink, a pass SHALL leave what is behind it untouched rather 
 - **THEN** the background shows wherever no drum reached
 - **AND** the ink prints over it where the drums did reach
 
+### Requirement: A knockout cuts one hole for every drum
+A knockout SHALL take ink back off the pass enclosing it, so the region it covers shows the bare stock. The hole SHALL land at the same place on the sheet for every drum, however far off register each drum lands, so reversed-out artwork is not doubled. Riso ink used inside a knockout SHALL print on that bare stock.
+
+#### Scenario: Reversed-out type on a filled shape
+- **WHEN** a knockout is placed inside a shape printed on two or more drums
+- **THEN** the region it covers shows the stock, as though nothing were printed there
+- **AND** the hole's edges are where the knockout was laid out, not offset per drum
+- **AND** the surrounding artwork still prints on every drum
+
+#### Scenario: Ink inside a knockout
+- **WHEN** content printed with Riso ink is placed inside a knockout
+- **THEN** it prints on the bare stock the knockout exposed, rather than on the enclosing pass's ink
+
 ### Requirement: Surface warps inked artwork
 The paper's surface SHALL displace inked artwork by a small amount that varies with the surface: at most 1dp with default surface parameters, and the same physical amount at any layout size. It SHALL leave un-inked content in place. A stock with no roughness and no fiber SHALL displace nothing.
 

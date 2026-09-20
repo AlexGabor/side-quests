@@ -80,7 +80,7 @@ Two questions produce this split:
 | `RisoPaper` / `RisoPaper.None`                          | The stock: colours plus surface parameters. `None` paints nothing and has no surface.                                |
 | `RisoPaper.isSurfaceReady()` (composable)               | Whether the stock's surface has landed at the current density, or loading gave up. For code that captures a frame.   |
 | `Modifier.risoInk(…)`                                   | Overloads for 1, 2 or 3 `Color`s, a `List<Color>` or a `RisoMix`, plus `offsetScale`. Prints this subtree on those drums. |
-| `Modifier.risoKnockout(offsetScale = 0f)`               | `risoInk(emptyList())`: cuts a hole in the enclosing pass.                                                            |
+| `Modifier.risoKnockout()`                               | `risoInk(emptyList())`: cuts a hole in the enclosing pass.                                                            |
 | `Press`, `RisoPress`                                    | Drum rack plus screen, mottle, grain, spread, tolerance and seed.                                                     |
 | `Colors` / `RisoColors`, `Inks`, `NamedInk`             | The 12-ink palette and the stock colour `#EFEBE1`.                                                                    |
 | `RisoInk`                                               | One drum: colour, registration offset (dp), screen angle (deg).                                                       |
@@ -307,8 +307,9 @@ coverageᵢ = Rᵢ · D(pixel / P)
 - The clip is cut before the drum's throw, so a pass still bleeds past a scroller by exactly its registration error.
 
 **Knockouts** are passes with no inks.
-- The parent's `cutKnockouts(i, slip)` records the child's artwork into a per-drum punch layer (`BlendMode.DstOut`, Offscreen, clipped to the child's visible artwork), translated by `at − slip · (1 − child.offsetScale)`.
-- Because the pass layer itself moves by `slip`, the punch ends up at `at + slip · child.offsetScale` on the page. `offsetScale = 0` pins the hole to the sheet, so it is identical for every drum and reversed-out type doesn't double. `offsetScale = 1` lets the hole ride with the drum.
+- The parent's `cutKnockouts(i, slip)` records the child's artwork into a per-drum punch layer (`BlendMode.DstOut`, Offscreen, clipped to the child's visible artwork), translated by `at − slip`, which cancels the pass layer's own translation and so pins the hole to the sheet: one hole for every drum, rather than one per drum with inked bands between them. The punches stay one per drum even though they all land in the same place, because each cancels a different `slip`.
+- Because the pass layer itself moves by `slip`, the punch ends up at `at` on the page — the knockout's own place, for every drum. `SheetRenderTest.aKnockoutCutsOneHoleForEveryDrum` pins this: a hole that rode its drum leaves a band that one drum's hole covered and the other's did not, which comes back as single-drum ink where the stock should be.
+- The hole is cut from the knockout's **own artwork's alpha**, so a knockout with nothing drawn in it cuts nothing.
 - There is **one punch per drum**. A layer's translation is read when the display list replays, not when it is recorded, so a single shared punch would carry the last drum's offset into every pass.
 
 ### 5.6 The ink shader: `INK_PASS_SKSL`

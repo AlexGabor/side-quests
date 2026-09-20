@@ -22,6 +22,8 @@ import com.alexgabor.design.riso.attributes.RisoColors
 import com.alexgabor.design.riso.attributes.RisoPress
 import com.alexgabor.design.riso.risograph.inks.onRisoPaper
 import com.alexgabor.design.riso.risograph.inks.risoInk
+import com.alexgabor.design.riso.risograph.inks.risoKnockout
+import com.alexgabor.design.riso.risograph.inks.risoOverprint
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
@@ -113,6 +115,44 @@ class SheetRenderTest {
         assertClose(pink, pixels.at(sizeDp / 2, sizeDp / 2), levels = 1)
     }
 
+    /**
+     * A frisket: one hole on the sheet, whatever the drums did.
+     *
+     * The two inks sit in slots 0 and 7, which land about 5 dp apart, so a hole that rode its drum
+     * would cut in two places rather than one. The band between them would come back inked by
+     * whichever drum did not have its hole there — single-drum colour where there should be stock —
+     * which is why the samples just inside the hole's edges matter more than the one at its centre.
+     */
+    @Test
+    fun aKnockoutCutsOneHoleForEveryDrum() {
+        val first = RisoColors.inks.fluorescentPink
+        val second = RisoColors.inks.blue
+        val solid = risoOverprint(RisoColors.paper, listOf(first to 1f, second to 1f))
+        val pixels = render {
+            Box(Modifier.fillMaxSize().risoPaper(), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.size(96.dp).risoInk(first, second).background(solid),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    // The hole is cut from the knockout's own artwork, so it needs some: a solid
+                    // fill stands in for the glyphs of reversed-out type. Its colour is never seen.
+                    Box(Modifier.size(48.dp).risoKnockout().background(Color.Black))
+                }
+            }
+        }
+        // The hole spans 36..84 dp. Bare stock throughout, right up to its edges.
+        assertClose(RisoColors.paper, pixels.at(sizeDp / 2, sizeDp / 2), levels = 1)
+        assertClose(RisoColors.paper, pixels.at(38, sizeDp / 2), levels = 1)
+        assertClose(RisoColors.paper, pixels.at(82, sizeDp / 2), levels = 1)
+        assertClose(RisoColors.paper, pixels.at(sizeDp / 2, 38), levels = 1)
+        assertClose(RisoColors.paper, pixels.at(sizeDp / 2, 82), levels = 1)
+        // And the artwork around it still prints, so the hole is a hole and not a blank pass.
+        assertInked(pixels.at(30, sizeDp / 2))
+        assertInked(pixels.at(90, sizeDp / 2))
+        assertInked(pixels.at(sizeDp / 2, 30))
+        assertInked(pixels.at(sizeDp / 2, 90))
+    }
+
     @Test
     fun contentWithoutInkIsDrawnAsAuthored() {
         val plain = Color(0xFF3A7BD5)
@@ -171,6 +211,16 @@ class SheetRenderTest {
                 blue = (bytes[i + 2].toInt() and 0xFF) / 255f,
             )
         }
+    }
+
+    /** Ink was laid here: far enough off the bare stock that no amount of grain explains it. */
+    private fun assertInked(actual: Color) {
+        val off = listOf(
+            RisoColors.paper.red - actual.red,
+            RisoColors.paper.green - actual.green,
+            RisoColors.paper.blue - actual.blue,
+        ).maxOf { abs(it) * 255f }
+        assertTrue(off > 16f, "expected ink, got $actual (only $off levels off the stock)")
     }
 
     private fun assertClose(expected: Color, actual: Color, levels: Int) {
