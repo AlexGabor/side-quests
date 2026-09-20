@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.use
@@ -21,7 +22,10 @@ import com.alexgabor.design.riso.attributes.LocalPress
 import com.alexgabor.design.riso.attributes.RisoColors
 import com.alexgabor.design.riso.attributes.RisoPress
 import com.alexgabor.design.riso.risograph.inks.onRisoPaper
+import com.alexgabor.design.riso.risograph.inks.risoFade
+import com.alexgabor.design.riso.risograph.inks.risoFadeAsAlpha
 import com.alexgabor.design.riso.risograph.inks.risoInk
+import com.alexgabor.design.riso.risograph.inks.RisoFadeAlphaElement
 import com.alexgabor.design.riso.risograph.inks.risoKnockout
 import com.alexgabor.design.riso.risograph.inks.risoOverprint
 import org.jetbrains.skia.Bitmap
@@ -198,6 +202,195 @@ class SheetRenderTest {
         }
         assertFalse(modifier.any { it is RisoSheetElement }, "a sheet was made with effects off")
     }
+
+
+    // --- Running the press lighter ---------------------------------------------------------
+
+    /**
+     * A fade of one is the press as loaded, down to the pixel — the fast path that keeps every
+     * unfaded screen exactly as it printed before there was such a thing as a fade.
+     */
+    @Test
+    fun aFadeOfOnePrintsWhatNoFadeDoes() {
+        val ink = RisoColors.inks.blue
+        val faded = render { Box(Modifier.fillMaxSize().risoFade(1f)) { inkedSquare(ink) } }
+        val plain = render { Box(Modifier.fillMaxSize()) { inkedSquare(ink) } }
+        assertTrue(faded.bytes.contentEquals(plain.bytes), "a fade of one changed the print")
+    }
+
+    @Test
+    fun aFadeOfZeroLaysDownNoInk() {
+        val ink = RisoColors.inks.blue
+        val pixels = render { Box(Modifier.fillMaxSize().risoFade(0f)) { inkedSquare(ink) } }
+        assertClose(RisoColors.paper, pixels.at(sizeDp / 2, sizeDp / 2), levels = 1)
+        assertClose(RisoColors.paper, pixels.at(sizeDp / 2 - 20, sizeDp / 2), levels = 1)
+        assertClose(RisoColors.paper, pixels.at(sizeDp / 2, sizeDp / 2 + 20), levels = 1)
+    }
+
+    /**
+     * The whole point of the thing: half the ink is smaller dots of the same ink, not the same dots
+     * in a paler one. So the darkest pixel in the region is still solid ink, the lightest is still
+     * bare stock, and only the average moves.
+     */
+    @Test
+    fun aHalfFadePrintsSmallerDotsAtFullStrength() {
+        val ink = RisoColors.inks.blue
+        val full = render { Box(Modifier.fillMaxSize()) { inkedSquare(ink) } }
+        val half = render { Box(Modifier.fillMaxSize().risoFade(0.5f)) { inkedSquare(ink) } }
+
+        assertTrue(
+            half.meanInk() < full.meanInk() * 0.8f,
+            "half the ink was not lighter: ${half.meanInk()} against ${full.meanInk()}",
+        )
+        assertClose(ink.onRisoPaper(), half.darkest(), levels = 3)
+        assertClose(RisoColors.paper, half.lightest(), levels = 2)
+    }
+
+    /**
+     * Two lighter runs of the press, not the lighter of the two: a half inside a half reaches the
+     * sheet as a quarter, pixel for pixel.
+     */
+    @Test
+    fun nestedFadesMultiply() {
+        val ink = RisoColors.inks.blue
+        val nested = render {
+            Box(Modifier.fillMaxSize().risoFade(0.5f)) {
+                Box(Modifier.fillMaxSize().risoFade(0.5f)) { inkedSquare(ink) }
+            }
+        }
+        val quarter = render { Box(Modifier.fillMaxSize().risoFade(0.25f)) { inkedSquare(ink) } }
+        assertTrue(nested.bytes.contentEquals(quarter.bytes), "nested fades did not multiply")
+    }
+
+    /**
+     * A frisket is not ink. However light the press is running, the paper it holds off the sheet is
+     * the same paper — so the hole stays a hole while the ink around it thins.
+     */
+    @Test
+    fun aKnockoutStaysFullyCutWhileTheInkThins() {
+        val ink = RisoColors.inks.fluorescentPink
+        val content = @Composable {
+            Box(Modifier.fillMaxSize().risoPaper(), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.size(96.dp).risoInk(ink, offsetScale = 0f).background(ink.onRisoPaper()),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(Modifier.size(48.dp).risoKnockout().background(Color.Black))
+                }
+            }
+        }
+        val full = render { content() }
+        val half = render { Box(Modifier.fillMaxSize().risoFade(0.5f)) { content() } }
+
+        // The hole reads as bare stock at either fade, not as stock with half a pass over it.
+        assertClose(RisoColors.paper, half.at(sizeDp / 2, sizeDp / 2), levels = 1)
+        assertClose(RisoColors.paper, half.at(38, sizeDp / 2), levels = 1)
+        assertClose(RisoColors.paper, half.at(sizeDp / 2, 82), levels = 1)
+        // And the ink around it is thinner than it was.
+        assertInked(full.at(30, sizeDp / 2))
+        assertTrue(
+            half.meanInk(from = 16, to = 32) < full.meanInk(from = 16, to = 32) * 0.8f,
+            "the ink around the hole did not thin",
+        )
+    }
+
+    @Test
+    fun contentWithoutInkIsUntouchedByAFade() {
+        val plain = Color(0xFF3A7BD5)
+        val pixels = render {
+            Box(Modifier.fillMaxSize().risoFade(0.5f).risoPaper(), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(64.dp).background(plain))
+            }
+        }
+        assertClose(plain, pixels.at(sizeDp / 2, sizeDp / 2), levels = 0)
+    }
+
+    @Test
+    fun contentWithoutInkTakesTheFadeWhenItAsks() {
+        val plain = Color(0xFF3A7BD5)
+        val pixels = render {
+            Box(Modifier.fillMaxSize().risoFade(0.5f).risoPaper(), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(64.dp).risoFadeAsAlpha().background(plain))
+            }
+        }
+        val over = { a: Float, b: Float -> a * 0.5f + b * 0.5f }
+        val expected = Color(
+            red = over(plain.red, RisoColors.paper.red),
+            green = over(plain.green, RisoColors.paper.green),
+            blue = over(plain.blue, RisoColors.paper.blue),
+        )
+        assertClose(expected, pixels.at(sizeDp / 2, sizeDp / 2), levels = 2)
+    }
+
+    @Test
+    fun withEffectsOffAFadeIsAPlainAlphaAndIsTakenOnce() {
+        val plain = Color(0xFF3A7BD5)
+        var asAlpha: Modifier = Modifier
+        val pixels = render(effectsEnabled = false) {
+            // The stock stays outside the fade, so what is faded lands on it rather than on nothing.
+            Box(Modifier.fillMaxSize().background(RisoColors.paper)) {
+                Box(Modifier.fillMaxSize().risoFade(0.5f), contentAlignment = Alignment.Center) {
+                    asAlpha = Modifier.risoFadeAsAlpha()
+                    Box(Modifier.size(64.dp).then(asAlpha).background(plain))
+                }
+            }
+        }
+        // Nothing of its own to add: the fade is already a plain alpha over everything inside it.
+        assertFalse(
+            asAlpha.any { it is RisoFadeAlphaElement },
+            "risoFadeAsAlpha faded the content a second time with effects off",
+        )
+        val over = { a: Float, b: Float -> a * 0.5f + b * 0.5f }
+        val expected = Color(
+            red = over(plain.red, RisoColors.paper.red),
+            green = over(plain.green, RisoColors.paper.green),
+            blue = over(plain.blue, RisoColors.paper.blue),
+        )
+        // Two levels for the rounding in the composite. Taking the fade twice would be sixty.
+        assertClose(expected, pixels.at(sizeDp / 2, sizeDp / 2), levels = 2)
+    }
+
+    /** A square of solid ink, centred, printed in register so the samples land where they read. */
+    @Composable
+    private fun inkedSquare(ink: Color) {
+        Box(Modifier.fillMaxSize().risoPaper(), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.size(64.dp)
+                    .risoInk(ink, offsetScale = 0f)
+                    .background(ink.onRisoPaper())
+            )
+        }
+    }
+
+
+    /**
+     * How far the inked region sits off bare stock on average, over a band around the centre.
+     *
+     * An average rather than a pixel, because thinning the ink moves the dots rather than the ink:
+     * a single pixel is either inside a dot or between two, at any fade.
+     */
+    private fun Pixels.meanInk(from: Int = 0, to: Int = 24): Float {
+        var total = 0f
+        var count = 0
+        for (y in -to..to) for (x in -to..to) {
+            if (maxOf(abs(x), abs(y)) < from) continue
+            val c = at(sizeDp / 2 + x, sizeDp / 2 + y)
+            total += RisoColors.paper.luminance() - c.luminance()
+            count++
+        }
+        return total / count
+    }
+
+    /** The most ink laid down anywhere in the inked region: the middle of a dot. */
+    private fun Pixels.darkest(to: Int = 24): Color =
+        region(to).minBy { it.luminance() }
+
+    /** The least: bare stock between the dots. */
+    private fun Pixels.lightest(to: Int = 24): Color =
+        region(to).maxBy { it.luminance() }
+
+    private fun Pixels.region(to: Int): List<Color> =
+        (-to..to).flatMap { y -> (-to..to).map { x -> at(sizeDp / 2 + x, sizeDp / 2 + y) } }
 
     private class Pixels(val width: Int, val bytes: ByteArray, val density: Float) {
         /** The pixel at ([xDp], [yDp]), as a color. */

@@ -132,6 +132,27 @@ come out doubled. A `risoInk` inside a knockout still prints on the bare paper.
 To leave something unprinted, like a photo pasted onto a printed page, just don't put it in a
 `risoInk`.
 
+### Fading
+
+```kotlin
+Modifier.risoFade(0.5f)                 // run the press lighter over this subtree
+Modifier.risoFadeAsAlpha()              // for content the press doesn't print
+
+RisoAnimatedVisibility(visible = showPresets) { Row { ... } }
+```
+
+- **A fade thins the ink**, it doesn't fade the print. Coverage drops, so the halftone prints smaller
+  dots of full-strength ink with the stock showing between them. An alpha over inked content — a
+  `graphicsLayer`, `fadeIn()`/`fadeOut()`, `AnimatedVisibility` — washes out full-size dots instead.
+- **It reaches every pass inside it**, including components with inks of their own. Nested fades
+  multiply (`0.5` inside `0.5` prints at `0.25`).
+- **A knockout still cuts in full.** The frisket isn't ink.
+- **Un-inked content is untouched** unless it asks with `risoFadeAsAlpha()`, which takes the
+  enclosing fade as plain transparency. Don't put it on inked content: that fades it twice.
+- **`RisoAnimatedVisibility`** shows and hides with that dissolve. It keeps its content in the layout
+  until the fade settles, then drops it, and ignores pointer input on the way out. Use
+  `AnimatedVisibility` when you need the size to animate too.
+
 ### The press
 
 `RisoTheme.press` is the house style, shared by every print:
@@ -155,6 +176,7 @@ With `RisoTheme(effectsEnabled = false)`:
 
 - `risoPaper` paints the flat stock color
 - `risoInk` and `risoKnockout` do nothing
+- `risoFade` is a plain alpha over its content, and `risoFadeAsAlpha` does nothing
 - `RisoPaper.isSurfaceReady()` is always true
 - `RisoMix.color()` returns `unprinted` color
 

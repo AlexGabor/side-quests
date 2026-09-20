@@ -53,9 +53,11 @@ import com.alexgabor.design.riso.attributes.Press
 import com.alexgabor.design.riso.attributes.RisoColors
 import com.alexgabor.design.riso.attributes.RisoPress
 import com.alexgabor.design.riso.components.Button
+import com.alexgabor.design.riso.components.RisoAnimatedVisibility
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.ButtonGroupItem
 import com.alexgabor.design.riso.risograph.inks.onRisoPaper
+import com.alexgabor.design.riso.risograph.inks.risoFadeAsAlpha
 import com.alexgabor.design.riso.risograph.inks.risoInk
 import com.alexgabor.design.riso.risograph.inks.risoKnockout
 import com.alexgabor.design.riso.risograph.inks.risoOverprint
@@ -137,6 +139,7 @@ fun RisoPrintDemo(modifier: Modifier = Modifier) {
                         Artwork.Type -> TypeArtwork(press, chartInks)
                         Artwork.Intent -> IntentArtwork(paper, chartInks, amplify)
                         Artwork.Nested -> NestedArtwork(amplify)
+                        Artwork.Dissolve -> DissolveArtwork()
                     }
                 }
 
@@ -473,6 +476,7 @@ private enum class Artwork(override val text: String) : ButtonGroupItem {
     Mixer("Mixer"),
     Intent("Intent"),
     Nested("Nested"),
+    Dissolve("Dissolve"),
 }
 
 /**
@@ -557,6 +561,55 @@ private fun NestedArtwork(amplify: Float) {
             contentAlignment = Alignment.Center,
         ) {
             Button(text = "Nested", onClick = {})
+        }
+    }
+}
+
+/**
+ * The press run lighter and lighter until there is nothing left of it.
+ *
+ * Three things leave together, or would like to: the inked card, which thins to smaller dots; a
+ * plain fill that asks for the fade as transparency; and a plain fill that does not, and so holds
+ * full strength until the layout lets go of it. The last one is the point of the middle one.
+ */
+@Composable
+private fun DissolveArtwork() {
+    var printing by remember { mutableStateOf(true) }
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+    ) {
+        Button(text = if (printing) "Hide" else "Show", onClick = { printing = !printing })
+        RisoAnimatedVisibility(visible = printing) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(88.dp)
+                        .risoInk(RisoTheme.colors.content)
+                        .background(
+                            RisoTheme.colors.content.onRisoPaper(0.8f),
+                            RoundedCornerShape(12.dp),
+                        ),
+                )
+                // Not printed, so the fade has no ink of its own to thin here — it takes it as
+                // plain transparency instead.
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .risoFadeAsAlpha()
+                        .background(Color(0xFF3A7BD5), RoundedCornerShape(12.dp)),
+                )
+                // And the same fill left to itself, which stays until it is taken away.
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(Color(0xFF3A7BD5), RoundedCornerShape(12.dp)),
+                )
+            }
         }
     }
 }

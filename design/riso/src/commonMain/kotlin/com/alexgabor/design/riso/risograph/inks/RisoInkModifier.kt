@@ -235,6 +235,18 @@ internal class RisoPassNode(
     /** The nearest pass above this one, which this one takes precedence over. */
     private var above: RisoPassNode? = null
 
+    /**
+     * How light the press is running over this pass, or null where it runs as loaded.
+     *
+     * The nearest fade above it, like the sheet — and read at draw time for the same reason, since
+     * a fade that is being animated moves every frame and nothing about this pass changes with it
+     * except how much ink reaches the sheet.
+     */
+    private var fadeNode: RisoFadeNode? = null
+
+    /** [fadeNode] resolved through every fade above it, or `1` outside any fade. */
+    private val fade: Float get() = fadeNode?.resolved ?: 1f
+
     /** Passes nested inside this one, which stand aside for it and are laid down by it. */
     private val below = mutableListOf<RisoPassNode>()
 
@@ -264,6 +276,10 @@ internal class RisoPassNode(
             sheet = (ancestor as RisoSheetNode).also { it.addDependent(this) }
             false
         }
+        traverseAncestors(RisoFadeKey) { ancestor ->
+            fadeNode = (ancestor as RisoFadeNode).also { it.addDependent(this) }
+            false
+        }
     }
 
     override fun onDetach() {
@@ -275,6 +291,8 @@ internal class RisoPassNode(
         above = null
         sheet?.removeDependent(this)
         sheet = null
+        fadeNode?.removeDependent(this)
+        fadeNode = null
         coordinates = null
         val context = requireGraphicsContext()
         content?.let(context::releaseGraphicsLayer)
@@ -345,7 +363,13 @@ internal class RisoPassNode(
     private fun layDown(scope: DrawScope, origin: Offset, host: RisoPassNode) {
         val content = content
         val artwork = visibleArtwork(host)
-        if (content != null && !artwork.isEmpty) {
+        // Read once for the whole pass: every drum lays down the same share of the ink it would
+        // have. A press run at nothing is a press not run, so at zero the drums are skipped
+        // outright rather than inked and then taken straight back off. The passes nested inside are
+        // still walked, each resolving a fade of its own — usually this same zero, since a fade
+        // above this pass is above them too.
+        val fade = fade
+        if (content != null && !artwork.isEmpty && fade > 0f) {
             val onPage = (coordinates?.takeIf { it.isAttached }?.positionInRoot() ?: Offset.Zero)
             // Read here, at draw time. The sheet redraws this pass when its stock changes or its
             // tiles land — see [RisoSheetNode.addDependent].
@@ -373,6 +397,18 @@ internal class RisoPassNode(
                     cutKnockouts(index, slip)
                     pass.layer.record(contentSize) {
                         drawLayer(content)
+                        // The artwork, thinned before the shader reads it — which is the whole of
+                        // running the press lighter, since coverage is resolved from the artwork's
+                        // alpha. `DstIn` scales the premultiplied color and the alpha by the same
+                        // factor, so the shader's unpremultiply hands back the color that was
+                        // authored at less of it, rather than that color fading towards black.
+                        //
+                        // Above the punches, and that is not an ordering detail: a frisket is not
+                        // ink. It holds the same paper off the sheet however light the press is
+                        // running, so the hole is cut after the thinning and at full strength.
+                        if (fade < 1f) {
+                            drawRect(Color.Black, alpha = fade, blendMode = BlendMode.DstIn)
+                        }
                         punchKnockouts(index)
                     }
                     // Clipped to an outline named outright rather than to the layer's own bounds.

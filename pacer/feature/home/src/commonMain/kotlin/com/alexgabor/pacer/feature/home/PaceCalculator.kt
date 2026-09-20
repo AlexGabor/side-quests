@@ -34,6 +34,7 @@ import com.alexgabor.design.riso.attributes.Heading3
 import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.Card
 import com.alexgabor.design.riso.components.FlatButton
+import com.alexgabor.design.riso.components.RisoAnimatedVisibility
 import com.alexgabor.design.riso.components.track.TrackState
 import com.alexgabor.lib.appstateurl.AppUrl
 import com.alexgabor.lib.appstateurl.fakeAppUrlModule
@@ -123,21 +124,24 @@ class PaceCalculatorState(
 
     internal val timeOnSlider: Duration get() = time
 
-    val displayedDistance: String get() {
-        val hundredths = DistanceSliderState.hundredths(distanceOnSlider)
-        return "${hundredths / 100}.${(hundredths % 100).twoDigits()} ${selectedUnit.text}"
-    }
+    val displayedDistance: String
+        get() {
+            val hundredths = DistanceSliderState.hundredths(distanceOnSlider)
+            return "${hundredths / 100}.${(hundredths % 100).twoDigits()} ${selectedUnit.text}"
+        }
 
-    val displayedPace: String get() {
-        val seconds = PaceSliderState.seconds(paceOnSlider)
-        return "${seconds / 60}:${(seconds % 60).twoDigits()} ${selectedUnit.paceText}"
-    }
+    val displayedPace: String
+        get() {
+            val seconds = PaceSliderState.seconds(paceOnSlider)
+            return "${seconds / 60}:${(seconds % 60).twoDigits()} ${selectedUnit.paceText}"
+        }
 
-    val displayedTime: String get() {
-        val seconds = TimeSliderState.seconds(time)
-        return "${seconds / 3600}h ${((seconds % 3600) / 60).twoDigits()}m " +
-            "${(seconds % 60).twoDigits()}s"
-    }
+    val displayedTime: String
+        get() {
+            val seconds = TimeSliderState.seconds(time)
+            return "${seconds / 3600}h ${((seconds % 3600) / 60).twoDigits()}m " +
+                    "${(seconds % 60).twoDigits()}s"
+        }
 
     /** What each card is headed with; also the first three lines of [shareText]. */
     internal val timeTitle: String get() = "Time ${timeComparison.text} $displayedTime"
@@ -249,8 +253,8 @@ class PaceCalculatorState(
     /** True while any slider is under the user's finger or still flinging from it. */
     internal val isUserScrolling: Boolean
         get() = distanceSliderState.isUserScrolling ||
-            paceSliderState.isUserScrolling ||
-            timeSliderState.isUserScrolling
+                paceSliderState.isUserScrolling ||
+                timeSliderState.isUserScrolling
 
     /**
      * This run as a launch would describe it — in the unit on screen, as [PacerLaunchArgs] is — so
@@ -553,17 +557,23 @@ internal fun DistancePresets(
     state: PaceCalculatorState,
     modifier: Modifier = Modifier,
 ) {
-    if (state.selectedMetric == Metric.Distance) return
-    Row(
+    // The caller's modifier goes on the dissolve rather than on the row inside it: that is the
+    // composable the caller's layout actually holds, and parent data — `Column.align`, here — is
+    // only ever read by the layout a composable is a child of.
+    RisoAnimatedVisibility(
+        visible = state.selectedMetric != Metric.Distance,
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        DistancePreset.forUnit(state.selectedUnit).forEach { preset ->
-            FlatButton(
-                text = preset.text,
-                onClick = { state.selectPreset(preset) },
-            )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DistancePreset.forUnit(state.selectedUnit).forEach { preset ->
+                FlatButton(
+                    text = preset.text,
+                    onClick = { state.selectPreset(preset) },
+                )
+            }
         }
     }
 }
