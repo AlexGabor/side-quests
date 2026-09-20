@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
@@ -173,15 +172,10 @@ fun printOf(layer: IconLayer, bucket: IconDensity): IconPrint = when (layer) {
 
 /**
  * The sheet, with nothing printed on it. Every other layer is composited over this one.
- *
- * The white is not a colour, it is a blank pass: white is full transmittance, so the press lays no
- * ink and hands back the stock alone. It is here because a sheet still has to go *through* the
- * press — `risoPaper` is a render effect over a layer's own pixels, and a layer with nothing drawn
- * in it is never rasterized at all, so an empty box comes back empty rather than papered.
  */
 @Composable
 private fun IconBackground(modifier: Modifier) {
-    Box(modifier.risoPaper(RisoPaper()).drawBehind { drawRect(Color.White) })
+    Box(modifier.risoPaper(RisoPaper()))
 }
 
 /**
@@ -190,8 +184,8 @@ private fun IconBackground(modifier: Modifier) {
  * The sheet is [RisoPaper.None] rather than the stock, because a launcher composites this layer over
  * the background one and would otherwise print the paper twice. With no stock behind the ink, what
  * comes off the press is the inks' own transmittance — ink as if held up to the light. The
- * separation is unaffected: `risoInk` resolves coverage against `RisoTheme.colors.paper` whatever
- * sheet it is printed on.
+ * separation is unaffected: a sheet that paints no stock leaves `risoInk` to resolve coverage
+ * against `RisoTheme.colors.paper`, as the background layer's stock is.
  *
  * What that leaves is opaque: transmittance is white where no drum reached, which is correct for the
  * multiply the passes are drawn with and useless to a launcher compositing this over a background.
@@ -274,7 +268,7 @@ private fun IconMonochrome(modifier: Modifier) {
  */
 @Composable
 private fun FlatIcon(modifier: Modifier) {
-    Box(modifier.risoPaper(RisoPaper()).drawBehind { drawRect(Color.White) }) {
+    Box(modifier.risoPaper(RisoPaper())) {
         Canvas(
             Modifier
                 .fillMaxSize()

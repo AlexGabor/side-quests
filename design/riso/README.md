@@ -65,9 +65,23 @@ Modifier.risoPaper(RisoPaper(roughness = 0.2f, fiber = 0.3f))
 Modifier.risoPaper(RisoPaper.None)                     // no sheet, just ink
 ```
 
-Draws the sheet behind the content, shades what is printed on it and warps it slightly. `RisoPaper`
-controls the stock color (`colorFront`, `colorBack`) and the surface (`contrast`, `roughness`,
-`fiber`, `fiberSize`, `fade`, `scale`, `seed`). Put it once on the screen's root.
+Paints the sheet behind the content. Only content printed with `risoInk` lands on it as ink: it is
+multiplied onto the stock, separated against this sheet's own color, and warped slightly by the
+sheet's surface. Anything else — an image, a plain fill — is drawn on top exactly as authored, so
+there is nothing to opt out of. Put it once on the screen's root.
+
+- **Stock color:** `colorFront`, `colorBack`. Any color works, and changing it (even animating it)
+  costs nothing.
+- **Surface:** `contrast`, `roughness`, `fiber` and `fade` set how strongly it shows, and are just
+  as cheap to change. `fiberSize`, `scale` and `seed` set its shape.
+- **Nested sheets:** a `risoPaper` inside another paints its own stock over the outer one, and the
+  ink inside prints onto that.
+- **Loading:** the surface is baked once per shape and density into small repeating tiles, at 1×,
+  2× or 3× — a denser screen than that reads the 3× tile magnified rather than baking one of its
+  own. The default stock's tiles ship with the library, so it appears fully grained on the first
+  frame at any density. Other surfaces are baked on first use and cached on disk (except on the
+  web); until they land, the stock is drawn flat. Anything that captures a single frame can wait for
+  `RisoPaper.isSurfaceReady()`.
 
 ### Ink
 
@@ -109,13 +123,14 @@ Modifier.background(fill.color()).risoInk(fill)
   ramps and overprint charts instead of blending colors by eye.
 - `Color.onRisoPaper(inkCoverage)` shows what an ink looks like once printed on paper.
 
-### Knockout and bypass
+### Knockout
 
-- `Modifier.risoKnockout()` cuts a hole in the enclosing ink pass, so the region shows bare paper,
-  for example reversed-out text on a filled shape. The hole is cut once for all drums, so the text
-  doesn't come out doubled. A `risoInk` inside a knockout still prints on the bare paper.
-- `Modifier.risoBypass(cornerRadius)` leaves a region untouched by the paper effect, like a photo
-  pasted onto a printed page. It only affects the paper; it does not remove ink.
+`Modifier.risoKnockout()` cuts a hole in the enclosing ink pass, so the region shows bare paper, for
+example reversed-out text on a filled shape. The hole is cut once for all drums, so the text doesn't
+come out doubled. A `risoInk` inside a knockout still prints on the bare paper.
+
+To leave something unprinted, like a photo pasted onto a printed page, just don't put it in a
+`risoInk`.
 
 ### The press
 
@@ -140,6 +155,6 @@ With `RisoTheme(effectsEnabled = false)`:
 
 - `risoPaper` paints the flat stock color
 - `risoInk` and `risoKnockout` do nothing
-- `risoBypass` has no effect
+- `RisoPaper.isSurfaceReady()` is always true
 - `RisoMix.color()` returns `unprinted` color
 

@@ -19,3 +19,11 @@ compose.desktop {
         )
     }
 }
+
+// Still snapshots of one test page, for comparing the print before and after a change. See Snapshots.kt.
+tasks.register<JavaExec>("snapshots") {
+    group = "riso"
+    mainClass = "com.alexgabor.design.riso.recorder.SnapshotsKt"
+    classpath = sourceSets.main.get().runtimeClasspath
+    args(layout.buildDirectory.dir("snapshots").get().asFile.absolutePath)
+}

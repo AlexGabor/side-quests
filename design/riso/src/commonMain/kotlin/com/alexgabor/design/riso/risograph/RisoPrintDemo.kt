@@ -62,7 +62,6 @@ import com.alexgabor.design.riso.risograph.inks.risoOverprint
 import com.alexgabor.design.riso.risograph.inks.RisoInk
 import com.alexgabor.design.riso.risograph.paper.RisoPaper
 import com.alexgabor.design.riso.risograph.paper.risoPaper
-import com.alexgabor.design.riso.risograph.region.risoBypass
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
@@ -289,7 +288,7 @@ private fun InkPicker(
                         // A swatch has to show the ink you are about to pick, not the press's read
                         // of it: the fluorescents sit outside what a density separation can
                         // round-trip, so printed, pink comes back indistinguishable from burgundy.
-                        .risoBypass()
+                        // Left un-inked, it is drawn exactly as it is.
                         .background(ink.color)
                         .then(
                             if (charted) {
@@ -438,12 +437,12 @@ private fun vennCenters(count: Int, center: Offset, spread: Float): List<Offset>
 }
 
 /**
- * The same full-spectrum swatch printed and bypassed, side by side. The printed one picks up the
- * grain, the screen and the registration of its passes; the bypassed one comes through the press
+ * The same full-spectrum swatch printed and not, side by side. The printed one picks up the grain,
+ * the screen and the registration of its passes; the other is never inked, and sits on the sheet
  * untouched, as a tipped-in photograph would.
  */
 @Composable
-private fun BypassComparison(drums: List<Color>) {
+private fun PrintedComparison(drums: List<Color>) {
     val spectrum = Brush.horizontalGradient(RisoColors.inks.all.map { it.color })
 
     @Composable
@@ -461,10 +460,10 @@ private fun BypassComparison(drums: List<Color>) {
         horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
     ) {
         // The printed one is separated onto the drums it names, so a spectrum spanning the whole
-        // rack is squeezed into three inks and picks up their screen and grain; the bypassed one
-        // comes through untouched.
+        // rack is squeezed into three inks and picks up their screen and grain; the other is not
+        // inked at all, and comes through untouched.
         Swatch("printed", Modifier.risoInk(drums))
-        Swatch("risoBypass", Modifier.risoBypass(cornerRadius = 8.dp))
+        Swatch("not printed", Modifier)
     }
 }
 
@@ -596,7 +595,7 @@ private fun TypeArtwork(press: Press, inks: List<RisoInk>) {
                 .risoInk(RisoTheme.colors.content),
             textAlign = TextAlign.Center,
         )
-        BypassComparison(drums)
+        PrintedComparison(drums)
     }
 }
 

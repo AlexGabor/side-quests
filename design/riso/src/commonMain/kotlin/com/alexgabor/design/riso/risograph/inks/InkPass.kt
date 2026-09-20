@@ -2,7 +2,9 @@ package com.alexgabor.design.riso.risograph.inks
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.RenderEffect
+import com.alexgabor.design.riso.risograph.paper.SheetSurface
 
 /**
  * One drum's pass over the artwork.
@@ -18,8 +20,7 @@ import androidx.compose.ui.graphics.RenderEffect
 internal expect class InkPass() {
 
     /**
-     * The effect to hang on this pass's layer, or null on a platform with no runtime shaders — where
-     * the caller draws the artwork as it is and no ink is laid at all.
+     * The effect to hang on this pass's layer.
      *
      * The effect for the last [spec] is kept and handed back when this one matches it. An effect
      * bakes in its shader's uniforms, so it cannot outlive a change to them — but of everything in a
@@ -27,7 +28,7 @@ internal expect class InkPass() {
      * the pass does. A track being scrolled inside a card that is standing still asks for the same
      * pass every frame, once per drum, and that is what this answers without rebuilding.
      */
-    fun effect(spec: InkPassSpec): RenderEffect?
+    fun effect(spec: InkPassSpec): RenderEffect
 }
 
 /**
@@ -68,4 +69,16 @@ internal data class InkPassSpec(
     val grain: Float,
     val grainSize: Float,
     val spread: Float,
+    /**
+     * The sheet this pass prints onto, whose surface pushes the artwork around. Null with no sheet
+     * above, or one with no relief, and then nothing moves.
+     */
+    val surface: SheetSurface?,
+    /** Where the pass layer's own origin sits on that sheet, in pixels. */
+    val sheetOffset: Offset,
+    /** Pixels per unit of the surface's displacement; 0 leaves the artwork where it was drawn. */
+    val warp: Float,
+    val density: Float,
+    /** The recorded artwork's size, which a warped read is kept inside. */
+    val imageSize: Size,
 )

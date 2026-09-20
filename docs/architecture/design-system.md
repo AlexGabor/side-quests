@@ -2,7 +2,7 @@
 
 [design/riso](../../design/riso) is a custom Compose theme modeled on risograph printing: a paper surface, ink passes with visible misregistration. Every app and tool uses it. Visual overview in the [root README](../../README.md#riso).
 
-The effect is implemented with a custom shader.
+The effect is implemented with custom shaders; how paper and ink render, per platform, is in [riso-paper-and-ink.md](riso-paper-and-ink.md).
 
 - Apps and features use Riso components and `RisoTheme.*` values, never Material directly. Only `design/riso` itself may use Material internally.
 - Read theme values through `RisoTheme.colors / typography / dimens / shapes / press`; the backing `Local*` composition locals are `internal`.
@@ -16,11 +16,10 @@ The shader work is split by how each platform reaches Skia, configured and expla
 
 ```
 commonMain
-├── androidMain            android.graphics RuntimeShader
+├── androidMain            android.graphics RuntimeShader; paper tiles baked on the GPU
 └── skikoMain              org.jetbrains.skia (JVM, iOS, wasmJs)
-    ├── bakedPaperMain     paper baked into a texture once (JVM, iOS)
-    │   └── metalBakeMain  baked on the GPU via Metal (iOS); JVM bakes on a raster surface
-    └── inlinePaperMain    paper computed per frame (wasmJs, no offscreen GPU surface)
+    ├── metalBakeMain      paper tiles baked on the GPU via a private Metal context (iOS)
+    └── rasterBakeMain     paper tiles baked on a raster surface (JVM, wasmJs)
 ```
 
 - Shared Skia code goes in `skikoMain`, not duplicated per target.
