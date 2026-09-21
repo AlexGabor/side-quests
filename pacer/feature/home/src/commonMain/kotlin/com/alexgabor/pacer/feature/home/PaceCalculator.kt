@@ -625,7 +625,7 @@ internal fun LazyListScope.metricCardItems(
     item("time") {
         MetricCard(
             title = state.timeTitle,
-            selected = state.selectedMetric == Metric.Time,
+            selected = state.selectedMetric != Metric.Time,
             onClick = { state.selectMetric(Metric.Time) },
             modifier = cardModifier(maxCardWidth),
         ) {
@@ -639,7 +639,7 @@ internal fun LazyListScope.metricCardItems(
     item("distance") {
         MetricCard(
             title = state.distanceTitle,
-            selected = state.selectedMetric == Metric.Distance,
+            selected = state.selectedMetric != Metric.Distance,
             onClick = { state.selectMetric(Metric.Distance) },
             modifier = cardModifier(maxCardWidth),
         ) {
@@ -653,7 +653,7 @@ internal fun LazyListScope.metricCardItems(
     item("pace") {
         MetricCard(
             title = state.paceTitle,
-            selected = state.selectedMetric == Metric.Pace,
+            selected = state.selectedMetric != Metric.Pace,
             onClick = { state.selectMetric(Metric.Pace) },
             modifier = cardModifier(maxCardWidth),
         ) {
