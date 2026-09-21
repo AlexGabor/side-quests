@@ -10,8 +10,8 @@ android {
 
     defaultConfig {
         applicationId = "com.alexgabor.pacer"
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = 5
+        versionName = "1.3.1"
     }
 }
 
