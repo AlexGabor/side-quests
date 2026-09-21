@@ -139,6 +139,7 @@ Modifier.risoFade(0.5f)                 // run the press lighter over this subtr
 Modifier.risoFadeAsAlpha()              // for content the press doesn't print
 
 RisoAnimatedVisibility(visible = showPresets) { Row { ... } }
+RisoCrossfade(targetState = metric) { Readout(it) }
 ```
 
 - **A fade thins the ink**, it doesn't fade the print. Coverage drops, so the halftone prints smaller
@@ -152,6 +153,14 @@ RisoAnimatedVisibility(visible = showPresets) { Row { ... } }
 - **`RisoAnimatedVisibility`** shows and hides with that dissolve. It keeps its content in the layout
   until the fade settles, then drops it, and ignores pointer input on the way out. Use
   `AnimatedVisibility` when you need the size to animate too.
+- **`RisoCrossfade`** swaps content with the same dissolve: the old content thins away as the new
+  content prints in, stacked in the same place. Both are composed until the swap settles, and the
+  outgoing content ignores pointer input. Content shown first appears at full ink.
+- **`RisoFadeDefaults`** holds the crossfade curve. Both sides ease fast–slow–fast
+  (`LingerEasing`), slowing as they pass through half ink so the dotted print in between lingers
+  without ever stopping. Out runs 1 → 0 over 0–175 ms; in runs 0 → 1 over 100–275 ms, so the two
+  overlap. `crossfadeOut` and `crossfadeIn` are the specs, and the timings are public constants.
+  `RisoNavigation` uses the same curve between screens.
 
 ### The press
 

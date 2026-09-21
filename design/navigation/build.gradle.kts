@@ -14,6 +14,7 @@ kotlin {
             api(libs.androidx.navigation3.ui)
             api(libs.kotlinx.serialization.core)
             api(projects.lib.appstateurl.api)
+            implementation(projects.design.riso)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

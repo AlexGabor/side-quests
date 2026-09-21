@@ -235,3 +235,50 @@ With Riso effects disabled there is no coverage to thin, so a fade SHALL instead
 #### Scenario: Effects off, hidden
 - **WHEN** Riso effects are turned off and content shown this way is hidden
 - **THEN** it ends up absent from the layout, as it does with effects on
+
+### Requirement: Fades linger around half ink
+The design system SHALL offer a crossfade easing shared by its crossfades that runs fast, slows through half ink, and runs fast again, so the half-dotted print in between stays on screen long enough to be seen. The ink SHALL keep moving throughout: neither side SHALL hold still at any value between its start and its end. Content fading out SHALL run from full ink to none over 0–175 ms, passing half ink at about 88 ms. Content fading in SHALL lay no ink until 100 ms, then run to full ink by 275 ms, passing half ink at about 188 ms. A fade that is interrupted SHALL continue from the ink it had reached, not jump back to its starting value.
+
+#### Scenario: Lingering through the middle
+- **WHEN** content fading out passes half ink
+- **THEN** its ink changes more slowly than it did at the start of the fade
+- **AND** it is still changing
+
+#### Scenario: Never still
+- **WHEN** the ink of either side is sampled at any two moments between its start and its end
+- **THEN** the later sample is further along than the earlier one
+
+#### Scenario: Overlap
+- **WHEN** a crossfade is 140 ms in
+- **THEN** both the outgoing and the incoming content lay down some ink, and neither is at full strength
+
+#### Scenario: Settled
+- **WHEN** a crossfade has run for 275 ms
+- **THEN** the incoming content prints at full ink and the outgoing content lays down none
+
+### Requirement: Content crossfades as a dissolve
+The design system SHALL offer swapping one piece of content for another as a dissolve, with the outgoing content's ink thinning away and the incoming content's ink coming up, both following the crossfade easing. Both SHALL be composed and stacked in the same place while the crossfade runs. The outgoing content SHALL NOT respond to pointer input. Once the crossfade settles, only the current content SHALL be composed. Content shown on first composition SHALL appear at full ink, without fading in. Returning to content that is still fading out SHALL bring that same content back, not compose a second copy of it.
+
+#### Scenario: Swapping
+- **WHEN** the target of a crossfade changes
+- **THEN** the old content thins away as the new content prints in, in the same place
+
+#### Scenario: Tapping the outgoing content
+- **WHEN** a button in content that is crossfading out is tapped
+- **THEN** nothing is activated
+
+#### Scenario: Settled crossfade
+- **WHEN** the crossfade has finished
+- **THEN** only the current content is composed
+
+#### Scenario: First appearance
+- **WHEN** a crossfade is first composed
+- **THEN** its content prints at full ink immediately
+
+#### Scenario: Changing back mid-way
+- **WHEN** the target changes from A to B and back to A before the crossfade settles
+- **THEN** A's content fades back in from the ink it had reached, and only one A is composed
+
+#### Scenario: Effects off
+- **WHEN** Riso effects are turned off and content crossfades
+- **THEN** each side is drawn in its own colours at the fade's alpha, and the outgoing content still leaves the composition once settled

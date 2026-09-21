@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
 import com.alexgabor.design.riso.risograph.inks.risoFade
 
 /**
@@ -58,17 +56,7 @@ fun RisoAnimatedVisibility(
         Box(
             modifier
                 .risoFade(fade)
-                .pointerInput(visible) {
-                    if (visible) return@pointerInput
-                    // Before the content sees them, which is what the initial pass is for: a
-                    // consumed press never reaches the clickable underneath.
-                    awaitPointerEventScope {
-                        while (true) {
-                            awaitPointerEvent(PointerEventPass.Initial).changes
-                                .forEach { it.consume() }
-                        }
-                    }
-                },
+                .blockPointerInput(block = !visible),
         ) {
             content()
         }
