@@ -2,10 +2,11 @@ package com.alexgabor.pacer.feature.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -570,6 +571,24 @@ internal fun DistancePresets(
 }
 
 @Composable
+private fun PresetsAndUnits(
+    state: PaceCalculatorState,
+    modifier: Modifier = Modifier,
+) {
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        verticalArrangement = Arrangement.spacedBy(RisoTheme.dimens.screenPadding),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        DistancePresets(state = state)
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            UnitSelector(state = state)
+        }
+    }
+}
+
+@Composable
 private fun MetricCard(
     title: String,
     selected: Boolean,
@@ -693,16 +712,12 @@ internal fun PaceCalculator(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item("unit") {
-            Row(
+            PresetsAndUnits(
+                state = state,
                 modifier = Modifier.widthIn(max = maxCardWidth)
                     .fillMaxWidth()
                     .padding(horizontal = RisoTheme.dimens.screenPadding),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                DistancePresets(state = state)
-                Spacer(Modifier.weight(1f))
-                UnitSelector(state = state)
-            }
+            )
         }
         metricCardItems(state, maxCardWidth)
     }
