@@ -1,5 +1,7 @@
 package com.alexgabor.pacer.feature.home
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -607,7 +610,10 @@ private fun MetricCard(
                 modifier = Modifier.padding(horizontal = 16.dp)
                     .padding(top = 16.dp, bottom = 16.dp)
             )
-            slider()
+            val alpha by animateFloatAsState(if (selected) 1f else .5f)
+            Box(Modifier.alpha(alpha)) {
+                slider()
+            }
         }
     }
 }
