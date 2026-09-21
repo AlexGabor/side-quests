@@ -1,9 +1,11 @@
 # The card you tap is the one Pacer solves for.
 #
+# The two cards you set are highlighted; the solved one is not.
+#
 # Scenario: solving for time
 #   Given Pacer opens with Pace as the solved card
 #   When I tap the Time card
-#   Then Time is the solved card and Pace is not
+#   Then Time is the solved card and Pace is one you set
 #   When I scroll the distance ruler
 #   Then the distance and the time change
 #   And the pace stays at 6:00 min/km
@@ -19,17 +21,21 @@ appId: ${APP_ID}
 - launchApp:
     clearState: true
 - runFlow:
-    file: ../subflows/assert_selected.yaml
+    file: ../subflows/assert_not_selected.yaml
     env:
       LABEL: "Pace = 6:00 min/km"
-
-- tapOn: "Time = 4h 13m 12s"
 - runFlow:
     file: ../subflows/assert_selected.yaml
     env:
       LABEL: "Time = 4h 13m 12s"
+
+- tapOn: "Time = 4h 13m 12s"
 - runFlow:
     file: ../subflows/assert_not_selected.yaml
+    env:
+      LABEL: "Time = 4h 13m 12s"
+- runFlow:
+    file: ../subflows/assert_selected.yaml
     env:
       LABEL: "Pace = 6:00 min/km"
 
@@ -38,20 +44,20 @@ appId: ${APP_ID}
 - swipe:
     from:
       text: "\\d+"
-      below: "Distance = 42.20 km"
+      below: "Distance = 42.2 km"
       rightOf:
         text: "\\d+"
-        below: "Distance = 42.20 km"
+        below: "Distance = 42.2 km"
     direction: LEFT
 - waitForAnimationToEnd
-- assertNotVisible: "Distance = 42.20 km"
+- assertNotVisible: "Distance = 42.2 km"
 - assertNotVisible: "Time = 4h 13m 12s"
 - assertVisible: "Pace = 6:00 min/km"
 
 # Once distance is the computed one, its ruler no longer scrolls.
 - tapOn: "Distance = .*"
 - runFlow:
-    file: ../subflows/assert_selected.yaml
+    file: ../subflows/assert_not_selected.yaml
     env:
       LABEL: "Distance = .*"
 - copyTextFrom: "Distance = .*"

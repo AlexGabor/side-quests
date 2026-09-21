@@ -71,8 +71,8 @@ class RootNavigationTest {
     fun aDeepLinkedRunIsOnTheCards() = runComposeUiTest {
         launchedWith("distance=10&pace=5:00")
 
-        // The cards read "Distance = 10.00 km" and so on, hence the substring match.
-        onNodeWithText("10.00 km", substring = true).assertIsDisplayed()
+        // The cards read "Distance = 10 km" and so on, hence the substring match.
+        onNodeWithText("10 km", substring = true).assertIsDisplayed()
         onNodeWithText("5:00 min/km", substring = true).assertIsDisplayed()
         // Time is the one left out, so it is the one worked out.
         onNodeWithText("0h 50m 00s", substring = true).assertIsDisplayed()

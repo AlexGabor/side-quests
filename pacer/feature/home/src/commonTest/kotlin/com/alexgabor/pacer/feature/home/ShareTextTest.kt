@@ -17,9 +17,9 @@ class ShareTextTest {
         assertEquals(
             """
             Time = 4h 13m 12s
-            Distance = 42.20 km
+            Distance = 42.2 km
             Pace = 6:00 min/km
-            https://pacer.alexgabor.com/?distance=42.20&pace=6:00&time=4:13:12&metric=pace&unit=kilometers
+            https://pacer.alexgabor.com/?distance=42.2&pace=6:00&time=4:13:12&metric=pace&unit=kilometers
             """.trimIndent(),
             PaceCalculatorState().shareText,
         )
@@ -32,8 +32,8 @@ class ShareTextTest {
 
         val lines = state.shareText.lines()
 
-        assertEquals("Distance = 26.22 mi", lines[1])
-        assertEquals("Pace = 9:39 min/mi", lines[2])
+        assertEquals("Distance = 26.2219 mi", lines[1])
+        assertEquals("Pace = 9:39.36 min/mi", lines[2])
         assertTrue(lines[3].endsWith("unit=miles"), lines[3])
     }
 
@@ -46,9 +46,8 @@ class ShareTextTest {
             selectedMetric = Metric.Time,
         )
 
-        assertEquals(Comparison.Greater, state.timeComparison)
         assertEquals(state.timeTitle, state.shareText.lines()[0])
-        assertTrue(state.timeTitle.startsWith("Time > "), state.timeTitle)
+        assertEquals("Time = 1000h 00m 00s", state.timeTitle)
     }
 
     @Test
@@ -59,9 +58,10 @@ class ShareTextTest {
     }
 
     /**
-     * The link carries values to the grain of the rulers, so the computed one is worked out again
-     * from rounded inputs: here pace is 9:39.4 a mile but travels as 9:39, and the time it gives is
-     * a few seconds off. The inputs as shown, the metric and the unit are what have to survive.
+     * The link carries values to the grain of the cards, so the computed one is worked out again
+     * from rounded inputs: here the half marathon is 13.109378 miles but travels as 13.1094, and
+     * the time it gives is a hundredth of a second or so off. The inputs as shown, the metric and the unit are what have to
+     * survive.
      */
     @Test
     fun theSharedLinkKeepsTheInputsAsShown() {
@@ -78,9 +78,34 @@ class ShareTextTest {
         assertEquals(DistanceUnit.Miles, opened.selectedUnit)
     }
 
+    /** Links written before the cards were finer than the rulers still open on the same run. */
+    @Test
+    fun aLinkToTheGrainOfTheRulersStillOpensTheSameRun() {
+        val opened = opened(
+            "https://pacer.alexgabor.com/?distance=42.20&pace=6:00&time=4:13:12&metric=pace&unit=kilometers",
+        )
+
+        assertEquals(PaceCalculatorState().shareText, opened.shareText)
+    }
+
+    @Test
+    fun aRunBetweenTheRulerLinesIsSharedAndOpenedPrecisely() {
+        val shared = PaceCalculatorState(
+            distance = Distance(42.195),
+            time = 4.hours,
+            selectedMetric = Metric.Pace,
+        ).apply { selectPreset(DistancePreset.Marathon) }
+
+        assertEquals("Pace = 5:41.27 min/km", shared.paceTitle)
+        assertEquals(shared.shareText, opened(shared).shareText)
+    }
+
     /** The run the shared link opens on, read the way a deep link or the web page reads it. */
-    private fun opened(shared: PaceCalculatorState): PaceCalculatorState {
-        val link = LaunchParameters.ofUrl(shared.shareText.lines().last())
+    private fun opened(shared: PaceCalculatorState): PaceCalculatorState =
+        opened(shared.shareText.lines().last())
+
+    private fun opened(url: String): PaceCalculatorState {
+        val link = LaunchParameters.ofUrl(url)
         return PaceCalculatorState.launched(
             DistanceSliderState(),
             PaceSliderState(),

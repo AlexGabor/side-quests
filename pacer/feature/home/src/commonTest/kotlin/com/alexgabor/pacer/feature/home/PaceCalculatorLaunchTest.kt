@@ -23,7 +23,7 @@ class PaceCalculatorLaunchTest {
     fun nothingLaunchedWithLeavesTheDefaultsExactlyAsTheyAre() {
         val state = launched(PacerLaunchArgs.None)
 
-        assertEquals("42.20 km", state.displayedDistance)
+        assertEquals("42.2 km", state.displayedDistance)
         assertEquals("6:00 min/km", state.displayedPace)
         assertEquals("4h 13m 12s", state.displayedTime)
         assertEquals(Metric.Pace, state.selectedMetric)
@@ -53,7 +53,7 @@ class PaceCalculatorLaunchTest {
         val state = launched(PacerLaunchArgs(pace = 5.minutes, time = 50.minutes))
 
         assertEquals(Metric.Distance, state.selectedMetric)
-        assertEquals("10.00 km", state.displayedDistance)
+        assertEquals("10 km", state.displayedDistance)
     }
 
     @Test
@@ -84,7 +84,7 @@ class PaceCalculatorLaunchTest {
         val state = launched(PacerLaunchArgs(distance = 10.0))
 
         assertEquals(Metric.Pace, state.selectedMetric)
-        assertEquals("10.00 km", state.displayedDistance)
+        assertEquals("10 km", state.displayedDistance)
         assertEquals("4h 13m 12s", state.displayedTime)
     }
 
@@ -95,7 +95,7 @@ class PaceCalculatorLaunchTest {
         )
 
         assertEquals(DistanceUnit.Miles, state.selectedUnit)
-        assertEquals("10.00 mi", state.displayedDistance)
+        assertEquals("10 mi", state.displayedDistance)
         assertEquals("5:00 min/mi", state.displayedPace)
         // Ten miles at five minutes a mile, whatever the calculator holds underneath.
         assertEquals("0h 50m 00s", state.displayedTime)
@@ -154,7 +154,19 @@ class PaceCalculatorLaunchTest {
         assertEquals(PaceCalculatorState.DefaultDistance.kilometers, state.distance.kilometers)
         // Recomputing a consistent default lands back on it exactly rather than rounding it away.
         assertEquals(PaceCalculatorState.DefaultPace, state.pace)
-        // Only the reading changes with the unit: six minutes a kilometre is 9:39 a mile.
-        assertEquals("9:39 min/mi", state.displayedPace)
+        // Only the reading changes with the unit: six minutes a kilometre is 9:39.36 a mile.
+        assertEquals("9:39.36 min/mi", state.displayedPace)
+    }
+
+    @Test
+    fun theCardIsFinerThanTheRuler() {
+        val state = launched(PacerLaunchArgs(distance = 42.195, time = 4.hours))
+
+        // 4:00:00 over a marathon is 5:41.27 a kilometre: the card shows the hundredth, the ruler
+        // rests on the nearest whole second.
+        assertEquals("5:41.27 min/km", state.displayedPace)
+        assertEquals(341, PaceSliderState.seconds(state.paceOnSlider))
+        assertEquals("42.195 km", state.displayedDistance)
+        assertEquals(4220, DistanceSliderState.hundredths(state.distanceOnSlider))
     }
 }

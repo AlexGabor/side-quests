@@ -1,9 +1,4 @@
-# pacer-pace-calculator Specification
-
-## Purpose
-Pacer's home screen: a running pace calculator where distance, pace and time are shown as scrollable rulers, one of them is computed from the other two, and results update while the user drags. Implemented in `pacer/feature/home`.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: One computed metric
 The calculator SHALL treat exactly one of distance, pace and time as the computed metric, derived from the other two, and SHALL let the user choose which one by tapping its card. The computed metric's ruler SHALL NOT be user-scrollable.
@@ -17,20 +12,6 @@ The calculator SHALL treat exactly one of distance, pace and time as the compute
 - **WHEN** the user taps the Time card
 - **THEN** time becomes the computed metric and is recomputed from distance and pace
 - **AND** the Time ruler can no longer be scrolled while distance and pace can
-
-### Requirement: Live results
-The computed value SHALL update while the user drags or flings a ruler, not only when the gesture ends, and SHALL reflect the final value the ruler settles on.
-
-#### Scenario: Dragging distance with pace computed
-- **WHEN** the user drags the distance ruler while pace is computed
-- **THEN** the pace card and ruler update on every change of distance during the gesture
-
-### Requirement: Degenerate inputs
-The calculator SHALL NOT compute a distance from a zero pace, nor a pace from a zero distance, and SHALL never store non-finite or negative values.
-
-#### Scenario: Zero distance with pace computed
-- **WHEN** distance is set to 0 while pace is computed
-- **THEN** pace keeps its previous value
 
 ### Requirement: Units
 The user SHALL be able to switch between kilometers and miles. Switching units SHALL change only how the run is displayed; switching back SHALL restore exactly the original figures without rounding drift. Pace is shown per selected unit (`min/km` or `min/mi`).
@@ -61,13 +42,6 @@ Card text SHALL be more precise than the rulers. Distance SHALL be displayed to 
 - **WHEN** pace is computed from 42.195 km in 4h 00m 00s
 - **THEN** the Pace card reads `Pace = 5:41.27 min/km`
 - **AND** the pace rulers rest on 5:41
-
-### Requirement: State survives recreation
-The run (distance, pace, time, selected metric and unit) SHALL survive configuration changes and process recreation without rounding, and saved state from an older build with unknown metric or unit names SHALL fall back to pace and kilometers.
-
-#### Scenario: Rotation in miles
-- **WHEN** the device rotates while miles are selected
-- **THEN** the same run, metric and unit are shown with no change to any figure
 
 ### Requirement: Distance presets
 The calculator SHALL offer distance presets that follow the selected unit. In kilometres they SHALL be `5K`, `10K`, `HM` and `M`, setting the distance to 5 km, 10 km, 21.0975 km and 42.195 km. In miles they SHALL be `5mi`, `10mi`, `HM` and `M`, setting it to 5 mi, 10 mi, 21.0975 km and 42.195 km. `HM` and `M` are the same exact race distances in both units; the distance ruler rests on its nearest hundredth. Selecting a preset SHALL behave like scrolling the distance ruler to that value: the computed metric is recomputed from the new distance and the other input is kept. The presets SHALL be hidden while Distance is the computed metric. Switching units SHALL NOT change the distance, even when the preset that set it is not offered in the new unit.

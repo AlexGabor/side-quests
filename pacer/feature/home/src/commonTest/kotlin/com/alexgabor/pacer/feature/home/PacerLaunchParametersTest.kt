@@ -23,7 +23,7 @@ class PacerLaunchParametersTest {
         )
 
         assertEquals(
-            "distance=21.10&pace=5:00&time=1:45:30&metric=time&unit=kilometers",
+            "distance=21.1&pace=5:00&time=1:45:30&metric=time&unit=kilometers",
             args.toLaunchParameters().toQueryString(),
         )
     }
@@ -42,17 +42,17 @@ class PacerLaunchParametersTest {
     }
 
     @Test
-    fun aRunIsWrittenToTheGrainOfTheRulers() {
+    fun aRunIsWrittenToTheGrainOfTheCards() {
         val args = PacerLaunchArgs(
             distance = 13.109898,
-            pace = 5.minutes + 0.4.seconds,
+            pace = 5.minutes + 0.44.seconds,
             unit = DistanceUnit.Miles,
         )
 
         val written = args.toLaunchParameters()
 
-        assertEquals("13.11", written["distance"])
-        assertEquals("5:00", written["pace"])
+        assertEquals("13.1099", written["distance"])
+        assertEquals("5:00.44", written["pace"])
     }
 
     @Test

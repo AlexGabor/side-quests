@@ -27,9 +27,9 @@ class DistancePresetTest {
 
         state.selectPreset(DistancePreset.HalfMarathon)
 
-        assertEquals("21.10 km", state.displayedDistance)
+        assertEquals("21.0975 km", state.displayedDistance)
         assertEquals("4h 13m 12s", state.displayedTime)
-        assertEquals("12:00 min/km", state.displayedPace)
+        assertEquals("12:00.09 min/km", state.displayedPace)
     }
 
     @Test
@@ -39,7 +39,7 @@ class DistancePresetTest {
 
         state.selectPreset(DistancePreset.TenK)
 
-        assertEquals("10.00 km", state.displayedDistance)
+        assertEquals("10 km", state.displayedDistance)
         assertEquals("6:00 min/km", state.displayedPace)
         assertEquals("1h 00m 00s", state.displayedTime)
     }
@@ -52,9 +52,9 @@ class DistancePresetTest {
 
         state.selectPreset(DistancePreset.TenMiles)
 
-        assertEquals("10.00 mi", state.displayedDistance)
-        assertEquals("9:39 min/mi", state.displayedPace)
-        assertEquals("1h 36m 34s", state.displayedTime)
+        assertEquals("10 mi", state.displayedDistance)
+        assertEquals("9:39.36 min/mi", state.displayedPace)
+        assertEquals("1h 36m 33.64s", state.displayedTime)
     }
 
     @Test
@@ -64,7 +64,7 @@ class DistancePresetTest {
 
         state.selectPreset(DistancePreset.HalfMarathon)
 
-        assertEquals("13.11 mi", state.displayedDistance)
+        assertEquals("13.1094 mi", state.displayedDistance)
     }
 
     @Test
@@ -73,10 +73,10 @@ class DistancePresetTest {
         state.selectPreset(DistancePreset.FiveK)
 
         state.selectUnit(DistanceUnit.Miles)
-        assertEquals("3.11 mi", state.displayedDistance)
+        assertEquals("3.1069 mi", state.displayedDistance)
 
         state.selectUnit(DistanceUnit.Kilometers)
-        assertEquals("5.00 km", state.displayedDistance)
+        assertEquals("5 km", state.displayedDistance)
     }
 
     @Test
@@ -86,7 +86,7 @@ class DistancePresetTest {
 
         state.selectPreset(DistancePreset.FiveK)
 
-        assertEquals("42.20 km", state.displayedDistance)
+        assertEquals("42.2 km", state.displayedDistance)
         assertEquals("6:00 min/km", state.displayedPace)
         assertEquals("4h 13m 12s", state.displayedTime)
     }

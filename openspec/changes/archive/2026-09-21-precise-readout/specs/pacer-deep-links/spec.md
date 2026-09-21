@@ -1,9 +1,4 @@
-# pacer-deep-links Specification
-
-## Purpose
-Pacer runs and screens are addressable by URL (`https://pacer.alexgabor.com/?...` on the web and as app links, `pacer://` on mobile) so a run can be shared and restored. Parsing lives in `lib/launch` (`LaunchParameters`), screen routing in `pacer/sharedApp` (`DeepLinks.kt`), and run construction in `pacer/feature/home` (`PacerLaunchArgs`, `PaceCalculatorState.launched`). These parameters are public: old links MUST keep working.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Run parameters
 A link SHALL accept these optional parameters:
@@ -42,18 +37,6 @@ The computed metric SHALL be `metric` when given; otherwise, when exactly two of
 #### Scenario: Link in miles
 - **WHEN** a link has `distance=13.11&pace=8:00&unit=miles`
 - **THEN** miles are selected and distance and pace are read as miles and minutes per mile
-
-### Requirement: Screen parameter
-A link SHALL select a screen via `screen=pacer` or `screen=settings` (case-insensitive). For a custom-scheme URL the host names the screen (`pacer://settings`), and a `screen` query parameter wins over the host. For http(s) URLs the host is the website and the screen comes only from the query. Opening Settings from a link SHALL place Pacer beneath it so back returns to Pacer. An unknown screen falls back to Pacer.
-
-#### Scenario: Custom scheme host
-- **WHEN** Pacer opens `pacer://settings`
-- **THEN** the Settings screen is shown
-- **AND** back navigates to the Pacer screen
-
-#### Scenario: Web query
-- **WHEN** the web app loads `https://pacer.alexgabor.com/?screen=settings`
-- **THEN** the Settings screen is shown
 
 ### Requirement: Link replaces the open run
 Opening a link while Pacer is already running SHALL replace the run on screen with the linked run.

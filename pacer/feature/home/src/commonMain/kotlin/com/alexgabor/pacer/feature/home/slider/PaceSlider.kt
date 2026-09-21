@@ -55,13 +55,13 @@ class PaceSliderState(
         /** The furthest second the two rulers can jointly show. */
         const val MaxTicks = 59 * 60 + 59
 
-        /**
-         * This pace on the rulers' grid, in seconds, and *not* clamped to it — a caller comparing
-         * against [MaxTicks] is how the readout knows to say `>` instead of `=`.
-         */
+        /** This pace on the rulers' grid, in seconds, and *not* yet clamped to it. */
         fun ticks(value: Duration): Int = value.roundedSeconds()
 
-        /** The single quantiser, shared by the rulers and the readout so they cannot disagree. */
+        /**
+         * Where the rulers rest for this pace: the nearest second, parked at an end when the pace is
+         * past it. The card shows hundredths — see [PaceCalculatorState.displayedPace].
+         */
         fun seconds(value: Duration): Int = ticks(value).coerceIn(0, MaxTicks)
     }
 }

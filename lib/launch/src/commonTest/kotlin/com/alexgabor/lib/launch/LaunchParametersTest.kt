@@ -166,6 +166,37 @@ class LaunchParametersTest {
     }
 
     @Test
+    fun formatsDurationsToAFractionOfASecond() {
+        assertEquals("5:41.27", LaunchParameters.formatDuration(5.minutes + 41.273.seconds, fractionDigits = 2))
+        assertEquals("5:41.3", LaunchParameters.formatDuration(5.minutes + 41.273.seconds, fractionDigits = 1))
+        assertEquals("2:00:00.5", LaunchParameters.formatDuration(2.hours + 0.5.seconds, fractionDigits = 2))
+        assertEquals("166:40:00", LaunchParameters.formatDuration(166.hours + 40.minutes, fractionDigits = 2))
+    }
+
+    @Test
+    fun dropsTrailingZerosAndThePointWithThem() {
+        assertEquals("4:13:12", LaunchParameters.formatDuration(4.hours + 13.minutes + 12.seconds, fractionDigits = 2))
+        assertEquals("0:00", LaunchParameters.formatDuration(0.seconds, fractionDigits = 2))
+        assertEquals("0:12.5", LaunchParameters.formatDuration(12.5.seconds, fractionDigits = 2))
+        assertEquals("0:12.05", LaunchParameters.formatDuration(12.05.seconds, fractionDigits = 2))
+    }
+
+    @Test
+    fun aFractionCarriesIntoTheNextSecond() {
+        assertEquals("1:00", LaunchParameters.formatDuration(59.996.seconds, fractionDigits = 2))
+        assertEquals("1:00:00", LaunchParameters.formatDuration(59.minutes + 59.996.seconds, fractionDigits = 2))
+    }
+
+    @Test
+    fun aDurationFormattedToAFractionReadsBackToTheSameSpelling() {
+        for (spelling in listOf("5:41.27", "0:00.5", "4:13:12", "1:02:03.09")) {
+            val parsed = LaunchParameters(mapOf("d" to spelling)).duration("d")!!
+
+            assertEquals(spelling, LaunchParameters.formatDuration(parsed, fractionDigits = 2))
+        }
+    }
+
+    @Test
     fun aFormattedDurationReadsBackAsTheSameDuration() {
         for (value in listOf(0.seconds, 5.minutes + 30.seconds, 4.hours + 13.minutes + 12.seconds)) {
             val parameters = LaunchParameters(mapOf("d" to LaunchParameters.formatDuration(value)!!))

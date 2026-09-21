@@ -74,19 +74,6 @@ enum class Metric {
 }
 
 /**
- * How the number on a card relates to the value behind it.
- *
- * [Greater] means the ruler has run out of room and is parked at its end: the real value is past
- * anything it can draw. The value itself is kept intact, so scrolling back into range shows the
- * true figure rather than resuming from the end of the ruler.
- */
-enum class Comparison(val text: String) {
-    Equal("="),
-    Greater(">"),
-    Less("<"),
-}
-
-/**
  * The run being described: a distance, a pace and a time, any one of which is computed from the
  * other two.
  *
@@ -124,32 +111,36 @@ class PaceCalculatorState(
 
     internal val timeOnSlider: Duration get() = time
 
+    /**
+     * The card text, finer than the rulers: distance to the ten-thousandth, pace and time to the
+     * hundredth of a second, trailing zeros dropped. Quantised from the exact values rather than from the rulers, and never
+     * clamped to them — a ruler parked at its end still has the true figure written above it.
+     */
     val displayedDistance: String
-        get() {
-            val hundredths = DistanceSliderState.hundredths(distanceOnSlider)
-            return "${hundredths / 100}.${(hundredths % 100).twoDigits()} ${selectedUnit.text}"
-        }
+        get() = "${distanceOnSlider.tenThousandthsText()} ${selectedUnit.text}"
 
     val displayedPace: String
         get() {
-            val seconds = PaceSliderState.seconds(paceOnSlider)
-            return "${seconds / 60}:${(seconds % 60).twoDigits()} ${selectedUnit.paceText}"
+            val hundredths = paceOnSlider.roundedHundredths()
+            val seconds = hundredths / 100
+            return "${seconds / 60}:${(seconds % 60).twoDigits()}" +
+                    "${fractionText(hundredths % 100, digits = 2)} ${selectedUnit.paceText}"
         }
 
     val displayedTime: String
         get() {
-            val seconds = TimeSliderState.seconds(time)
+            val hundredths = time.roundedHundredths()
+            val seconds = hundredths / 100
             return "${seconds / 3600}h ${((seconds % 3600) / 60).twoDigits()}m " +
-                    "${(seconds % 60).twoDigits()}s"
+                    "${(seconds % 60).twoDigits()}${fractionText(hundredths % 100, digits = 2)}s"
         }
 
     /** What each card is headed with; also the first three lines of [shareText]. */
-    internal val timeTitle: String get() = "Time ${timeComparison.text} $displayedTime"
+    internal val timeTitle: String get() = "Time = $displayedTime"
 
-    internal val distanceTitle: String
-        get() = "Distance ${distanceComparison.text} $displayedDistance"
+    internal val distanceTitle: String get() = "Distance = $displayedDistance"
 
-    internal val paceTitle: String get() = "Pace ${paceComparison.text} $displayedPace"
+    internal val paceTitle: String get() = "Pace = $displayedPace"
 
     /**
      * The run as someone else would be sent it: the card titles, in card order, and a link that
@@ -162,18 +153,6 @@ class PaceCalculatorState(
             paceTitle,
             "$PacerWebUrl?${launchArgs.toLaunchParameters().toQueryString()}",
         ).joinToString("\n")
-
-    val distanceComparison: Comparison
-        get() = comparison(
-            DistanceSliderState.ticks(distanceOnSlider),
-            DistanceSliderState.MaxTicks,
-        )
-
-    val paceComparison: Comparison
-        get() = comparison(PaceSliderState.ticks(paceOnSlider), PaceSliderState.MaxTicks)
-
-    val timeComparison: Comparison
-        get() = comparison(TimeSliderState.ticks(time), TimeSliderState.MaxTicks)
 
     fun selectMetric(metric: Metric) {
         if (metric == selectedMetric) return
@@ -214,8 +193,7 @@ class PaceCalculatorState(
 
     /**
      * These keep non-finite values out of the fields but deliberately don't clamp: a value
-     * past the end of its ruler stays exact, and [Comparison] is how the card admits that the ruler
-     * can't show all of it.
+     * past the end of its ruler stays exact, and the card shows all of it while the ruler parks.
      */
     private fun updateDistance(value: Distance) {
         if (value.kilometers.isFinite() && value.kilometers >= 0.0) distance = value
@@ -367,12 +345,6 @@ class PaceCalculatorState(
             ).apply { if (!args.isEmpty) recompute() }
         }
     }
-}
-
-private fun comparison(ticks: Int, maxTicks: Int): Comparison = when {
-    ticks > maxTicks -> Comparison.Greater
-    ticks < 0 -> Comparison.Less
-    else -> Comparison.Equal
 }
 
 /**
@@ -735,3 +707,5 @@ private fun PaceCalculatorPreview() {
  * thing, but it is a JVM-only extension and this is read on iOS too.
  */
 internal fun Int.twoDigits(): String = toString().padStart(2, '0')
+
+internal fun Long.twoDigits(): String = toString().padStart(2, '0')

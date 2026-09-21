@@ -1,7 +1,6 @@
 package com.alexgabor.pacer.feature.home.slider
 
 import androidx.compose.runtime.saveable.SaverScope
-import com.alexgabor.pacer.feature.home.Comparison
 import com.alexgabor.pacer.feature.home.Distance
 import com.alexgabor.pacer.feature.home.DistanceUnit
 import com.alexgabor.pacer.feature.home.Metric
@@ -50,7 +49,7 @@ class PaceCalculatorStateTest {
         state.onTimeScrolled(50.minutes)
         state.onPaceScrolled(5.minutes)
 
-        assertEquals("10.00 km", state.displayedDistance)
+        assertEquals("10 km", state.displayedDistance)
     }
 
     @Test
@@ -95,10 +94,10 @@ class PaceCalculatorStateTest {
         state.onDistanceScrolled(10.0)
 
         state.selectUnit(DistanceUnit.Miles)
-        assertEquals("6.21 mi", state.displayedDistance)
+        assertEquals("6.2137 mi", state.displayedDistance)
 
         state.selectUnit(DistanceUnit.Kilometers)
-        assertEquals("10.00 km", state.displayedDistance)
+        assertEquals("10 km", state.displayedDistance)
         assertEquals(10.0, state.distance.kilometers)
     }
 
@@ -108,23 +107,23 @@ class PaceCalculatorStateTest {
         state.onPaceScrolled(5.minutes)
 
         state.selectUnit(DistanceUnit.Miles)
-        assertEquals("8:03 min/mi", state.displayedPace)
+        assertEquals("8:02.8 min/mi", state.displayedPace)
 
         state.selectUnit(DistanceUnit.Kilometers)
         assertEquals("5:00 min/km", state.displayedPace)
         assertEquals(5.minutes, state.pace)
     }
 
-    // Past the end of a ruler the value is kept and the card says so.
+    // Past the end of a ruler the value is kept and the card shows all of it.
 
     @Test
-    fun aPacePastTheEndOfItsRulerIsKeptAndMarked() {
+    fun aPacePastTheEndOfItsRulerIsShownExactly() {
         val state = PaceCalculatorState(selectedMetric = Metric.Pace)
         state.onDistanceScrolled(1.0)
         state.onTimeScrolled(2.hours)
 
-        assertEquals(Comparison.Greater, state.paceComparison)
-        assertEquals("59:59 min/km", state.displayedPace)
+        assertEquals("Pace = 120:00 min/km", state.paceTitle)
+        assertEquals(PaceSliderState.MaxTicks, PaceSliderState.seconds(state.paceOnSlider))
         assertEquals(2.hours, state.pace)
     }
 
@@ -136,7 +135,6 @@ class PaceCalculatorStateTest {
 
         state.onTimeScrolled(5.minutes)
 
-        assertEquals(Comparison.Equal, state.paceComparison)
         assertEquals("5:00 min/km", state.displayedPace)
     }
 
@@ -146,8 +144,7 @@ class PaceCalculatorStateTest {
         state.onDistanceScrolled(1.0)
         state.onTimeScrolled(PaceSliderState.MaxTicks.seconds)
 
-        assertEquals(Comparison.Equal, state.paceComparison)
-        assertEquals("59:59 min/km", state.displayedPace)
+        assertEquals("Pace = 59:59 min/km", state.paceTitle)
     }
 
     // Saving.

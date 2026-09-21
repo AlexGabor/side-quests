@@ -1,26 +1,30 @@
 # A deep link replaces the run on screen when Pacer is already open.
 #
 # Scenario: opening a link while Pacer shows another run
-#   Given Pacer is open on the default run: 42.20 km at 6:00 min/km in 4h 13m 12s
+#   Given Pacer is open on the default run: 42.2 km at 6:00 min/km in 4h 13m 12s
 #   When I open pacer://pacer?distance=10.00&time=50:00
 #   Then Pacer shows the linked run instead
-#   And the pace is solved: 10.00 km in 50 minutes is 5:00 min/km
+#   And the pace is solved: 10 km in 50 minutes is 5:00 min/km
 #
 # Run with -e APP_ID=com.alexgabor.pacer.debug (Android) or -e APP_ID=com.alexgabor.pacer (iOS).
 appId: ${APP_ID}
 ---
 - launchApp:
     clearState: true
-- assertVisible: "Distance = 42.20 km"
+- assertVisible: "Distance = 42.2 km"
 
 - runFlow:
     file: ../subflows/open_link.yaml
     env:
       LINK: "pacer://pacer?distance=10.00&time=50:00"
 - runFlow:
-    file: ../subflows/assert_selected.yaml
+    file: ../subflows/assert_not_selected.yaml
     env:
       LABEL: "Pace = 5:00 min/km"
-- assertVisible: "Distance = 10.00 km"
+- runFlow:
+    file: ../subflows/assert_selected.yaml
+    env:
+      LABEL: "Distance = 10 km"
+- assertVisible: "Distance = 10 km"
 - assertVisible: "Time = 0h 50m 00s"
-- assertNotVisible: "Distance = 42.20 km"
+- assertNotVisible: "Distance = 42.2 km"

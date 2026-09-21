@@ -86,19 +86,29 @@ class LaunchParameters(private val values: Map<String, String>) {
 
         private val POSITION_MULTIPLIERS = doubleArrayOf(1.0, 60.0, 3600.0)
 
+        private val POWERS_OF_TEN = longArrayOf(1, 10, 100, 1000)
+
         /**
          * [value] the way [duration] reads it: `"5:30"` under an hour, `"1:45:30"` from one up.
          *
-         * Rounded to whole seconds, which is as fine as anything a runner writes by hand. Null for
+         * Rounded to whole seconds, which is as fine as anything a runner writes by hand, or to
+         * [fractionDigits] places of a second — `"5:41.27"` — for a caller that shows that much.
+         * Trailing zeros are dropped, and the point with them, so a whole second is still written
+         * `"6:00"`. Rounded before it is split, so `59.996` seconds carries to `"1:00"`. Null for
          * what [duration] would refuse — a negative or infinite duration has no spelling.
          */
-        fun formatDuration(value: Duration): String? {
+        fun formatDuration(value: Duration, fractionDigits: Int = 0): String? {
             if (!value.isFinite() || value < Duration.ZERO) return null
+            require(fractionDigits in 0..3) { "Durations are held to the millisecond" }
 
-            val seconds = (value.inWholeMilliseconds + 500) / 1000
+            val perSecond = POWERS_OF_TEN[fractionDigits]
+            val grain = 1000 / perSecond
+            val units = (value.inWholeMilliseconds + grain / 2) / grain
+            val seconds = units / perSecond
+            val fraction = (units % perSecond).toString().padStart(fractionDigits, '0').trimEnd('0')
             val hours = seconds / 3600
             val minutes = (seconds % 3600) / 60
-            val secondsPart = (seconds % 60).twoDigits()
+            val secondsPart = (seconds % 60).twoDigits() + if (fraction.isEmpty()) "" else ".$fraction"
 
             return if (hours > 0) {
                 "$hours:${minutes.twoDigits()}:$secondsPart"

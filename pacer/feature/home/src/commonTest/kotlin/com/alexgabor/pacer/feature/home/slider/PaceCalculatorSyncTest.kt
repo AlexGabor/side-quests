@@ -18,7 +18,6 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.pacer.feature.home.Comparison
 import com.alexgabor.pacer.feature.home.Distance
 import com.alexgabor.pacer.feature.home.Metric
 import com.alexgabor.pacer.feature.home.PaceCalculatorState
@@ -81,7 +80,7 @@ class PaceCalculatorSyncTest {
         setContent { Sliders(state) }
         waitForIdle()
 
-        // 42.20 km at 6:00/km, which is 4:13:12.
+        // 42.2 km at 6:00/km, which is 4:13:12.
         assertEquals(42, state.distanceSliderState.wholeTrackState.tick)
         assertEquals(20, state.distanceSliderState.fractionTrackState.tick)
         assertEquals(6, state.paceSliderState.minuteTrackState.tick)
@@ -122,7 +121,7 @@ class PaceCalculatorSyncTest {
         setContent { Sliders(state) }
         waitForIdle()
 
-        assertEquals(Comparison.Greater, state.paceComparison)
+        assertEquals("Pace = 120:00 min/km", state.paceTitle)
         assertEquals(
             state.paceSliderState.minuteTrackState.maxTick,
             state.paceSliderState.minuteTrackState.tick,

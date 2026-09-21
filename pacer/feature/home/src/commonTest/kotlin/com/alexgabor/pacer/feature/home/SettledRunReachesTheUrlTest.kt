@@ -56,7 +56,7 @@ class SettledRunReachesTheUrlTest {
         assertEquals(
             listOf(
                 mapOf(
-                    "distance" to "10.00",
+                    "distance" to "10",
                     "pace" to "5:00",
                     "time" to "50:00",
                     "metric" to "distance",

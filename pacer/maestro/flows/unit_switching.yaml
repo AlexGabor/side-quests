@@ -1,10 +1,10 @@
 # Switching units changes how the run is shown, not the run itself.
 #
 # Scenario: switching to miles and back
-#   Given Pacer opens on the default run: 42.20 km at 6:00 min/km in 4h 13m 12s
+#   Given Pacer opens on the default run: 42.2 km at 6:00 min/km in 4h 13m 12s
 #   When I tap "mi"
 #   Then miles is selected
-#   And the same run shows as 26.22 mi at 9:39 min/mi
+#   And the same run shows as 26.2219 mi at 9:39.36 min/mi
 #   And the time is still 4h 13m 12s
 #   When I tap "km"
 #   Then the run shows exactly the starting values again, with no rounding drift
@@ -15,7 +15,7 @@ appId: ${APP_ID}
 - launchApp:
     clearState: true
 - assertVisible: "Time = 4h 13m 12s"
-- assertVisible: "Distance = 42.20 km"
+- assertVisible: "Distance = 42.2 km"
 - assertVisible: "Pace = 6:00 min/km"
 
 - tapOn: "mi"
@@ -24,8 +24,8 @@ appId: ${APP_ID}
     env:
       LABEL: "mi"
 - assertVisible: "Time = 4h 13m 12s"
-- assertVisible: "Distance = 26.22 mi"
-- assertVisible: "Pace = 9:39 min/mi"
+- assertVisible: "Distance = 26.2219 mi"
+- assertVisible: "Pace = 9:39.36 min/mi"
 
 - tapOn: "km"
 - runFlow:
@@ -33,5 +33,5 @@ appId: ${APP_ID}
     env:
       LABEL: "km"
 - assertVisible: "Time = 4h 13m 12s"
-- assertVisible: "Distance = 42.20 km"
+- assertVisible: "Distance = 42.2 km"
 - assertVisible: "Pace = 6:00 min/km"

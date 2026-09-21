@@ -55,16 +55,14 @@ class DistanceSliderState(
         /** The furthest hundredth the two rulers can jointly show. */
         const val MaxTicks = MaxWhole * 100 + 99
 
-        /**
-         * This distance on the rulers' grid, in hundredths, and *not* clamped to it — a caller
-         * comparing against [MaxTicks] is how the readout knows to say `>` instead of `=`.
-         */
+        /** This distance on the rulers' grid, in hundredths, and *not* yet clamped to it. */
         fun ticks(value: Double): Int =
             if (value.isNaN() || !value.isFinite()) 0 else (value * 100).roundToInt()
 
         /**
-         * The single quantiser. Ruler and readout both go through it, so they cannot disagree, and
-         * the float noise of a km-to-miles-and-back trip lands on the same line either way.
+         * Where the rulers rest for this distance: the nearest hundredth, parked at an end when the
+         * distance is past it. The card is finer — see [PaceCalculatorState.displayedDistance] — so
+         * the two can differ in the last digits, but the ruler is always the card rounded.
          */
         fun hundredths(value: Double): Int = ticks(value).coerceIn(0, MaxTicks)
     }
