@@ -36,6 +36,16 @@ class DistanceSliderState(
     val isUserScrolling: Boolean
         get() = wholeTrackState.isUserScrolling || fractionTrackState.isUserScrolling
 
+    /** True while a fling let go of by [interruptUserScroll] is still being taken over. */
+    val isInterrupted: Boolean
+        get() = wholeTrackState.isInterrupted || fractionTrackState.isInterrupted
+
+    /** Lets go of a fling the user left running on either ruler; see [TrackState.interruptUserScroll]. */
+    fun interruptUserScroll() {
+        wholeTrackState.interruptUserScroll()
+        fractionTrackState.interruptUserScroll()
+    }
+
     /**
      * What the two rulers currently read, in whatever unit the caller is showing. The fraction
      * ruler's last line is 100, a whole unit, which carries — hence the divide rather than a mask.

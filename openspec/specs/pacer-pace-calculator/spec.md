@@ -81,6 +81,11 @@ The calculator SHALL offer distance presets that follow the selected unit. In ki
 - **THEN** it shows `Distance = 42.195 km`
 - **AND** the distance rulers rest on 42.20
 
+#### Scenario: Preset during a fling
+- **WHEN** the distance rulers are still flinging and the user taps `HM`
+- **THEN** the fling stops and the distance rulers rest on 21.10
+- **AND** it shows `Distance = 21.0975 km`
+
 #### Scenario: 10K with time computed
 - **WHEN** the default run is shown, the user taps the Time card and then taps `10K`
 - **THEN** it shows `Distance = 10 km`, `Pace = 6:00 min/km` and `Time = 1h 00m 00s`

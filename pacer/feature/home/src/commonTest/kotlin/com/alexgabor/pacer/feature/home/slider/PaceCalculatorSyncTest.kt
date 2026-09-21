@@ -19,6 +19,7 @@ import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.pacer.feature.home.Distance
+import com.alexgabor.pacer.feature.home.DistancePreset
 import com.alexgabor.pacer.feature.home.Metric
 import com.alexgabor.pacer.feature.home.PaceCalculatorState
 import kotlin.test.Test
@@ -185,6 +186,38 @@ class PaceCalculatorSyncTest {
         assertEquals(PaceSliderState.seconds(state.pace) % 60, state.paceSliderState.secondTrackState.tick)
         // The distance is an input here, so nothing should have moved it.
         assertEquals(10.0, state.distance.kilometers)
+    }
+
+    /**
+     * A preset tapped while the distance ruler is still flinging used to lose to the fling: the
+     * ruler carried on and wrote its own distance over the preset.
+     */
+    @Test
+    fun aPresetStopsAFlingOnTheDistanceRuler() = runComposeUiTest {
+        val state = PaceCalculatorState(
+            distance = Distance(10.0),
+            pace = 5.minutes,
+            time = 50.minutes,
+            selectedMetric = Metric.Pace,
+        )
+        setContent { Sliders(state) }
+        waitForIdle()
+
+        mainClock.autoAdvance = false
+        onNodeWithTag(DistanceTag).performTouchInput { swipeLeft(durationMillis = 50) }
+        mainClock.advanceTimeByFrame()
+        mainClock.advanceTimeByFrame()
+        assertTrue(state.distanceSliderState.isUserScrolling, "expected the ruler to be flinging")
+
+        runOnIdle { state.selectPreset(DistancePreset.HalfMarathon) }
+        mainClock.autoAdvance = true
+        waitForIdle()
+
+        assertEquals(21.0975, state.distance.kilometers)
+        assertEquals(21, state.distanceSliderState.wholeTrackState.tick)
+        assertEquals(10, state.distanceSliderState.fractionTrackState.tick)
+        assertEquals(state.time / 21.0975, state.pace)
+        assertFalse(state.distanceSliderState.isUserScrolling)
     }
 
     /**

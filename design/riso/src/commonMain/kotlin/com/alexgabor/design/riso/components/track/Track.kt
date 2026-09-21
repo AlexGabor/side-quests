@@ -237,8 +237,31 @@ class TrackState<T>(
     var isUserScrolling by mutableStateOf(false)
         private set
 
+    /**
+     * True from an [interruptUserScroll] until the scroll it let go of has come to rest, or a new
+     * drag starts. Where the ruler happens to be in that time is not something the user chose.
+     */
+    var isInterrupted by mutableStateOf(false)
+        private set
+
     /** Set for the length of a [moveToTick], so its scroll isn't mistaken for the user's. */
     private var isMovingToTick by mutableStateOf(false)
+
+    /** A finger is on the track, as opposed to the fling it hands off to. */
+    private var isDragging by mutableStateOf(false)
+
+    /**
+     * Lets go of the fling the user left running, so the value it was heading for can be replaced.
+     * The fling itself runs on until the next [moveToTick], which takes the scroll over from it.
+     *
+     * Does nothing while a finger is still down: a drag outranks any scroll this track starts, so
+     * there would be nothing to take over.
+     */
+    fun interruptUserScroll() {
+        if (!isUserScrolling || isDragging) return
+        isUserScrolling = false
+        isInterrupted = true
+    }
 
     /**
      * Watches the gesture. Deliberately not tied to the composition: a card scrolled out of the
@@ -252,19 +275,32 @@ class TrackState<T>(
     suspend fun trackUserScroll(): Unit = coroutineScope {
         launch {
             listState.interactionSource.interactions.collect { interaction ->
-                if (interaction is DragInteraction.Start) isUserScrolling = true
+                when (interaction) {
+                    is DragInteraction.Start -> {
+                        isDragging = true
+                        isInterrupted = false
+                        isUserScrolling = true
+                    }
+                    is DragInteraction.Stop, is DragInteraction.Cancel -> isDragging = false
+                }
             }
         }
         launch {
             // Read together, in one snapshot, so a moveToTick can never be seen scrolling without
-            // also being seen as the one doing it.
-            snapshotFlow { listState.isScrollInProgress && !isMovingToTick }
+            // also being seen as the one doing it. An interrupted fling still scrolling isn't the
+            // user's any more either.
+            snapshotFlow { listState.isScrollInProgress && !isMovingToTick && !isInterrupted }
                 .collect { userScroll -> if (userScroll) isUserScrolling = true }
         }
         launch {
             // Covers the whole gesture: the drag itself and the fling it hands off to.
             snapshotFlow { listState.isScrollInProgress }
-                .collect { scrolling -> if (!scrolling) isUserScrolling = false }
+                .collect { scrolling ->
+                    if (!scrolling) {
+                        isUserScrolling = false
+                        isInterrupted = false
+                    }
+                }
         }
     }
 

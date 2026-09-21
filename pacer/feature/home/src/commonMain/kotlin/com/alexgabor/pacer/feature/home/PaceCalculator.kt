@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -170,12 +171,20 @@ class PaceCalculatorState(
         selectedUnit = unit
     }
 
+    /** Counts preset taps, so each one moves the distance ruler even onto the value it shows. */
+    private var presetSelections by mutableIntStateOf(0)
+
     /**
      * The same as scrolling the distance ruler to [preset]: the computed metric follows and the
      * other input is kept. The rulers catch up through [sync], and the address once the run settles.
+     *
+     * A fling still running on the distance ruler is let go of first, or it would carry on writing
+     * its own distance over the preset; the ruler's move to the preset then stops it.
      */
     fun selectPreset(preset: DistancePreset) {
         if (selectedMetric == Metric.Distance) return
+        distanceSliderState.interruptUserScroll()
+        presetSelections++
         updateDistance(preset.distance)
         recompute()
     }
@@ -264,6 +273,7 @@ class PaceCalculatorState(
                 distanceSliderState::isUserScrolling,
                 distanceSliderState::value,
                 ::onDistanceScrolled,
+                distanceSliderState::isInterrupted,
             )
         }
         launch {
@@ -286,6 +296,7 @@ class PaceCalculatorState(
                 ::distanceOnSlider,
                 distanceSliderState::isUserScrolling,
                 distanceSliderState::moveTo,
+                ::presetSelections,
             )
         }
         launch {
@@ -356,18 +367,22 @@ class PaceCalculatorState(
  * under the finger. The falling edge is reported too: the settling scroll and the end of the
  * gesture can land in the same frame, and dropping that last value would leave the field one line
  * off the ruler — which the other direction would then correct as a visible snap-back.
+ *
+ * Except when the gesture was [isInterrupted]: then the ruler stopped wherever it was when something
+ * else replaced its value, and reporting that would undo the replacement.
  */
 internal suspend fun <T> collectUserScroll(
     isUserScrolling: () -> Boolean,
     value: () -> T,
     onValue: (T) -> Unit,
+    isInterrupted: () -> Boolean = { false },
 ) {
     var touched = false
     snapshotFlow(isUserScrolling).collectLatest { scrolling ->
         if (scrolling) {
             touched = true
             snapshotFlow(value).collect(onValue)
-        } else if (touched) {
+        } else if (touched && !isInterrupted()) {
             onValue(value())
         }
     }
@@ -420,14 +435,18 @@ internal fun <T> settledValues(
  *
  * `collectLatest` rather than `collect`: while the user drags one card the other two change every
  * frame, and each change has to cancel the animation in flight rather than queue behind it.
+ *
+ * @param trigger moves the slider whenever it changes, even to the value it was already given — an
+ * interrupted fling has to be taken over although the value it was replaced with may be the same.
  */
 private suspend fun <T> syncDown(
     value: () -> T,
     isUserScrolling: () -> Boolean,
     moveTo: suspend (T, Boolean) -> Unit,
+    trigger: () -> Any? = { null },
 ) {
     var placed = false
-    snapshotFlow(value).collectLatest { target ->
+    snapshotFlow { value() to trigger() }.collectLatest { (target, _) ->
         if (isUserScrolling()) return@collectLatest
         try {
             // The first placement is the restored value arriving before anything is on screen, so

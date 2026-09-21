@@ -96,4 +96,38 @@ class UserScrollTest {
 
         job.cancel()
     }
+
+    @Test
+    fun anInterruptedGestureDoesNotReportWhereItStopped() = runTest {
+        val scrolling = mutableStateOf(false)
+        val interrupted = mutableStateOf(false)
+        val value = mutableStateOf(0)
+        val reported = mutableListOf<Int>()
+
+        val job = launch {
+            collectUserScroll(
+                { scrolling.value },
+                { value.value },
+                { reported += it },
+                { interrupted.value },
+            )
+        }
+        Snapshot.withMutableSnapshot { scrolling.value = true }
+        advanceUntilIdle()
+        Snapshot.withMutableSnapshot { value.value = 3 }
+        advanceUntilIdle()
+
+        // A preset let go of the fling: wherever the ruler has got to since is not the user's
+        // choice, and reporting it would write over the preset.
+        Snapshot.withMutableSnapshot {
+            value.value = 9
+            interrupted.value = true
+            scrolling.value = false
+        }
+        advanceUntilIdle()
+
+        assertEquals(listOf(0, 3), reported)
+
+        job.cancel()
+    }
 }
