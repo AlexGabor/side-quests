@@ -96,14 +96,14 @@ fun Heading1(
                     size = Size(size.width, lineWidth.toPx()),
                 )
             }
-            .padding(top = RisoTheme.dimens.lineWidth),
+            .padding(top = RisoTheme.dimens.lineWidth + 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         startContent?.invoke()
         Text(
             text = text,
             textStyle = RisoTheme.typography.heading1,
-            modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+            modifier = Modifier.weight(1f)
         )
         endContent?.invoke()
     }
