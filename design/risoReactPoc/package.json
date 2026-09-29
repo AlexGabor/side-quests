@@ -1,0 +1,24 @@
+{
+  "name": "riso-react",
+  "private": true,
+  "description": "Prototype of the Riso design system's paper and ink for React, as SVG filters.",
+  "type": "module",
+  "scripts": {
+    "build": "./build.sh",
+    "typecheck": "tsc --noEmit",
+    "snapshot": "./build.sh && node scripts/snapshot.mjs",
+    "serve": "./build.sh && esbuild src/main.tsx --bundle --format=iife --jsx=automatic --loader:.png=dataurl --outfile=build/main.js --servedir=build --serve=8123"
+  },
+  "dependencies": {
+    "@paper-design/shaders-react": "^0.0.81",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "esbuild": "^0.28.2",
+    "playwright": "^1.63.0",
+    "typescript": "^7.0.2"
+  }
+}

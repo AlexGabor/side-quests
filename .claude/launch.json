@@ -6,6 +6,12 @@
       "runtimeExecutable": "./gradlew",
       "runtimeArgs": [":pacer:webApp:wasmJsBrowserDevelopmentRun", "-q"],
       "port": 8080
+    },
+    {
+      "name": "riso-react",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "design/risoReactPoc", "run", "serve"],
+      "port": 8123
     }
   ]
 }
