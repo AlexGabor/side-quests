@@ -1,0 +1,41 @@
+# Bookplate
+
+- Offline only
+- File/Folder audiobook parser
+  - Supports all popular formats
+	- Supports all popular metadata formats
+  - Identifies chapters and sections from metadata or file structure
+  - User points to the root folder of a book or single file to add it to the library
+  - Parsed books are stored using internal format
+  - Original files are not modified or moved
+  - Allows relink to original files if they are moved or renamed
+- Playback
+	- progress saved per book
+  - speed saved per book
+- UI
+  - Home
+		- Library view with book covers, title, author, total duration, progress as percent
+    - Sorted by recently updated
+    - Search bar to filter by title, author.
+    - Add button next to search bar to add new books
+    - Bottom bar with a mini player showing last played book, with title progress and play/pause button
+    - Progress in library view and mini player using small progress component
+    - Mini player is hidden when there is no last played book
+  - Player
+    - Opened from library view or mini player
+    - Top bar with back icon button, chapters icon button, speed icon button
+    - Title and author shown below top bar
+    - Large cover art shown below title and author, scaling down to allow the other elements to fit on screen.
+    - If present chapter title shown below cover art
+    - Progress bar reusing `Track` component, allowing scrubbing and showing current position.
+    - Above track the current position on the left and total duration on the right are shown
+    - Below track a row with rewind 10 seconds button, play/pause button, forward 10 seconds button
+    - Speed icon opens a bottom sheet with a `Track` component to adjust speed, with a range of 0.3x to 3x, snapping to 0.1x increments.
+    - Chapters icon opens a bottom sheet with a list of chapters, showing chapter title and duration, allowing to jump to a chapter. Current chapter is highlighted with accent color.
+  - Platform Panel in notification and lockscreen
+  - New UI components
+    - Small progress is shown as a line with full opacity accent color for completed portion and 50% opacity content color for remaining portion
+    - Bottom sheet that behaves like material, but reduces the opacity of the background such that riso's dotted effect is visible.
+- Technical details
+  - Target Android and iOS 
+  - Use Room for storing parsed books and their metadata
