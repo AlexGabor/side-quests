@@ -111,7 +111,7 @@ instead of throwing.
 **Done when:** JVM tests with fixtures for each chapter style; a multi-hour M4B fixture header (no audio payload
 needed) parses quickly.
 
-## M6 — FLAC, Ogg (Vorbis/Opus), WAV, AAC
+## M6 — FLAC, Ogg (Vorbis/Opus), WAV, AAC ✅
 
 **Change:** `lib-audiometadata-other-formats`
 
@@ -123,7 +123,7 @@ needed) parses quickly.
 
 **Done when:** JVM tests per format; the supported-format list is in the `lib-audiometadata` spec.
 
-## M7 — Document access (platform files)
+## M7 — Document access (platform files) ✅
 
 **Change:** `lib-document-access`
 

@@ -54,3 +54,14 @@ internal fun ByteArray.ascii(i: Int, length: Int): String =
     if (i < 0 || i + length > size) "" else CharArray(length) { (this[i + it].toInt() and 0xFF).toChar() }.concatToString()
 
 internal fun ByteArray.startsWith(prefix: String, at: Int = 0): Boolean = ascii(at, prefix.length) == prefix
+
+/** A big-endian 64-bit value; negative when the top bit is set. */
+internal fun ByteArray.u64(i: Int): Long = (u32(i) shl 32) or u32(i + 4)
+
+internal fun ByteArray.le16(i: Int): Int = u8(i) or (u8(i + 1) shl 8)
+
+internal fun ByteArray.le32(i: Int): Long =
+    u8(i).toLong() or (u8(i + 1).toLong() shl 8) or (u8(i + 2).toLong() shl 16) or (u8(i + 3).toLong() shl 24)
+
+/** A little-endian 64-bit value; negative when the top bit is set. */
+internal fun ByteArray.le64(i: Int): Long = le32(i) or (le32(i + 4) shl 32)

@@ -4,6 +4,7 @@ import com.alexgabor.lib.audiometadata.ByteArraySource
 import com.alexgabor.lib.audiometadata.Reader
 import com.alexgabor.lib.audiometadata.ascii
 import com.alexgabor.lib.audiometadata.u32
+import com.alexgabor.lib.audiometadata.u64
 
 /**
  * One atom (box) of an MP4 file: its [type], where it starts, where its [payload] starts and where it
@@ -71,6 +72,3 @@ internal fun List<Atom>.leaf(type: String): Atom? = firstOrNull { it.type == typ
 
 /** The first atom of [type], cut off or not: a container is walked as far as its bytes go. */
 internal fun List<Atom>.container(type: String): Atom? = firstOrNull { it.type == type }
-
-/** A big-endian 64-bit value; negative when the top bit is set. */
-internal fun ByteArray.u64(i: Int): Long = (u32(i) shl 32) or u32(i + 4)

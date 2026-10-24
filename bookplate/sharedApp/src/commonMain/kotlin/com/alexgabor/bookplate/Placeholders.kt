@@ -6,8 +6,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.alexgabor.bookplate.debug.DocumentAccessDebug
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Heading1
@@ -26,7 +29,11 @@ internal fun HomePlaceholder(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.fillMaxSize().safeDrawingPadding().padding(RisoTheme.dimens.screenPadding),
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .safeDrawingPadding()
+            .padding(RisoTheme.dimens.screenPadding),
         verticalArrangement = Arrangement.spacedBy(RisoTheme.dimens.screenPadding),
     ) {
         Toolbar(modifier = Modifier.risoInk(RisoTheme.colors.content).fillMaxWidth()) {
@@ -34,6 +41,8 @@ internal fun HomePlaceholder(
         }
         Body(text = "Library", modifier = Modifier.risoInk(RisoTheme.colors.content))
         Button(text = "Open player", onClick = onOpenPlayer)
+        // TEMPORARY (M7): document access debug entry, removed in M9 with `debug/`.
+        DocumentAccessDebug()
     }
 }
 

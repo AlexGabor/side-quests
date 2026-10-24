@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Regenerates the ffmpeg fixtures in src/jvmTest/resources/fixtures. Each clip is a few seconds of
 # silence at a low bitrate, so the whole set stays small enough to commit. Cases ffmpeg can't write
-# (ID3v2.2, VBRI, nested CTOC, unsynchronisation, 64-bit atoms, co64, broken frames, …) are built byte
-# by byte in the tests instead. MP4 patches use perl, which macOS ships.
+# (ID3v2.2, VBRI, nested CTOC, unsynchronisation, 64-bit atoms, co64, Ogg pages spanning packets,
+# broken frames, …) are built byte by byte in the tests instead. Binary patches use perl, which macOS ships.
 #
 # Usage: lib/audiometadata/scripts/generate-fixtures.sh [path/to/ffmpeg]
 set -euo pipefail
@@ -11,9 +11,10 @@ FFMPEG="${1:-${FFMPEG:-ffmpeg}}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/src/jvmTest/resources/fixtures/mp3"
 OUT4="$ROOT/src/jvmTest/resources/fixtures/mp4"
+FIX="$ROOT/src/jvmTest/resources/fixtures"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-mkdir -p "$OUT" "$OUT4"
+mkdir -p "$OUT" "$OUT4" "$FIX/flac" "$FIX/ogg" "$FIX/wav" "$FIX/aac" "$FIX/cue"
 
 ff() { "$FFMPEG" -hide_banner -loglevel error -y "$@"; }
 
@@ -152,4 +153,130 @@ ff -f lavfi -t 18001.92 -i anullsrc=r=8000:cl=mono -i "$WORK/long.txt" -map 0:a 
   -map_metadata 1 -metadata title="Long Book" -movflags +faststart -f ipod -brand "M4B " -bitexact "$WORK/long.m4b"
 head -c 16384 "$WORK/long.m4b" > "$OUT4/long-header.m4b"
 
-ls -l "$OUT" "$OUT4"
+# --- FLAC, Ogg, WAV, AAC, cue ------------------------------------------------------------------
+# All from 8 kHz mono silence (4 kHz 8-bit for WAV, to keep the PCM small).
+
+# An ID3v2.4 tag on its own: written in front of a short MP3, then cut off at its declared size.
+# Usage: id3tag <out> [ffmpeg metadata args…]
+id3tag() {
+  local out="$1"; shift
+  # shellcheck disable=SC2046
+  ff $(silence 0.1) -i "$OUT/cover.png" -i "$WORK/chapters.txt" -map 0:a $cbr "${cover[@]}" \
+    -map_metadata 2 -map_chapters 2 "$@" -id3v2_version 4 -write_id3v1 0 -bitexact "$WORK/id3tag.mp3"
+  read -r s0 s1 s2 s3 < <(od -An -tu1 -j6 -N4 "$WORK/id3tag.mp3")
+  head -c $(( 10 + (s0 << 21 | s1 << 14 | s2 << 7 | s3) )) "$WORK/id3tag.mp3" > "$out"
+}
+
+# Rewrites a FLAC's metadata blocks: drops PADDING (ffmpeg writes 8 KB of it), optionally adds a
+# CUESHEET block after STREAMINFO, and sets the last-block flag on the new last block.
+# Usage: flacblocks <file> [cuesheet]
+flacblocks() {
+  perl -e '
+    my ($file, $cue) = @ARGV;
+    open my $in, "<:raw", $file or die; local $/; my $d = <$in>; close $in;
+    my $p = 4; my @blocks; my $last = 0;
+    until ($last) {
+      my ($h, $len) = unpack("C a3", substr($d, $p, 4)); $len = unpack("N", "\0$len");
+      $last = $h & 0x80; my $type = $h & 0x7F;
+      push @blocks, [$type, substr($d, $p + 4, $len)] unless $type == 1;
+      $p += 4 + $len;
+    }
+    if ($cue) {
+      # Non-CD sheet at 8 kHz: tracks 1-3 at 0, 1 and 2 s, each with index 1 at 0; lead-out 255 at 3 s.
+      my $track = sub { my ($off, $n, $idx) = @_;
+        pack("Q> C a12 C a13 C", $off, $n, "", 0, "", $idx ? 1 : 0) . ($idx ? pack("Q> C a3", 0, 1, "") : "") };
+      my $b = pack("a128 Q> C a258 C", "", 0, 0, "", 4)
+        . $track->(0, 1, 1) . $track->(8000, 2, 1) . $track->(16000, 3, 1) . $track->(24000, 255, 0);
+      splice @blocks, 1, 0, [5, $b];
+    }
+    my $o = "fLaC";
+    for my $i (0 .. $#blocks) {
+      my ($type, $body) = @{$blocks[$i]};
+      $o .= pack("C", $type | ($i == $#blocks ? 0x80 : 0)) . substr(pack("N", length $body), 1) . $body;
+    }
+    $o .= substr($d, $p);
+    open my $out, ">:raw", $file or die; print $out $o;
+  ' "$@"
+}
+
+# A FLAC picture block (front cover) of a PNG, base64 encoded, as METADATA_BLOCK_PICTURE holds it.
+picture64() {
+  perl -MMIME::Base64 -e '
+    open my $in, "<:raw", $ARGV[0] or die; local $/; my $d = <$in>;
+    print encode_base64(pack("N N/a* N/a* N N N N N/a*", 3, "image/png", "", 8, 8, 24, 0, $d), "");
+  ' "$1"
+}
+
+cuesheet='REM GENRE Audiobook
+TITLE "Bookplate Fixture"
+FILE "tags.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Opening"
+    INDEX 01 00:00:00
+  TRACK 02 AUDIO
+    TITLE "Middle"
+    INDEX 01 00:01:00
+  TRACK 03 AUDIO
+    TITLE "Ending"
+    INDEX 01 00:02:00'
+flaccover=(-map 1:v -c:v copy -disposition:v attached_pic -metadata:s:v comment="Cover (front)")
+
+# FLAC: full tags, front-cover PICTURE, a CUESHEET block and a CUESHEET comment that titles it.
+# shellcheck disable=SC2046
+ff $(silence4 3) -i "$OUT/cover.png" -map 0:a -c:a flac "${flaccover[@]}" -map_metadata -1 "${tags[@]}" \
+  -metadata cuesheet="$cuesheet" -bitexact "$FIX/flac/tags.flac"
+flacblocks "$FIX/flac/tags.flac" cuesheet
+
+# FLAC behind an ID3v2 tag: the FLAC has only a title; the ID3 tag adds an album, which fills the gap.
+id3tag "$WORK/flac-id3.tag" -metadata title="Id3 Title" -metadata album="Id3 Album"
+# shellcheck disable=SC2046
+ff $(silence4 1) -c:a flac -map_metadata -1 -metadata title="Flac Title" -bitexact "$WORK/plain.flac"
+flacblocks "$WORK/plain.flac"
+cat "$WORK/flac-id3.tag" "$WORK/plain.flac" > "$FIX/flac/id3.flac"
+
+# Ogg Vorbis: full tags, CHAPTERnnn comments, and the legacy COVERART cover. ffmpeg writes chapter
+# comments for Opus but not for Vorbis, so these are plain comments.
+# shellcheck disable=SC2046
+ff $(silence4 3) -map 0:a -c:a libvorbis -q:a 0 -map_metadata -1 "${tags[@]}" \
+  -metadata CHAPTER001=00:00:00.000 -metadata CHAPTER001NAME=Opening -metadata CHAPTER002=00:00:01.000 \
+  -metadata CHAPTER002NAME=Middle -metadata CHAPTER003=00:00:02.000 -metadata CHAPTER003NAME=Ending \
+  -metadata COVERART="$(base64 < "$OUT/cover.png" | tr -d '\n')" -metadata COVERARTMIME="image/png" \
+  -bitexact "$FIX/ogg/tags.ogg"
+
+# Ogg Opus: full tags, chapters, and a METADATA_BLOCK_PICTURE front cover.
+# shellcheck disable=SC2046
+ff $(silence4 3) -i "$WORK/chapters.txt" -map 0:a -c:a libopus -b:a 6k -map_metadata 1 -map_chapters 1 \
+  "${tags[@]}" -metadata METADATA_BLOCK_PICTURE="$(picture64 "$OUT/cover.png")" -bitexact "$FIX/ogg/tags.opus"
+
+# WAV with LIST/INFO tags.
+wavtags=(-metadata title="Info Title" -metadata artist="Fixture Artist" -metadata album="Fixture Album"
+  -metadata genre="Audiobook" -metadata date="2019-01-01" -metadata track="4")
+ff -f lavfi -t 1 -i anullsrc=r=4000:cl=mono -c:a pcm_u8 -map_metadata -1 "${wavtags[@]}" -bitexact "$FIX/wav/info.wav"
+
+# The same plus an `id3 ` chunk (ffmpeg doesn't write one) with title, cover and chapters. The ID3 title
+# wins over INAM. The chunk is appended after `data` and the RIFF size fixed up.
+id3tag "$WORK/wav-id3.tag" -metadata title="Id3 Title" -metadata album_artist="Fixture Author"
+perl -e '
+  my ($wav, $tag, $out) = @ARGV; local $/;
+  open my $a, "<:raw", $wav or die; my $d = <$a>;
+  open my $b, "<:raw", $tag or die; my $t = <$b>;
+  $d .= "id3 " . pack("V", length $t) . $t . (length($t) % 2 ? "\0" : "");
+  substr($d, 4, 4) = pack("V", length($d) - 8);
+  open my $o, ">:raw", $out or die; print $o $d;
+' "$FIX/wav/info.wav" "$WORK/wav-id3.tag" "$FIX/wav/id3.wav"
+
+# Raw AAC in ADTS frames, bare and behind an ID3v2 tag.
+# shellcheck disable=SC2046
+ff $(silence4 3) $aac -map_metadata -1 -f adts -bitexact "$FIX/aac/plain.aac"
+id3tag "$WORK/aac-id3.tag" -metadata title="Id3 Title"
+cat "$WORK/aac-id3.tag" "$FIX/aac/plain.aac" > "$FIX/aac/id3.aac"
+
+# A Windows-1252 cue sheet for two files, with REM lines, a track that has only INDEX 00 and one that
+# has no index at all.
+printf '%s\r\n' 'REM GENRE Audiobook' 'REM COMMENT "ExactAudioCopy v1.0"' 'PERFORMER "Fixture Author"' \
+  $'TITLE "Caf\xe9 Stories"' 'FILE "Part 1.wav" WAVE' '  TRACK 01 AUDIO' '    TITLE "Opening"' \
+  '    INDEX 01 00:00:00' '  TRACK 02 AUDIO' $'    TITLE "Br\xfccke \x96 Middle"' '    PERFORMER "Guest Reader"' \
+  '    INDEX 00 00:59:70' '    INDEX 01 01:00:00' 'FILE "Part 2.wav" WAVE' '  TRACK 03 AUDIO' '    TITLE "Ending"' \
+  '    INDEX 00 00:00:00' '  TRACK 04 AUDIO' '    TITLE "No Index"' > "$FIX/cue/book.cue"
+
+ls -l "$OUT" "$OUT4" "$FIX/flac" "$FIX/ogg" "$FIX/wav" "$FIX/aac" "$FIX/cue"
