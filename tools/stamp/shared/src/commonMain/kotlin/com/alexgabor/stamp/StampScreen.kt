@@ -45,6 +45,7 @@ import com.alexgabor.design.riso.attributes.Heading1
 import com.alexgabor.design.riso.attributes.Heading2
 import com.alexgabor.design.riso.components.Button
 import com.alexgabor.design.riso.components.ButtonGroup
+import com.alexgabor.design.riso.components.Toolbar
 import com.alexgabor.design.riso.risograph.inks.risoInk
 import com.alexgabor.stamp.icon.Content
 import com.alexgabor.stamp.icon.ICON_PRINTS
@@ -139,7 +140,7 @@ fun StampScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Heading1("Stamp", Modifier.risoInk(RisoTheme.colors.content).fillMaxWidth())
+        Toolbar(Modifier.risoInk(RisoTheme.colors.content).fillMaxWidth()) { Heading1("Stamp") }
 
         // The stage sits in a box the size of the largest print, so the controls below it do not
         // jump as the prints are stepped through. Measured in the device's own density — the

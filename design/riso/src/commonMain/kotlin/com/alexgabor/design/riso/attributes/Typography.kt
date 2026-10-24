@@ -1,7 +1,6 @@
 package com.alexgabor.design.riso.attributes
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -11,10 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -83,51 +79,23 @@ fun Text(
 fun Heading1(
     text: String,
     modifier: Modifier = Modifier,
-    startContent: @Composable (() -> Unit)? = null,
-    endContent: @Composable (() -> Unit)? = null,
 ) {
-    val lineColor = RisoTheme.colors.content
-    val lineWidth = RisoTheme.dimens.lineWidth
-    Row(
-        modifier
-            .drawBehind {
-                drawRect(
-                    color = lineColor,
-                    size = Size(size.width, lineWidth.toPx()),
-                )
-            }
-            .padding(top = RisoTheme.dimens.lineWidth + 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        startContent?.invoke()
-        Text(
-            text = text,
-            textStyle = RisoTheme.typography.heading1,
-            modifier = Modifier.weight(1f)
-        )
-        endContent?.invoke()
-    }
+    Text(
+        text = text,
+        textStyle = RisoTheme.typography.heading1,
+        modifier = modifier
+    )
 }
-
 
 @Composable
 fun Heading2(
     text: String,
     modifier: Modifier = Modifier,
 ) {
-    val lineColor = RisoTheme.colors.content
-    val lineWidth = RisoTheme.dimens.lineWidth / 2
     Text(
         text = text,
         textStyle = RisoTheme.typography.heading2,
         modifier = modifier
-            .drawBehind {
-                drawRect(
-                    color = lineColor,
-                    size = Size(size.width, lineWidth.toPx()),
-                )
-            }
-            .padding(top = RisoTheme.dimens.lineWidth),
     )
 }
 

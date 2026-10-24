@@ -34,6 +34,7 @@ import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Heading1
 import com.alexgabor.design.riso.components.FlatButton
 import com.alexgabor.design.riso.components.IconType
+import com.alexgabor.design.riso.components.Toolbar
 import com.alexgabor.design.riso.layout.WindowHeightSizeClass
 import com.alexgabor.design.riso.layout.WindowWidthSizeClass
 import com.alexgabor.design.riso.layout.computeWindowSizeClass
@@ -97,8 +98,7 @@ private fun PacerHeader(
 ) {
     SelectionContainer {
         Column(modifier.risoInk(RisoTheme.colors.content, RisoTheme.colors.accent)) {
-            Heading1(
-                text = "Pacer",
+            Toolbar(
                 modifier = Modifier.fillMaxWidth()
                     .padding(RisoTheme.dimens.screenPadding),
                 endContent = {
@@ -117,7 +117,9 @@ private fun PacerHeader(
                         )
                     }
                 }
-            )
+            ) {
+                Heading1(text = "Pacer")
+            }
 
             Body(
                 text = "Tap the card you want to solve for, then scroll the other two. Pacer keeps them in sync.",

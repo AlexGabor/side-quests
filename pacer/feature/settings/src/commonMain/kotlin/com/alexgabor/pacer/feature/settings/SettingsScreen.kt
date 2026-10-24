@@ -26,6 +26,7 @@ import com.alexgabor.design.riso.components.ButtonGroup
 import com.alexgabor.design.riso.components.FlatButton
 import com.alexgabor.design.riso.components.IconType
 import com.alexgabor.design.riso.components.OnOff
+import com.alexgabor.design.riso.components.Toolbar
 import com.alexgabor.design.riso.layout.contentWidth
 import com.alexgabor.design.riso.risograph.inks.risoFadeAsAlpha
 import com.alexgabor.design.riso.risograph.inks.risoInk
@@ -107,8 +108,7 @@ private fun SettingsHeader(
     modifier: Modifier = Modifier,
 ) {
     SelectionContainer(modifier) {
-        Heading1(
-            text = "Settings",
+        Toolbar(
             modifier = Modifier.risoInk(RisoTheme.colors.content)
                 .fillMaxWidth()
                 .padding(RisoTheme.dimens.screenPadding),
@@ -119,7 +119,9 @@ private fun SettingsHeader(
                     contentDescription = "Back"
                 )
             }
-        )
+        ) {
+            Heading1(text = "Settings")
+        }
     }
 }
 
