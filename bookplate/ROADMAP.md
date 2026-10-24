@@ -85,7 +85,7 @@ where the design system already has them.
 
 **Done when:** sheet works on Android and iOS in the demo, including drag, back and scrim tap.
 
-## M4 — Metadata parser foundation + MP3
+## M4 — Metadata parser foundation + MP3 ✅
 
 **Change:** `lib-audiometadata-mp3`
 
