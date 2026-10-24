@@ -1,6 +1,7 @@
 package com.alexgabor.lib.audiometadata.id3
 
 import com.alexgabor.lib.audiometadata.Cover
+import com.alexgabor.lib.audiometadata.Images
 import com.alexgabor.lib.audiometadata.MetadataBuilder
 import com.alexgabor.lib.audiometadata.u32
 import com.alexgabor.lib.audiometadata.u8
@@ -96,21 +97,8 @@ internal object Id3Frames {
             "" -> {}
             else -> if ('/' in mime) return mime
         }
-        return sniff(image)
+        return Images.sniffMimeType(image)
     }
-
-    private fun sniff(image: ByteArray): String = when {
-        image.startsWith(0xFF, 0xD8, 0xFF) -> "image/jpeg"
-        image.startsWith(0x89, 'P'.code, 'N'.code, 'G'.code) -> "image/png"
-        image.startsWith('G'.code, 'I'.code, 'F'.code, '8'.code) -> "image/gif"
-        image.startsWith('B'.code, 'M'.code) -> "image/bmp"
-        image.size >= 12 && image.startsWith('R'.code, 'I'.code, 'F'.code, 'F'.code) &&
-            Id3Text.latin1(image, 8, 12) == "WEBP" -> "image/webp"
-        else -> "application/octet-stream"
-    }
-
-    private fun ByteArray.startsWith(vararg bytes: Int): Boolean =
-        size >= bytes.size && bytes.indices.all { u8(it) == bytes[it] }
 
     /** `CHAP`: element ID, start and end in ms, start and end byte offsets, then sub-frames. */
     private fun chapter(data: ByteArray, major: Int): Id3Chapters.Chap? {

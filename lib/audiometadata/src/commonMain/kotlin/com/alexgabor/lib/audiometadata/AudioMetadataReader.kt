@@ -3,6 +3,8 @@ package com.alexgabor.lib.audiometadata
 import com.alexgabor.lib.audiometadata.id3.Id3v2
 import com.alexgabor.lib.audiometadata.mp3.MpegFrameHeader
 import com.alexgabor.lib.audiometadata.mp3.Mp3Parser
+import com.alexgabor.lib.audiometadata.mp4.Mp4Parser
+import com.alexgabor.lib.audiometadata.mp4.Mp4Parser.isMp4
 
 /**
  * Reads tags, duration, cover and chapters from an audio file. The format is told from the bytes, never
@@ -33,6 +35,8 @@ object AudioMetadataReader {
         val id3 = Id3v2.skipTags(reader)
         val probe = reader.bytes(id3.end, PROBE_SIZE)
         return when {
+            // Before the MPEG check, so an `ftyp` size can't pass for a frame sync.
+            isMp4(probe) -> AudioFormat.Mp4
             MpegFrameHeader.parse(probe, 0) != null -> AudioFormat.Mp3
             // Formats that may also carry a leading ID3 tag are checked before falling back to MP3.
             id3.count > 0 -> AudioFormat.Mp3
@@ -42,6 +46,7 @@ object AudioMetadataReader {
 
     private fun parserFor(format: AudioFormat): FormatParser = when (format) {
         AudioFormat.Mp3 -> Mp3Parser
+        AudioFormat.Mp4 -> Mp4Parser
     }
 
     private inline fun <T> guarded(block: () -> T): T? = try {
