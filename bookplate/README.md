@@ -6,8 +6,12 @@ Targets: Android and iOS. Shared modules also build for the JVM, only so their t
 
 ## Features
 
-- Opens on Home. Home and Player are placeholders for now; Home's "Open player" opens Player for a sample book,
-  and back returns to Home.
+- Opens on Home: the library as a list, most recently updated first. Each book shows its cover (or a placeholder),
+  title, author, total duration and progress as a percent.
+- Search by title or author.
+- Add a book from a folder or a single audio file with the + button. Import shows its progress and result; a book
+  that is already in the library is refused. Books stay in the library across restarts.
+- Tapping a book opens Player, which is a placeholder for now; back returns to Home.
 - Works offline: no network access is requested.
 - No links: the app only opens from its icon.
 

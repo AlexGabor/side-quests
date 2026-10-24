@@ -8,6 +8,7 @@
 #   Sample Book/01 - Opening.mp3        1:05
 #   Sample Book/Disc 2/02 - Middle.mp3  2:05
 #   Sample Book/notes.txt               not audio, skipped by the app
+#   Sample Book/cover.jpg               the folder book's cover
 #   Single.m4b                          0:42
 set -euo pipefail
 
@@ -17,9 +18,10 @@ OUT="${SAMPLE_AUDIO_DIR:-${TMPDIR:-/tmp}/bookplate-sample-audio}"
 generate() {
   rm -rf "$OUT" && mkdir -p "$OUT/Sample Book/Disc 2"
   tone() { "$FFMPEG" -loglevel error -y -f lavfi -i "sine=frequency=$1:duration=$2" -ac 1 "${@:3}"; }
-  tone 440 65 -b:a 32k -metadata title="Opening" -metadata album="Sample Book" "$OUT/Sample Book/01 - Opening.mp3"
-  tone 550 125 -b:a 32k -metadata title="Middle" -metadata album="Sample Book" "$OUT/Sample Book/Disc 2/02 - Middle.mp3"
+  tone 440 65 -b:a 32k -metadata title="Opening" -metadata album="Sample Book" -metadata album_artist="Sample Author" "$OUT/Sample Book/01 - Opening.mp3"
+  tone 550 125 -b:a 32k -metadata title="Middle" -metadata album="Sample Book" -metadata album_artist="Sample Author" "$OUT/Sample Book/Disc 2/02 - Middle.mp3"
   echo "Not audio." > "$OUT/Sample Book/notes.txt"
+  "$FFMPEG" -loglevel error -y -f lavfi -i "testsrc=size=240x240" -frames:v 1 "$OUT/Sample Book/cover.jpg"
   tone 660 42 -c:a aac -b:a 32k -metadata title="Single" -f mp4 "$OUT/Single.m4b"
 }
 

@@ -25,12 +25,9 @@ kotlin {
             implementation(projects.design.riso)
             implementation(projects.design.navigation)
             implementation(projects.bookplate.core.library.impl)
+            implementation(projects.bookplate.feature.home)
             implementation(projects.lib.appstateurl.impl)
             implementation(projects.lib.documentaccess.impl)
-            implementation(projects.lib.coroutine.dispatchers)
-            // Only for the temporary M7 document access debug entry's saved picks; removed in M9.
-            implementation(libs.androidx.datastore.preferencesCore)
-            implementation(libs.okio)
             api(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.kotlinx.serialization.core)
@@ -39,6 +36,7 @@ kotlin {
             implementation(libs.koin.android)
         }
         commonTest.dependencies {
+            implementation(projects.bookplate.core.library.test)
             implementation(projects.lib.documentaccess.test)
             implementation(libs.kotlin.test)
             // Only to prove the navigation keys survive a serialization round trip; the app itself

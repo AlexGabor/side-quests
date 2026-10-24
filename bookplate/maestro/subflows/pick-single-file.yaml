@@ -1,0 +1,15 @@
+# In the system file picker, picks "Single.m4b" from the sample library (scripts/sample-audio.sh).
+appId: ${APP_ID}
+---
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runFlow: android-open-audiobooks.yaml
+      - tapOn: "Single.m4b"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow: ios-open-audiobooks.yaml
+      - tapOn: "Single, m4b, .*"

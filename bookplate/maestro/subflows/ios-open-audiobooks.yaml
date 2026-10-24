@@ -1,0 +1,14 @@
+# The iOS document picker opens on whichever tab and folder it was last on, so get to
+# On My iPhone › Audiobooks from anywhere: the Browse tab pops back to its root ("Locations") when
+# tapped again.
+appId: ${APP_ID}
+---
+- tapOn: "Browse"
+- runFlow:
+    when:
+      notVisible: "Locations"
+    commands:
+      - tapOn: "Browse"
+- tapOn: "On My iPhone"
+# Folder cells are labelled "<name>, <n> items"; the bare name is a label that doesn't open them.
+- tapOn: "Audiobooks, .*"

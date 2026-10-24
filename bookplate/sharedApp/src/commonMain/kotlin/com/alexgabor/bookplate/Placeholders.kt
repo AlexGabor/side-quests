@@ -6,45 +6,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.alexgabor.bookplate.debug.DocumentAccessDebug
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Heading1
-import com.alexgabor.design.riso.components.Button
 import com.alexgabor.design.riso.components.FlatButton
 import com.alexgabor.design.riso.components.IconType
 import com.alexgabor.design.riso.components.Toolbar
 import com.alexgabor.design.riso.risograph.inks.risoInk
 
-// Placeholder screens for the app skeleton. They are replaced by `feature/home` and `feature/player`,
-// at which point this file goes.
-
-@Composable
-internal fun HomePlaceholder(
-    onOpenPlayer: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .safeDrawingPadding()
-            .padding(RisoTheme.dimens.screenPadding),
-        verticalArrangement = Arrangement.spacedBy(RisoTheme.dimens.screenPadding),
-    ) {
-        Toolbar(modifier = Modifier.risoInk(RisoTheme.colors.content).fillMaxWidth()) {
-            Heading1(text = "Bookplate")
-        }
-        Body(text = "Library", modifier = Modifier.risoInk(RisoTheme.colors.content))
-        Button(text = "Open player", onClick = onOpenPlayer)
-        // TEMPORARY (M7): document access debug entry, removed in M9 with `debug/`.
-        DocumentAccessDebug()
-    }
-}
+// Placeholder Player screen for the app skeleton. It is replaced by `feature/player` (M10), at which
+// point this file goes.
 
 @Composable
 internal fun PlayerPlaceholder(

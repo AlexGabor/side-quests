@@ -1,0 +1,6 @@
+# From Home: adds "Single.m4b" through the add sheet and the system picker.
+appId: ${APP_ID}
+---
+- tapOn: "Add book"
+- tapOn: "Add a single file"
+- runFlow: pick-single-file.yaml
