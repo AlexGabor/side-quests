@@ -62,6 +62,9 @@ dependencyResolutionManagement {
 }
 
 include(":bookplate:androidApp")
+include(":bookplate:core:library:api")
+include(":bookplate:core:library:impl")
+include(":bookplate:core:library:test")
 include(":bookplate:sharedApp")
 include(":pacer:androidApp")
 include(":pacer:core:settings:api")

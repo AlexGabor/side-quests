@@ -24,6 +24,7 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.design.riso)
             implementation(projects.design.navigation)
+            implementation(projects.bookplate.core.library.impl)
             implementation(projects.lib.appstateurl.impl)
             implementation(projects.lib.documentaccess.impl)
             implementation(projects.lib.coroutine.dispatchers)

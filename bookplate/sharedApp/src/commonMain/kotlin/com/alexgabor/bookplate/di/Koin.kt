@@ -1,5 +1,6 @@
 package com.alexgabor.bookplate.di
 
+import com.alexgabor.bookplate.core.library.libraryModule
 import com.alexgabor.bookplate.debug.debugPickStoreModule
 import com.alexgabor.lib.appstateurl.appUrlModule
 import com.alexgabor.lib.documentaccess.documentAccessModule
@@ -12,6 +13,7 @@ val sharedModule = module {
     // does nothing.
     includes(appUrlModule)
     includes(documentAccessModule)
+    includes(libraryModule)
     // TEMPORARY (M7 debug entry): removed in M9.
     includes(debugPickStoreModule)
 }
