@@ -379,6 +379,8 @@ That reconstruction, `S·(1 − a) + rgb`, cannot be exact for a coloured ink: k
 - Multiplied onto the stock, that gives `P · I`, the authored colour (`solidInkOnTheDefaultStockPrintsAsAuthored`, within 2 levels).
 - Drawing the raw ink `purple` instead separates against `I/P`, which is lighter, so it prints at slightly less than full coverage.
 
+**A sheet laid over the page.** `BottomSheet` doesn't cover the page with a scrim. `RisoTheme` wraps its content in a backdrop, a `risoFade` that open sheets drive down to `BottomSheetDefaults.BackdropFade`, so the page behind prints smaller dots of the same ink on unchanged stock. The sheet itself is drawn in a window of its own (Material's modal window or scene layer), outside that fade, on a `risoPaper` of its own: a second sheet laid on the first. With effects off the backdrop lays the paper colour over the page at `1 − fade` instead, because a layer alpha at the page's root would let the window show through the stock.
+
 **What is not ink.** A sheet inside a `risoInk` is artwork of that pass, so its stock is separated and printed like any other fill. Put sheets outside the passes that print on them.
 
 ---
@@ -444,7 +446,7 @@ Check these before changing anything in `risograph/`:
   - `LruCacheTest`.
 - `./gradlew :design:riso:bakeTiles` regenerates the shipped tiles.
 - `./gradlew :design:risoRecorder:snapshots` renders a fixed test page (type, a button, solid and overprinted inks, un-inked content, a pink sheet, a textured sheet, a card) at phone, desktop and 4K sizes, plus a full-screen textured sheet, into `design/risoRecorder/build/snapshots`. Run it on two commits to compare.
-- `:design:risoDemo` (Android) hosts `RisoPrintDemo` and a components page, and `:design:risoRecorder:run` regenerates `design/riso/docs/*.webp`.
+- `design/risoDemo` (`androidApp` and `iosApp` over a shared `sharedApp`) hosts `RisoPrintDemo`, a components page and a sheets page, and `:design:risoRecorder:run` regenerates `design/riso/docs/*.webp`.
 - The paper path is now the same on every platform, but the bake surface and the shader compilers differ, so check a visual change on Android or iOS **and** on a Skia raster target (JVM or wasm).
 
 ---

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.Modifier
@@ -87,6 +88,25 @@ class ComponentRenderTest {
             }
             assertTrue(inked > 0, "$type drew nothing")
         }
+    }
+
+    @Test
+    fun withNoSheetOpenTheBackdropLeavesThePageAlone() {
+        val pixels = render { Box(Modifier.fillMaxSize().background(RisoColors.content)) }
+        assertClose(RisoColors.content, Color(pixels.color(pixels.width / 2, pixels.height / 2)))
+    }
+
+    @Test
+    fun underAnOpenSheetThePageIsCoveredByPaperWithEffectsOff() {
+        val pixels = render {
+            Box(Modifier.fillMaxSize().background(RisoColors.content))
+            // What an open sheet does: tell the page under it that it is all the way up.
+            val backdrop = LocalRisoBackdrop.current!!
+            SideEffect { backdrop.report(sheet = "sheet", shown = 1f) }
+        }
+        val veiled = RisoColors.paper.copy(alpha = 1f - BottomSheetDefaults.BackdropFade)
+            .compositeOver(RisoColors.content)
+        assertClose(veiled, Color(pixels.color(pixels.width / 2, pixels.height / 2)))
     }
 
     /** One row of pixels through the middle of the line, in dp along it. */

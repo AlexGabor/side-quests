@@ -1,9 +1,5 @@
 package com.alexgabor.design.riso.demo
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -21,28 +17,18 @@ import com.alexgabor.design.riso.components.ButtonGroupItem
 import com.alexgabor.design.riso.risograph.RisoPrintDemo
 import com.alexgabor.design.riso.risograph.paper.risoPaper
 
-/**
- * A launcher for [RisoPrintDemo] and [ComponentsDemo].
- *
- * The print effect is a `RuntimeShader`, which only runs under hardware rendering — Layoutlib does
- * not execute one, so the playground cannot be seen in a `@Preview` at all. It needs a device.
- */
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
-        super.onCreate(savedInstanceState)
-
-        setContent {
-            RisoTheme {
-                DemoPages()
-            }
-        }
+/** [RisoPrintDemo], [ComponentsDemo] and [SheetsDemo], one page at a time. */
+@Composable
+fun RisoDemo() {
+    RisoTheme {
+        DemoPages()
     }
 }
 
 private enum class Page(override val text: String) : ButtonGroupItem {
     Print("Print"),
     Components("Components"),
+    Sheets("Sheets"),
 }
 
 @Composable
@@ -62,6 +48,7 @@ private fun DemoPages() {
         when (page) {
             Page.Print -> RisoPrintDemo()
             Page.Components -> ComponentsDemo(Modifier.fillMaxSize())
+            Page.Sheets -> SheetsDemo(Modifier.fillMaxSize())
         }
     }
 }

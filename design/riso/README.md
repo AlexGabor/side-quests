@@ -191,6 +191,7 @@ With `RisoTheme(effectsEnabled = false)`:
 - `risoPaper` paints the flat stock color
 - `risoInk` and `risoKnockout` do nothing
 - `risoFade` is a plain alpha over its content, and `risoFadeAsAlpha` does nothing
+- the page behind an open `BottomSheet` is covered by the paper color at `1 − fade` instead
 - `RisoPaper.isSurfaceReady()` is always true
 - `RisoMix.color()` returns `unprinted` color
 

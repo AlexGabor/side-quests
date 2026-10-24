@@ -23,6 +23,7 @@ import com.alexgabor.design.riso.attributes.RisoShapes
 import com.alexgabor.design.riso.attributes.Shapes
 import com.alexgabor.design.riso.attributes.Typography
 import com.alexgabor.design.riso.attributes.firaCodeFamily
+import com.alexgabor.design.riso.components.RisoBackdrop
 
 object RisoTheme {
     val colors: Colors
@@ -65,6 +66,8 @@ fun RisoTheme(effectsEnabled: Boolean = true, content: @Composable () -> Unit) {
             handleColor = RisoColors.accent,
             backgroundColor = RisoColors.accent.copy(alpha = 0.3f)
         ), // changes the text selection background and handle color.
-        content = content
-    )
+    ) {
+        // The page sheets are laid over: printed lighter while a BottomSheet is open.
+        RisoBackdrop(content)
+    }
 }

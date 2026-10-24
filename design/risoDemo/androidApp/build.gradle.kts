@@ -13,5 +13,5 @@ android {
 }
 
 dependencies {
-    implementation(projects.design.riso)
+    implementation(projects.design.risoDemo.sharedApp)
 }
