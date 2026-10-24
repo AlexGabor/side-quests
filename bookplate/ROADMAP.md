@@ -100,7 +100,7 @@ where the design system already has them.
 **Done when:** JVM tests cover each frame type and each duration path; malformed input returns a partial result
 instead of throwing.
 
-## M5 — MP4 / M4B parser
+## M5 — MP4 / M4B parser  ✅
 
 **Change:** `lib-audiometadata-mp4`
 

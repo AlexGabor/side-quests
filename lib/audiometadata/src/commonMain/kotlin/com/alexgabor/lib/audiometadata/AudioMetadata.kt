@@ -5,6 +5,9 @@ import kotlin.time.Duration
 /** Formats [AudioMetadataReader] recognises from their content. */
 enum class AudioFormat {
     Mp3,
+
+    /** M4A, M4B and MP4 audio: one container, so one format. */
+    Mp4,
 }
 
 /** What one audio file says about itself. Anything it doesn't say is `null` or empty. */
