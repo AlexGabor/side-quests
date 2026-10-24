@@ -44,7 +44,7 @@ Module names are a proposal; the M1 and M3 agents may adjust them in their OpenS
 
 ---
 
-## M1 — App skeleton and build targets
+## M1 — App skeleton and build targets ✅
 
 **Change:** `bookplate-app-skeleton`
 
@@ -60,7 +60,7 @@ Module names are a proposal; the M1 and M3 agents may adjust them in their OpenS
 
 **Done when:** both apps build and launch on emulator/simulator; Pacer still builds; smoke flow passes on both.
 
-## M2 — Riso components: small progress, search field, icons
+## M2 — Riso components: small progress, search field, icons ✅
 
 **Change:** `riso-small-progress-search-icons`
 
@@ -74,7 +74,7 @@ Module names are a proposal; the M1 and M3 agents may adjust them in their OpenS
 100 %; JVM/screenshot tests
 where the design system already has them.
 
-## M3 — Bottom sheet
+## M3 — Bottom sheet ✅
 
 **Change:** `riso-bottom-sheet`
 
