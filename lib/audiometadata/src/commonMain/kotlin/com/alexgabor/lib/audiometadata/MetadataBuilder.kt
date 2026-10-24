@@ -25,6 +25,8 @@ internal class MetadataBuilder(private val format: AudioFormat) {
     private var cover: Cover? = null
     private var coverIsFront = false
 
+    val hasCover: Boolean get() = cover != null
+
     /** Keeps the first picture, unless a front cover turns up later. */
     fun offerCover(cover: Cover, isFront: Boolean) {
         if (cover.data.isEmpty()) return

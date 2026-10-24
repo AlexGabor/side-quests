@@ -5,6 +5,7 @@ import com.alexgabor.lib.audiometadata.Reader
 import com.alexgabor.lib.audiometadata.id3.Id3Text
 import com.alexgabor.lib.audiometadata.u16
 import com.alexgabor.lib.audiometadata.u32
+import com.alexgabor.lib.audiometadata.u64
 import com.alexgabor.lib.audiometadata.u8
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.microseconds

@@ -1,10 +1,14 @@
 package com.alexgabor.lib.audiometadata
 
+import com.alexgabor.lib.audiometadata.aac.Adts
+import com.alexgabor.lib.audiometadata.flac.FlacParser
 import com.alexgabor.lib.audiometadata.id3.Id3v2
 import com.alexgabor.lib.audiometadata.mp3.MpegFrameHeader
 import com.alexgabor.lib.audiometadata.mp3.Mp3Parser
 import com.alexgabor.lib.audiometadata.mp4.Mp4Parser
 import com.alexgabor.lib.audiometadata.mp4.Mp4Parser.isMp4
+import com.alexgabor.lib.audiometadata.ogg.OggParser
+import com.alexgabor.lib.audiometadata.wav.WavParser
 
 /**
  * Reads tags, duration, cover and chapters from an audio file. The format is told from the bytes, never
@@ -37,7 +41,12 @@ object AudioMetadataReader {
         return when {
             // Before the MPEG check, so an `ftyp` size can't pass for a frame sync.
             isMp4(probe) -> AudioFormat.Mp4
+            probe.startsWith("fLaC") -> AudioFormat.Flac
+            probe.startsWith("OggS") -> OggParser.detect(probe)
+            WavParser.isWav(probe) -> AudioFormat.Wav
             MpegFrameHeader.parse(probe, 0) != null -> AudioFormat.Mp3
+            // Layer 00 is reserved for MPEG audio, so an ADTS header can't pass for an MP3 frame.
+            Adts.isAdts(reader, id3.end) -> AudioFormat.Aac
             // Formats that may also carry a leading ID3 tag are checked before falling back to MP3.
             id3.count > 0 -> AudioFormat.Mp3
             else -> null
@@ -47,6 +56,11 @@ object AudioMetadataReader {
     private fun parserFor(format: AudioFormat): FormatParser = when (format) {
         AudioFormat.Mp3 -> Mp3Parser
         AudioFormat.Mp4 -> Mp4Parser
+        AudioFormat.Flac -> FlacParser
+        AudioFormat.Vorbis -> OggParser.vorbisParser
+        AudioFormat.Opus -> OggParser.opusParser
+        AudioFormat.Wav -> WavParser
+        AudioFormat.Aac -> Adts
     }
 
     private inline fun <T> guarded(block: () -> T): T? = try {

@@ -8,6 +8,19 @@ enum class AudioFormat {
 
     /** M4A, M4B and MP4 audio: one container, so one format. */
     Mp4,
+
+    Flac,
+
+    /** Vorbis in an Ogg container. */
+    Vorbis,
+
+    /** Opus in an Ogg container. */
+    Opus,
+
+    Wav,
+
+    /** Raw AAC in ADTS frames. Only the duration is read. */
+    Aac,
 }
 
 /** What one audio file says about itself. Anything it doesn't say is `null` or empty. */

@@ -3,6 +3,7 @@ package com.alexgabor.lib.audiometadata.mp4
 import com.alexgabor.lib.audiometadata.Reader
 import com.alexgabor.lib.audiometadata.ascii
 import com.alexgabor.lib.audiometadata.u32
+import com.alexgabor.lib.audiometadata.u64
 import com.alexgabor.lib.audiometadata.u8
 
 /**
