@@ -47,6 +47,14 @@ gradlePlugin {
             id = libs.plugins.sidequests.compose.multiplatform.library.get().pluginId
             implementationClass = "com.alexgabor.sidequests.ComposeMultiplatformLibraryPlugin"
         }
+        register("ComposeMobileLibraryPlugin") {
+            id = libs.plugins.sidequests.compose.mobile.library.get().pluginId
+            implementationClass = "com.alexgabor.sidequests.ComposeMobileLibraryPlugin"
+        }
+        register("MobileLibraryPlugin") {
+            id = libs.plugins.sidequests.mobile.library.get().pluginId
+            implementationClass = "com.alexgabor.sidequests.MobileLibraryPlugin"
+        }
         register("MultiplatformLibraryPlugin") {
             id = libs.plugins.sidequests.multiplatform.library.get().pluginId
             implementationClass = "com.alexgabor.sidequests.MultiplatformLibraryPlugin"
