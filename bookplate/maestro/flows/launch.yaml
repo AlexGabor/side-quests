@@ -1,0 +1,14 @@
+# The app starts on Home.
+#
+# Scenario: plain launch
+#   Given Bookplate is installed with no saved state
+#   When I open it
+#   Then the Home screen is shown
+#
+# Run with -e APP_ID=com.alexgabor.bookplate.debug (Android) or -e APP_ID=com.alexgabor.bookplate (iOS).
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Bookplate"
+- assertVisible: "Library"
