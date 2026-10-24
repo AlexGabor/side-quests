@@ -136,7 +136,7 @@ needed) parses quickly.
 **Done when:** a temporary debug entry in Bookplate Home (removed in M9) picks a file/folder and lists its audio
 files on Android and iOS, still readable after an app restart.
 
-## M8 — Library storage and import
+## M8 — Library storage and import ✅
 
 **Change:** `bookplate-library-import`
 

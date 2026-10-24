@@ -26,7 +26,10 @@ xcodebuild -project bookplate/iosApp/iosApp.xcodeproj -scheme iosApp -configurat
 xcrun simctl install booted bookplate/iosApp/build/Build/Products/Debug-iphonesimulator/Bookplate.app
 ```
 
-Tests: `./gradlew :bookplate:sharedApp:jvmTest`.
+Tests: `./gradlew :bookplate:sharedApp:jvmTest :bookplate:core:library:impl:jvmTest :bookplate:core:library:test:jvmTest`.
+
+The library database (`core/library/impl`, Room 3) exports its schema to `core/library/impl/schemas`; commit the new
+JSON whenever the schema version changes, and add a migration for it.
 
 UI flows ([Maestro](https://github.com/mobile-dev-inc/maestro)) live in `maestro/flows` and run against a booted emulator or simulator. Flows use visible text, not test tags.
 

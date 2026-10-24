@@ -21,6 +21,8 @@ material3 = "1.11.0-alpha07"
 navigation3 = "1.1.1"
 okio = "3.17.0"
 playPublisher = "4.1.1"
+room = "3.0.3"
+sqlite = "2.7.1"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
@@ -50,6 +52,9 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+room-compiler = { module = "androidx.room3:room3-compiler", version.ref = "room" }
+room-runtime = { module = "androidx.room3:room3-runtime", version.ref = "room" }
+sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
 
 # Dependencies of the included build-logic
 android-tools-common = { group = "com.android.tools", name = "common", version.ref = "androidTools" }
@@ -69,7 +74,9 @@ composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMul
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 playPublisher = { id = "com.github.triplet.play", version.ref = "playPublisher" }
+room = { id = "androidx.room3", version.ref = "room" }
 
 # Convention Plugins
 sidequests-android-app = { id = "sidequests.android.app" }
