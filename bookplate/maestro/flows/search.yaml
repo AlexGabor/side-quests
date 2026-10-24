@@ -1,0 +1,35 @@
+# Searching the library by title or author.
+#
+# Needs the sample library on the device: bookplate/scripts/sample-audio.sh android|ios.
+#
+# Scenario: filter, no results, clear
+#   Given "Sample Book" by "Sample Author" and "Single" (no author) are in the library
+#   When I search "author"
+#   Then only "Sample Book" is listed
+#   When I search "zzz"
+#   Then Home says no books match
+#   When I clear the search
+#   Then both books are listed
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/add-sample-folder.yaml
+- extendedWaitUntil:
+    visible: "Added “Sample Book”"
+    timeout: 15000
+- runFlow: ../subflows/add-single-file.yaml
+- extendedWaitUntil:
+    visible: "Added “Single”"
+    timeout: 15000
+- tapOn: "Close"
+- tapOn: "Search title or author"
+- inputText: "author"
+- assertVisible: "Sample Book"
+- assertNotVisible: "Single"
+- tapOn: "Clear"
+- inputText: "zzz"
+- assertVisible: "No books match “zzz”"
+- tapOn: "Clear"
+- assertVisible: "Sample Book"
+- assertVisible: "Single"

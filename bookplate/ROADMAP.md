@@ -156,7 +156,7 @@ files on Android and iOS, still readable after an app restart.
 **Done when:** JVM tests import fixture books (single M4B, multi-file MP3 folder, nested sections, no tags) through
 the fake document access and read them back from Room.
 
-## M9 — Home screen
+## M9 — Home screen ✅
 
 **Change:** `bookplate-home`
 

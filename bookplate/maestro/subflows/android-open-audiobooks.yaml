@@ -1,0 +1,11 @@
+# Android's DocumentsUI picker opens wherever it was last, so get to /sdcard/Audiobooks from
+# anywhere: through the roots drawer when no "Audiobooks" breadcrumb or folder is on screen.
+appId: ${APP_ID}
+---
+- runFlow:
+    when:
+      notVisible: "Audiobooks"
+    commands:
+      - tapOn: "Show roots"
+      - tapOn: ".*gphone.*|Internal storage|Phone"
+- tapOn: "Audiobooks"

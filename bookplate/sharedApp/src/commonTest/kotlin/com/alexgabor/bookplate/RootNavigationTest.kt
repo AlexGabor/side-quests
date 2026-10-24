@@ -3,18 +3,17 @@ package com.alexgabor.bookplate
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
-import com.alexgabor.bookplate.debug.DebugPickStore
-import com.alexgabor.bookplate.debug.InMemoryDebugPickStore
+import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.FakeLibraryRepository
+import com.alexgabor.bookplate.core.library.fakeBook
+import com.alexgabor.bookplate.core.library.fakeLibraryModule
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.lib.appstateurl.AppUrl
 import com.alexgabor.lib.appstateurl.NoAppUrl
-import com.alexgabor.lib.documentaccess.FakeDocumentAccess
 import com.alexgabor.lib.documentaccess.fakeDocumentAccessModule
 import kotlinx.serialization.json.Json
 import org.koin.core.context.startKoin
@@ -31,18 +30,18 @@ class RootNavigationTest {
     @AfterTest
     fun tearDown() = stopKoin()
 
-    private fun ComposeUiTest.launched(documents: FakeDocumentAccess.() -> Unit = {}) {
+    private fun ComposeUiTest.launched(library: FakeLibraryRepository.() -> Unit = {}) {
         // The same AppUrl a phone gets: one that does nothing.
         startKoin {
             modules(
                 module {
                     single<AppUrl> { NoAppUrl }
-                    single<DebugPickStore> { InMemoryDebugPickStore() }
                 },
                 fakeDocumentAccessModule,
+                fakeLibraryModule,
             )
         }
-        KoinPlatform.getKoin().get<FakeDocumentAccess>().documents()
+        KoinPlatform.getKoin().get<FakeLibraryRepository>().library()
 
         setContent {
             RisoTheme(effectsEnabled = false) {
@@ -56,37 +55,22 @@ class RootNavigationTest {
     fun aLaunchOpensHome() = runComposeUiTest {
         launched()
 
-        onNodeWithText("Bookplate").assertIsDisplayed()
+        onNodeWithText("Search title or author").assertIsDisplayed()
     }
 
     @Test
     fun playerOpensForABookAndBackReturnsHome() = runComposeUiTest {
-        launched()
+        var id = BookId(0)
+        launched { id = add(fakeBook("Dune", author = "Frank Herbert")) }
 
-        onNodeWithText("Open player").performClick()
+        onNodeWithText("Dune").performClick()
         waitForIdle()
         onNodeWithText("Player").assertIsDisplayed()
-        onNodeWithText("Book $SampleBookId").assertIsDisplayed()
+        onNodeWithText("Book ${id.value}").assertIsDisplayed()
 
         onNodeWithContentDescription("Back").performClick()
         waitForIdle()
-        onNodeWithText("Bookplate").assertIsDisplayed()
-    }
-
-    // TEMPORARY (M7 debug entry): removed in M9.
-    @Test
-    fun theDebugEntryListsAPickedFoldersAudioFiles() = runComposeUiTest {
-        launched {
-            addFile("Books/Dune/01.mp3", cbrMp3(frames = 10))
-            addFile("Books/Dune/notes.txt", "not audio".encodeToByteArray())
-            enqueuePick("Books/Dune")
-        }
-
-        onNodeWithText("Pick folder").performScrollTo().performClick()
-        waitUntil(timeoutMillis = 5_000) { onAllNodesWithText("Folder: Dune (Reachable)").fetchSemanticsNodes().isNotEmpty() }
-
-        onNodeWithText("01.mp3 · 4.1 KB · 0:00").assertExists()
-        assertEquals(0, onAllNodesWithText("notes.txt", substring = true).fetchSemanticsNodes().size)
+        onNodeWithText("Search title or author").assertIsDisplayed()
     }
 
     @Test
@@ -98,15 +82,4 @@ class RootNavigationTest {
             assertEquals(destination, Json.decodeFromString(BookplateDestination.serializer(), json))
         }
     }
-}
-
-/** MPEG-1 Layer III frames at 128 kb/s, 44.1 kHz: 417 bytes each, silent. */
-private fun cbrMp3(frames: Int): ByteArray {
-    val frame = ByteArray(417).also {
-        it[0] = 0xFF.toByte()
-        it[1] = 0xFB.toByte()
-        it[2] = 0x90.toByte()
-        it[3] = 0x64
-    }
-    return ByteArray(frame.size * frames) { frame[it % frame.size] }
 }

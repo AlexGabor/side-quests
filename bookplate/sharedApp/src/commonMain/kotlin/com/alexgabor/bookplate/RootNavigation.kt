@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
+import com.alexgabor.bookplate.feature.home.HomeScreen
 import com.alexgabor.design.navigation.RisoNavigation
 import com.alexgabor.design.navigation.rememberDeepLinkedBackStack
 import com.alexgabor.design.riso.risograph.paper.risoPaper
@@ -56,8 +57,8 @@ fun RootNavigation() {
         entryProvider = entryProvider {
             // Fixed content keys, so a screen's saved state is not tied to the book it was opened for.
             entry<BookplateDestination.Home>(clazzContentKey = { HOME }) {
-                HomePlaceholder(
-                    onOpenPlayer = { nav.open(BookplateDestination.Player(SampleBookId)) },
+                HomeScreen(
+                    onOpenBook = { id -> nav.open(BookplateDestination.Player(id.value.toString())) },
                 )
             }
             entry<BookplateDestination.Player>(clazzContentKey = { PLAYER }) { key ->
@@ -69,6 +70,3 @@ fun RootNavigation() {
         },
     )
 }
-
-/** Stands in for a real book until the library exists. */
-internal const val SampleBookId = "sample"

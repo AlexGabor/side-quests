@@ -1,0 +1,30 @@
+# Adding books from a folder and from a single file.
+#
+# Needs the sample library on the device: bookplate/scripts/sample-audio.sh android|ios.
+#
+# Scenario: add a folder, then a file
+#   Given an empty library
+#   When I add the "Sample Book" folder
+#   Then Home says it was added and lists it with its author, duration and progress
+#   When I add the file "Single.m4b"
+#   Then it is listed too, with no author
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Your library is empty"
+- runFlow: ../subflows/add-sample-folder.yaml
+- extendedWaitUntil:
+    visible: "Added “Sample Book”"
+    timeout: 15000
+- assertVisible: "Sample Author"
+- assertVisible: "3:10"
+- assertVisible: "0%"
+- runFlow: ../subflows/add-single-file.yaml
+- extendedWaitUntil:
+    visible: "Added “Single”"
+    timeout: 15000
+- assertVisible: "Unknown author"
+- assertVisible: "0:42"
+- tapOn: "Close"
+- assertNotVisible: "Added “Single”"
