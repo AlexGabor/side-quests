@@ -444,7 +444,7 @@ Check these before changing anything in `risograph/`:
   - `LruCacheTest`.
 - `./gradlew :design:riso:bakeTiles` regenerates the shipped tiles.
 - `./gradlew :design:risoRecorder:snapshots` renders a fixed test page (type, a button, solid and overprinted inks, un-inked content, a pink sheet, a textured sheet, a card) at phone, desktop and 4K sizes, plus a full-screen textured sheet, into `design/risoRecorder/build/snapshots`. Run it on two commits to compare.
-- `:design:risoDemo` (Android) hosts `RisoPrintDemo`, and `:design:risoRecorder:run` regenerates `design/riso/docs/*.webp`.
+- `:design:risoDemo` (Android) hosts `RisoPrintDemo` and a components page, and `:design:risoRecorder:run` regenerates `design/riso/docs/*.webp`.
 - The paper path is now the same on every platform, but the bake surface and the shader compilers differ, so check a visual change on Android or iOS **and** on a Skia raster target (JVM or wasm).
 
 ---

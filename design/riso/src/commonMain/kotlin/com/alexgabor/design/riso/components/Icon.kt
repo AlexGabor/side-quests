@@ -25,6 +25,15 @@ enum class IconType {
     Back,
     Settings,
     Share,
+    Play,
+    Pause,
+    Rewind10,
+    Forward10,
+    Chapters,
+    Speed,
+    Add,
+    Search,
+    Close,
 }
 
 @OptIn(ExperimentalFoundationStyleApi::class)
@@ -83,4 +92,13 @@ private fun IconType.paths() = when (this) {
     IconType.Back -> BackIconPaths
     IconType.Settings -> SettingsIconPaths
     IconType.Share -> ShareIconPaths
+    IconType.Play -> PlayIconPaths
+    IconType.Pause -> PauseIconPaths
+    IconType.Rewind10 -> Rewind10IconPaths
+    IconType.Forward10 -> Forward10IconPaths
+    IconType.Chapters -> ChaptersIconPaths
+    IconType.Speed -> SpeedIconPaths
+    IconType.Add -> AddIconPaths
+    IconType.Search -> SearchIconPaths
+    IconType.Close -> CloseIconPaths
 }
