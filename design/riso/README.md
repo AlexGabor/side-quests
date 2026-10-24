@@ -43,6 +43,11 @@ Material is used internally (for example Material's `Text` and `ripple()`), but 
 `material3` is an `implementation` dependency, and only `compose.foundation` is `api`. Apps use the
 Riso components and `RisoTheme` values, never Material directly.
 
+## Components
+
+`components/` holds the controls apps build from. Each one reads `RisoTheme` and prints with its own
+inks.
+
 ## Risograph
 
 A risograph is a stencil duplicator that prints one spot color per drum. Each color is its own pass

@@ -70,7 +70,8 @@ Module names are a proposal; the M1 and M3 agents may adjust them in their OpenS
   `IconPaths`.
 - Showcased in `design/risoDemo`; `riso-*` specs.
 
-**Done when:** demo shows each component in light/dark and at 0 %, partial and 100 % progress; JVM/screenshot tests
+**Done when:** demo shows each component (Riso has one light palette, no dark theme) and progress at 0 %, partial and
+100 %; JVM/screenshot tests
 where the design system already has them.
 
 ## M3 — Bottom sheet
