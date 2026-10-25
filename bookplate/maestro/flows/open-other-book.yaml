@@ -1,0 +1,54 @@
+# Opening another book while one plays.
+#
+# Scenario: the playing book keeps playing
+#   Given "Sample Book" is playing
+#   When I open "Single", skip it forward and go back
+#   Then "Sample Book" is still playing
+# Scenario: playing the other book takes over
+#   When I open "Single" again and tap Play
+#   Then "Single" plays and the mini player shows it
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/open-sample-book.yaml
+- tapOn:
+    text: "Play"
+    # The position ruler glides while playing, so the screen never settles; don't wait for it.
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Back"
+    waitToSettleTimeoutMs: 1000
+- runFlow: ../subflows/add-single-file.yaml
+- extendedWaitUntil:
+    visible: "Added “Single”"
+    timeout: 15000
+- tapOn:
+    text: "Single"
+    waitToSettleTimeoutMs: 1000
+- extendedWaitUntil:
+    visible: "Chapters"
+    timeout: 5000
+- assertVisible: "Play"
+- assertVisible: "0:42"
+- tapOn: "Forward 10 seconds"
+- assertVisible: "0:10"
+- tapOn: "Back"
+# The mini player still shows the playing "Sample Book".
+- assertVisible: "Pause"
+- tapOn:
+    text: "Single"
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "0:10"
+- tapOn:
+    text: "Play"
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "Pause"
+- tapOn:
+    text: "Back"
+    waitToSettleTimeoutMs: 1000
+# Now the mini player is "Single": its row and the mini player both read it.
+- assertVisible:
+    text: "Single"
+    index: 1
+- assertVisible: "Pause"

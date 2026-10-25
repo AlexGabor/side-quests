@@ -46,7 +46,7 @@ class PlayerScreenStateTest {
     private fun TestScope.player() = FakeBookPlayer(repository, backgroundScope)
 
     private fun TestScope.screen(id: BookId, player: FakeBookPlayer, sheet: PlayerSheet? = null) =
-        PlayerScreenState(backgroundScope, id, player, sheet).also { runCurrent() }
+        PlayerScreenState(backgroundScope, id, player, repository, sheet).also { runCurrent() }
 
     private val PlayerScreenState.shown: PlayerUi get() = assertNotNull(ui.value)
 
@@ -81,7 +81,7 @@ class PlayerScreenStateTest {
     fun showsNothingWhileThePlayerHoldsAnotherBook() = rule.testScope.runTest {
         val id = addSampleBook()
 
-        val state = PlayerScreenState(backgroundScope, BookId(99), player())
+        val state = PlayerScreenState(backgroundScope, BookId(99), player(), repository)
         runCurrent()
 
         assertNull(state.ui.value)
@@ -101,19 +101,117 @@ class PlayerScreenStateTest {
         assertTrue(state.shown.isPlaying)
     }
 
-    @Test
-    fun openingAnotherBookPausesTheFirst() = rule.testScope.runTest {
+    private data class Opened(val first: BookId, val second: BookId, val player: FakeBookPlayer, val state: PlayerScreenState)
+
+    /** `Sample Book` playing, and Player open for "Other", saved at 0:30 at 1.5×. */
+    private fun TestScope.openOtherWhileFirstPlays(): Opened {
         val first = addSampleBook()
-        val second = repository.add(fakeBook("Other", position = 30.seconds))
+        val second = repository.add(
+            fakeBook("Other", duration = 190.seconds, position = 30.seconds, speed = 1.5f),
+            chapters = listOf(Chapter("One", 0.seconds, 100.seconds), Chapter("Two", 100.seconds, 190.seconds)),
+        )
         val player = player()
         player.load(first)
         player.play()
         runCurrent()
+        return Opened(first, second, player, screen(second, player))
+    }
 
-        val state = screen(second, player)
+    private fun saved(id: BookId) = repository.all.first { it.book.id == id }.book
+
+    @Test
+    fun openingAnotherBookKeepsTheFirstPlaying() = rule.testScope.runTest {
+        val (first, _, player, state) = openOtherWhileFirstPlays()
+        advanceTimeBy(2.seconds)
+        runCurrent()
 
         assertEquals("Other", state.shown.title)
         assertEquals("0:30", state.shown.positionLabel)
+        assertEquals("1.5×", state.shown.speedLabel)
+        assertEquals("One", state.shown.chapterTitle)
+        assertFalse(state.shown.isPlaying)
+        assertEquals(first, player.state.value.book?.id)
+        assertTrue(player.state.value.isPlaying)
+    }
+
+    @Test
+    fun playOnTheOtherBookTakesOver() = rule.testScope.runTest {
+        val (first, second, player, state) = openOtherWhileFirstPlays()
+        advanceTimeBy(3.seconds)
+        runCurrent()
+
+        state.onPlayPause()
+        runCurrent()
+
+        assertEquals(second, player.state.value.book?.id)
+        assertTrue(player.state.value.isPlaying)
+        assertTrue(state.shown.isPlaying)
+        assertEquals("0:30", state.shown.positionLabel)
+        assertEquals(3.seconds, saved(first).position)
+
+        state.onPlayPause()
+        runCurrent()
+        assertFalse(player.state.value.isPlaying)
+    }
+
+    @Test
+    fun skippingTheOtherBookSavesItAndKeepsTheFirstPlaying() = rule.testScope.runTest {
+        val (first, second, player, state) = openOtherWhileFirstPlays()
+
+        state.onSkipForward()
+        state.onSkipForward()
+        runCurrent()
+        assertEquals("0:50", state.shown.positionLabel)
+        assertEquals(50.seconds, saved(second).position)
+
+        state.onSkipBack()
+        runCurrent()
+        assertEquals("0:40", state.shown.positionLabel)
+        assertEquals(40.seconds, saved(second).position)
+
+        assertEquals(first, player.state.value.book?.id)
+        assertTrue(player.state.value.isPlaying)
+    }
+
+    @Test
+    fun seekJumpAndSpeedOnTheOtherBookAreSaved() = rule.testScope.runTest {
+        val (first, second, player, state) = openOtherWhileFirstPlays()
+
+        state.onScrubEnd(500.seconds)
+        runCurrent()
+        assertEquals("3:10", state.shown.positionLabel)
+        assertEquals(190.seconds, saved(second).position)
+
+        state.onChapterClick(1)
+        runCurrent()
+        assertEquals("1:40", state.shown.positionLabel)
+        assertEquals("Two", state.shown.chapterTitle)
+        assertEquals(100.seconds, saved(second).position)
+
+        state.onSpeedChange(2.04f)
+        runCurrent()
+        assertEquals("2.0×", state.shown.speedLabel)
+        assertEquals(2f, saved(second).speed)
+
+        assertEquals(first, player.state.value.book?.id)
+        assertTrue(player.state.value.isPlaying)
+        assertEquals(1f, player.state.value.speed)
+    }
+
+    @Test
+    fun openingAnotherBookWhileNothingPlaysLoadsIt() = rule.testScope.runTest {
+        val first = addSampleBook()
+        val second = repository.add(fakeBook("Other", position = 30.seconds))
+        val player = player()
+        player.load(first)
+        runCurrent()
+
+        val state = screen(second, player)
+        state.onSkipForward()
+        runCurrent()
+
+        assertEquals(second, player.state.value.book?.id)
+        assertEquals("0:40", state.shown.positionLabel)
         assertFalse(state.shown.isPlaying)
     }
 

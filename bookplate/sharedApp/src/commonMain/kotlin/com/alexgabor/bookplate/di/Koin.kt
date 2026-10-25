@@ -1,10 +1,10 @@
 package com.alexgabor.bookplate.di
 
 import com.alexgabor.bookplate.core.library.libraryModule
-import com.alexgabor.bookplate.core.player.fakePlayerModule
 import com.alexgabor.lib.appstateurl.appUrlModule
 import com.alexgabor.lib.documentaccess.documentAccessModule
 import org.koin.core.context.startKoin
+import org.koin.core.module.Module
 import org.koin.dsl.KoinAppDeclaration
 import org.koin.dsl.module
 
@@ -14,10 +14,11 @@ val sharedModule = module {
     includes(appUrlModule)
     includes(documentAccessModule)
     includes(libraryModule)
-    // No audio yet: a player that ticks a clock, saving progress to the library. M11 and M12 replace it.
-    includes(fakePlayerModule)
+    includes(platformPlayerModule)
 }
 
+/** The app's `BookPlayer`: the Media3 engine on Android, the clock-driven fake where no engine exists yet. */
+expect val platformPlayerModule: Module
 
 fun initKoin(config: KoinAppDeclaration = {}) {
     startKoin {
