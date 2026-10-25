@@ -42,13 +42,13 @@ fun Icon(
     type: IconType,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
+    color: Color = RisoTheme.colors.content,
 ) {
-    val colors = RisoTheme.colors
     val dimens = RisoTheme.dimens
 
     Image(
         painter = rememberVectorPainter(
-            rememberIconVector(type, dimens.iconSize, dimens.lineWidth, colors.content)
+            rememberIconVector(type, dimens.iconSize, dimens.lineWidth, color)
         ),
         contentDescription = contentDescription,
         modifier = modifier.size(dimens.iconSize)

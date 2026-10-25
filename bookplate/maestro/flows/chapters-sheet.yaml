@@ -1,0 +1,19 @@
+# Jumping to a chapter from the chapters sheet.
+#
+# Scenario: jump
+#   Given "Sample Book" is open in Player at 0:00 ("Opening")
+#   When I open the chapters sheet and tap "Middle"
+#   Then the sheet closes and Player is at 1:05 in "Middle"
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/open-sample-book.yaml
+- tapOn: "Chapters"
+- assertVisible: "Disc 2"
+- assertVisible: "1:05"
+- assertVisible: "2:05"
+- tapOn: "Middle"
+- assertNotVisible: "Disc 2"
+- assertVisible: "Middle"
+- assertVisible: "1:05"

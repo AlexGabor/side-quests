@@ -171,7 +171,7 @@ the fake document access and read them back from Room.
 
 **Done when:** flows pass on Android and iOS; library survives an app restart.
 
-## M10 — Player screen and sheets (UI against a fake player)
+## M10 — Player screen and sheets (UI against a fake player) ✅
 
 **Change:** `bookplate-player-screen`
 

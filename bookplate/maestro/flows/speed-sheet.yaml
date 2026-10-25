@@ -1,0 +1,33 @@
+# Changing the speed in the speed sheet.
+#
+# Scenario: speed is kept
+#   Given "Sample Book" is open in Player at 1.0×
+#   When I drag the speed ruler, close the sheet and open it again
+#   Then the sheet shows the speed I chose, also after leaving and reopening the book
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/open-sample-book.yaml
+- tapOn: "Speed"
+- assertVisible: "Speed 1.0×"
+- swipe:
+    from: "2.0×"
+    direction: LEFT
+    duration: 600
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertNotVisible: "Speed 1.0×"
+- copyTextFrom: "Speed .*"
+# Tapping above the sheet closes it.
+- tapOn:
+    point: "50%,10%"
+- assertNotVisible: "Speed .*"
+- tapOn: "Speed"
+- assertVisible: ${maestro.copiedText}
+- tapOn:
+    point: "50%,10%"
+- tapOn: "Back"
+- tapOn: "Sample Book"
+- tapOn: "Speed"
+- assertVisible: ${maestro.copiedText}

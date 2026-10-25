@@ -3,14 +3,15 @@ package com.alexgabor.bookplate
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
-import com.alexgabor.bookplate.core.library.BookId
 import com.alexgabor.bookplate.core.library.FakeLibraryRepository
 import com.alexgabor.bookplate.core.library.fakeBook
 import com.alexgabor.bookplate.core.library.fakeLibraryModule
+import com.alexgabor.bookplate.core.player.fakePlayerModule
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.lib.appstateurl.AppUrl
 import com.alexgabor.lib.appstateurl.NoAppUrl
@@ -23,6 +24,7 @@ import org.koin.dsl.module
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Instant
 
 @OptIn(ExperimentalTestApi::class)
 class RootNavigationTest {
@@ -39,6 +41,7 @@ class RootNavigationTest {
                 },
                 fakeDocumentAccessModule,
                 fakeLibraryModule,
+                fakePlayerModule,
             )
         }
         KoinPlatform.getKoin().get<FakeLibraryRepository>().library()
@@ -60,17 +63,31 @@ class RootNavigationTest {
 
     @Test
     fun playerOpensForABookAndBackReturnsHome() = runComposeUiTest {
-        var id = BookId(0)
-        launched { id = add(fakeBook("Dune", author = "Frank Herbert")) }
+        launched { add(fakeBook("Dune", author = "Frank Herbert")) }
 
         onNodeWithText("Dune").performClick()
         waitForIdle()
-        onNodeWithText("Player").assertIsDisplayed()
-        onNodeWithText("Book ${id.value}").assertIsDisplayed()
+        onNodeWithText("Frank Herbert").assertIsDisplayed()
+        onNodeWithContentDescription("Chapters").assertIsDisplayed()
+        onNodeWithContentDescription("Play").assertIsDisplayed()
 
         onNodeWithContentDescription("Back").performClick()
         waitForIdle()
         onNodeWithText("Search title or author").assertIsDisplayed()
+    }
+
+    @Test
+    fun miniPlayerOpensPlayerForTheLastPlayedBook() = runComposeUiTest {
+        launched {
+            add(fakeBook("Dune", author = "Frank Herbert", lastPlayedAt = Instant.fromEpochSeconds(10)))
+            add(fakeBook("Emma", author = "Jane Austen"))
+        }
+
+        // The row and the mini player both read "Dune"; the mini player is the later one.
+        onAllNodesWithText("Dune")[1].performClick()
+        waitForIdle()
+        onNodeWithText("Frank Herbert").assertIsDisplayed()
+        onNodeWithContentDescription("Speed").assertIsDisplayed()
     }
 
     @Test

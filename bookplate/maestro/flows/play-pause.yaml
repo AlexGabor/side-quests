@@ -1,0 +1,37 @@
+# Playing and pausing in Player.
+#
+# Scenario: play, then pause
+#   Given "Sample Book" is open in Player at 0:00
+#   When I tap Play, wait, and tap Pause
+#   Then the position has moved on and stays put
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/open-sample-book.yaml
+- tapOn:
+    text: "Play"
+    # The position ruler glides while playing, so the screen never settles; don't wait for it.
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "Pause"
+# At least three seconds in. Taps can be slow while playing on a busy emulator, so nothing below
+# depends on exactly where it stops.
+- extendedWaitUntil:
+    visible:
+      text: "0:(0[3-9]|[1-5][0-9])|[12]:[0-9][0-9]"
+      below: "Sample Author"
+    timeout: 10000
+- tapOn:
+    text: "Pause"
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "Play"
+# The position: left of the duration and below the author, so not the status bar's clock.
+- copyTextFrom:
+    text: "[0-9]+:[0-9][0-9]"
+    below: "Sample Author"
+    leftOf: "3:10"
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    text: ${maestro.copiedText}
+    below: "Sample Author"

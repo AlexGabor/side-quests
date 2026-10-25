@@ -1,0 +1,25 @@
+# Scrubbing the position ruler to its end.
+#
+# Scenario: the ruler ends at the book's end
+#   Given "Sample Book" (3:10) is open in Player at 0:00
+#   When I drag the position ruler as far as it goes
+#   Then it stops at the book's end, not the next whole minute: the position reads 3:10 too
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/open-sample-book.yaml
+- swipe:
+    start: "60%,84%"
+    end: "5%,84%"
+    duration: 600
+- swipe:
+    start: "60%,84%"
+    end: "5%,84%"
+    duration: 600
+- waitForAnimationToEnd
+# The position, left of the duration: both read 3:10.
+- assertVisible:
+    text: "3:10"
+    below: "Sample Author"
+    leftOf: "3:10"

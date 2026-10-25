@@ -54,16 +54,14 @@ import org.koin.compose.koinInject
 /**
  * Bookplate's Home: the library, searchable, with a button to add a book.
  *
- * @param onOpenBook called with the id of the book whose row was tapped.
- * @param bottomBar drawn below the list, outside its scroll: the mini player's place. Empty, it takes
- *   no space.
+ * @param onOpenBook called with the id of the book whose row, or the mini player, was tapped.
  */
 @Composable
 fun HomeScreen(
     onOpenBook: (BookId) -> Unit,
     modifier: Modifier = Modifier,
-    bottomBar: @Composable () -> Unit = {},
     state: HomeState = rememberHomeState(),
+    miniPlayer: MiniPlayerState = rememberMiniPlayerState(),
     picker: DocumentPicker = koinInject(),
 ) {
     val launcher = picker.rememberLauncher(state::onPicked)
@@ -77,7 +75,8 @@ fun HomeScreen(
         onAddClick = state::onAddClick,
         onStatusClosed = state::onStatusClosed,
         onOpenBook = onOpenBook,
-        bottomBar = bottomBar,
+        mini = miniPlayer.mini.value,
+        onMiniPlayPause = miniPlayer::onPlayPause,
         modifier = modifier,
     )
 
@@ -95,7 +94,8 @@ private fun HomeContent(
     onAddClick: () -> Unit,
     onStatusClosed: () -> Unit,
     onOpenBook: (BookId) -> Unit,
-    bottomBar: @Composable () -> Unit,
+    mini: MiniPlayerUi?,
+    onMiniPlayPause: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val padding = RisoTheme.dimens.screenPadding
@@ -128,13 +128,13 @@ private fun HomeContent(
                 }
             }
 
-            // The list runs under the bottom inset unless a bottom bar takes it.
-            val listPadding = PaddingValues(
-                start = padding,
-                end = padding,
-                top = padding,
-                bottom = padding + WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding(),
-            )
+            // The list runs under the bottom inset unless the mini player takes it.
+            val bottomInset = if (mini == null) {
+                WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
+            } else {
+                0.dp
+            }
+            val listPadding = PaddingValues(start = padding, end = padding, top = padding, bottom = padding + bottomInset)
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (library) {
                     Library.Loading -> Unit
@@ -158,7 +158,9 @@ private fun HomeContent(
                     }
                 }
             }
-            bottomBar()
+            if (mini != null) {
+                MiniPlayer(mini = mini, onClick = { onOpenBook(mini.bookId) }, onPlayPause = onMiniPlayPause)
+            }
         }
     }
 }
@@ -240,6 +242,51 @@ private fun BookRowItem(row: BookRow, onClick: () -> Unit) {
     }
 }
 
+/**
+ * The last-played book at the bottom of Home, under a printed rule: tapping it opens Player, its button
+ * plays or pauses. It takes the bottom inset.
+ */
+@Composable
+private fun MiniPlayer(mini: MiniPlayerUi, onClick: () -> Unit, onPlayPause: () -> Unit) {
+    val colors = RisoTheme.colors
+    val lineWidth = RisoTheme.dimens.lineWidth
+    val padding = RisoTheme.dimens.screenPadding
+    val ink = Modifier.risoInk(colors.content)
+
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
+    ) {
+        Box(
+            ink.matchParentSize().drawBehind {
+                drawLine(colors.content, Offset.Zero, Offset(size.width, 0f), strokeWidth = lineWidth.toPx())
+            },
+        )
+        Column(
+            Modifier.padding(start = padding, end = padding, top = 8.dp, bottom = padding),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = mini.title,
+                    textStyle = RisoTheme.typography.heading3,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = ink.weight(1f),
+                )
+                FlatButton(
+                    icon = if (mini.isPlaying) IconType.Pause else IconType.Play,
+                    contentDescription = if (mini.isPlaying) "Pause" else "Play",
+                    onClick = onPlayPause,
+                )
+            }
+            SmallProgress(progress = mini.progress, modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
 @Composable
 private fun AddBookSheet(launcher: DocumentPickerLauncher, onDismissRequest: () -> Unit) {
     BottomSheet(onDismissRequest = onDismissRequest) {
@@ -279,7 +326,12 @@ private val PreviewRows = listOf(
 )
 
 @Composable
-private fun HomePreview(library: Library, importStatus: ImportStatus? = null, query: String = "") {
+private fun HomePreview(
+    library: Library,
+    importStatus: ImportStatus? = null,
+    query: String = "",
+    mini: MiniPlayerUi? = null,
+) {
     RisoTheme {
         HomeContent(
             query = query,
@@ -289,7 +341,8 @@ private fun HomePreview(library: Library, importStatus: ImportStatus? = null, qu
             onAddClick = {},
             onStatusClosed = {},
             onOpenBook = {},
-            bottomBar = {},
+            mini = mini,
+            onMiniPlayPause = {},
             modifier = Modifier.risoPaper(),
         )
     }
@@ -301,6 +354,7 @@ private fun HomeLibraryPreview() {
     HomePreview(
         library = Library.Books(PreviewRows),
         importStatus = ImportStatus.Running("Sample Book", "Reading file 1 of 2", 0.5f),
+        mini = MiniPlayerUi(BookId(1), "Dune", progress = 0.25f, isPlaying = true),
     )
 }
 

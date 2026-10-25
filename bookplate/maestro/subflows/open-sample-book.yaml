@@ -1,0 +1,11 @@
+# From a fresh Home: adds "Sample Book" and opens it in Player.
+appId: ${APP_ID}
+---
+- runFlow: add-sample-folder.yaml
+- extendedWaitUntil:
+    visible: "Added “Sample Book”"
+    timeout: 15000
+- tapOn: "Sample Book"
+- extendedWaitUntil:
+    visible: "Chapters"
+    timeout: 5000

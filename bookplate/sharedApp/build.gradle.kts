@@ -26,6 +26,10 @@ kotlin {
             implementation(projects.design.navigation)
             implementation(projects.bookplate.core.library.impl)
             implementation(projects.bookplate.feature.home)
+            implementation(projects.bookplate.feature.player)
+            // Temporary: the fake player is the app's player until M11/M12 bind real engines. See
+            // docs/architecture/known-deviations.md.
+            implementation(projects.bookplate.core.player.test)
             implementation(projects.lib.appstateurl.impl)
             implementation(projects.lib.documentaccess.impl)
             api(libs.koin.core)

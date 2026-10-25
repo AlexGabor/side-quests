@@ -1,0 +1,20 @@
+# Skipping 10 seconds both ways.
+#
+# Scenario: skip forward twice, back once
+#   Given "Sample Book" is open in Player, paused at 0:00
+#   When I tap forward 10 seconds twice and rewind 10 seconds once
+#   Then the position reads 0:10, 0:20, then 0:10; rewinding at the start stays at 0:00
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/open-sample-book.yaml
+- tapOn: "Forward 10 seconds"
+- assertVisible: "0:10"
+- tapOn: "Forward 10 seconds"
+- assertVisible: "0:20"
+- tapOn: "Rewind 10 seconds"
+- assertVisible: "0:10"
+- tapOn: "Rewind 10 seconds"
+- tapOn: "Rewind 10 seconds"
+- assertNotVisible: "0:10"
