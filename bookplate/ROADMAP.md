@@ -189,7 +189,7 @@ the fake document access and read them back from Room.
 **Done when:** UI matches the spec on a small and a large phone on both platforms; state-holder tests; Maestro flows
 for sheets and mini player.
 
-## M11 — Playback engine, Android
+## M11 — Playback engine, Android ✅
 
 **Change:** `bookplate-playback-android`
 

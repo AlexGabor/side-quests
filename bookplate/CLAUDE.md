@@ -10,8 +10,10 @@
 - Home lives in `feature/home` (`HomeScreen`, state holders `HomeState` and `MiniPlayerState`). Player lives in
   `feature/player` (`PlayerScreen`, state holder `PlayerScreenState`, speed and chapters sheets).
 - Playback goes through `core/player/api`'s `BookPlayer`: one `PlaybackState` flow, fire-and-forget commands,
-  book-wide positions. Until M11/M12, `sharedApp` binds `FakeBookPlayer` from `core/player/test` (a ticking clock that
-  saves progress to the library) on both platforms; see `known-deviations.md`.
+  book-wide positions. `core/player/impl` holds `EngineBookPlayer` (common: timeline across files, chapters,
+  saving and restoring progress) over a platform `AudioOutput`. On Android that is Media3 in `PlaybackService`
+  (a `MediaSessionService`), reading files through `lib/documentaccess`. `sharedApp` binds the engine on Android and,
+  until M12, `FakeBookPlayer` from `core/player/test` (a ticking clock) on iOS; see `known-deviations.md`.
 
 ## Running
 
@@ -30,7 +32,7 @@ xcrun simctl install booted bookplate/iosApp/build/Build/Products/Debug-iphonesi
 
 Tests: `./gradlew :bookplate:feature:home:jvmTest :bookplate:feature:player:jvmTest :bookplate:sharedApp:jvmTest
 :bookplate:core:library:impl:jvmTest :bookplate:core:library:test:jvmTest :bookplate:core:player:api:jvmTest
-:bookplate:core:player:test:jvmTest`.
+:bookplate:core:player:test:jvmTest :bookplate:core:player:impl:jvmTest`.
 
 The library database (`core/library/impl`, Room 3) exports its schema to `core/library/impl/schemas`; commit the new
 JSON whenever the schema version changes, and add a migration for it.

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Background playback: a media-playback foreground service and a wake lock so decoding continues with the
+    screen off. Media session notifications are exempt from POST_NOTIFICATIONS. No INTERNET: books are local.
+    Media3's ExoPlayer asks for ACCESS_NETWORK_STATE to estimate bandwidth for streams; Bookplate never streams,
+    so it is removed (Media3 treats the network type as unknown without it).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission
+        android:name="android.permission.ACCESS_NETWORK_STATE"
+        tools:node="remove" />
+
+    <application>
+        <service
+            android:name="com.alexgabor.bookplate.core.player.PlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
+    </application>
+
+</manifest>

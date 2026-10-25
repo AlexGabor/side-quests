@@ -27,9 +27,6 @@ kotlin {
             implementation(projects.bookplate.core.library.impl)
             implementation(projects.bookplate.feature.home)
             implementation(projects.bookplate.feature.player)
-            // Temporary: the fake player is the app's player until M11/M12 bind real engines. See
-            // docs/architecture/known-deviations.md.
-            implementation(projects.bookplate.core.player.test)
             implementation(projects.lib.appstateurl.impl)
             implementation(projects.lib.documentaccess.impl)
             api(libs.koin.core)
@@ -37,7 +34,16 @@ kotlin {
             implementation(libs.kotlinx.serialization.core)
         }
         androidMain.dependencies {
+            implementation(projects.bookplate.core.player.impl)
             implementation(libs.koin.android)
+        }
+        iosMain.dependencies {
+            // Temporary: the fake player is the iOS app's player until M12 binds the iOS engine. See
+            // docs/architecture/known-deviations.md.
+            implementation(projects.bookplate.core.player.test)
+        }
+        jvmMain.dependencies {
+            implementation(projects.bookplate.core.player.test)
         }
         commonTest.dependencies {
             implementation(projects.bookplate.core.library.test)
