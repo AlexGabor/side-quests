@@ -1,0 +1,35 @@
+# The mini player at the bottom of Home.
+#
+# Scenario: hidden on a fresh install, shown after playing
+#   Given a fresh install with "Sample Book" added
+#   Then Home has no mini player
+#   When I play the book in Player and go back
+#   Then the mini player shows it playing; its button pauses it; tapping it opens Player
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/add-sample-folder.yaml
+- extendedWaitUntil:
+    visible: "Added “Sample Book”"
+    timeout: 15000
+- assertNotVisible: "Play"
+- assertNotVisible: "Pause"
+- tapOn: "Sample Book"
+- tapOn:
+    text: "Play"
+    # The position ruler glides while playing, so the screen never settles; don't wait for it.
+    waitToSettleTimeoutMs: 1000
+- tapOn:
+    text: "Back"
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "Search title or author"
+- assertVisible: "Pause"
+- tapOn: "Pause"
+- assertVisible: "Play"
+# The book's row and the mini player both read "Sample Book"; the mini player is the second.
+- tapOn:
+    text: "Sample Book"
+    index: 1
+- assertVisible: "Chapters"
+- assertVisible: "Play"

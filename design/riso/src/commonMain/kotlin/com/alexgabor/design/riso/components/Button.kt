@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -39,6 +40,41 @@ fun Button(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+) {
+    ButtonContainer(onClick = onClick, modifier = modifier, padding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)) {
+        Text(
+            text = text,
+            textStyle = RisoTheme.typography.body,
+            color = RisoTheme.colors.paper,
+            modifier = Modifier.risoKnockout(),
+        )
+    }
+}
+
+/** A [Button] showing [icon], knocked out of the fill like the text of the text button. */
+@Composable
+fun Button(
+    icon: IconType,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ButtonContainer(onClick = onClick, modifier = modifier, padding = PaddingValues(12.dp)) {
+        Icon(
+            type = icon,
+            contentDescription = contentDescription,
+            color = RisoTheme.colors.paper,
+            modifier = Modifier.risoKnockout(),
+        )
+    }
+}
+
+@Composable
+private fun ButtonContainer(
+    onClick: () -> Unit,
+    modifier: Modifier,
+    padding: PaddingValues,
+    content: @Composable () -> Unit,
 ) {
     var pressed by remember { mutableStateOf(false) }
     val offset by animateFloatAsState(targetValue = if (pressed) 0f else 2f)
@@ -74,14 +110,9 @@ fun Button(
             }
             .risoInk(fill, offsetScale = offset)
             .background(fill.color(), shape = RisoTheme.shapes.standardShape)
-            .padding(horizontal = 24.dp, vertical = 12.dp),
+            .padding(padding),
     ) {
-        Text(
-            text = text,
-            textStyle = RisoTheme.typography.body,
-            color = RisoTheme.colors.paper,
-            modifier = Modifier.risoKnockout(),
-        )
+        content()
     }
 }
 
@@ -112,6 +143,14 @@ private fun ButtonPreview() {
                 Button(
                     text = "Button $counter",
                     onClick = { counter += 1 },
+                )
+            }
+            item {
+                Button(
+                    icon = IconType.Play,
+                    contentDescription = "Play",
+                    onClick = { counter += 1 },
+                    modifier = Modifier.padding(top = 16.dp),
                 )
             }
         }

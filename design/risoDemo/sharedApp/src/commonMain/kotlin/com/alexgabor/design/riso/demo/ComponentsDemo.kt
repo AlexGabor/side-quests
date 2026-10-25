@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Heading2
+import com.alexgabor.design.riso.components.Button
 import com.alexgabor.design.riso.components.FlatButton
 import com.alexgabor.design.riso.components.Icon
 import com.alexgabor.design.riso.components.IconType
@@ -114,7 +115,7 @@ private fun LiveProgress() {
                 contentDescription = "Back 10 %",
                 onClick = { progress = (progress - 0.1f).coerceAtLeast(0f) },
             )
-            FlatButton(
+            Button(
                 icon = if (playing) IconType.Pause else IconType.Play,
                 contentDescription = if (playing) "Pause" else "Play",
                 onClick = { playing = !playing },

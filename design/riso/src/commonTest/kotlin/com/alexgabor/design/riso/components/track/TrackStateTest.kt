@@ -50,4 +50,34 @@ class TrackStateTest {
         assertEquals(100, TrackState((0..20).toList(), subdivisions = 5, LazyListState()).maxTick)
         assertEquals(59, TrackState((0..59).toList(), subdivisions = 1, LazyListState()).maxTick)
     }
+
+    /** A ruler of minutes for something 3:15 long, in 10-second lines: it ends halfway past 3:10. */
+    @Test
+    fun aRulerCanEndInsideItsLastItem() {
+        val track = TrackState((0..3).toList(), subdivisions = 6, LazyListState(), endTick = 19.5f)
+
+        assertEquals(19.5f, track.end)
+        assertEquals(19, track.maxTick)
+        assertEquals(6f, track.ticksDrawnIn(2))
+        assertEquals(1.5f, track.ticksDrawnIn(3))
+        // The end padding makes up for the 4.5 lines after the end.
+        assertEquals(45f, track.tailPx(subdivisionPx = 10f))
+    }
+
+    @Test
+    fun withoutAnEndTheRulerEndsAtTheLastItem() {
+        val track = TrackState((0..3).toList(), subdivisions = 6, LazyListState())
+
+        assertEquals(18f, track.end)
+        assertEquals(18, track.maxTick)
+        assertEquals(0f, track.ticksDrawnIn(3))
+        assertEquals(60f, track.tailPx(subdivisionPx = 10f))
+    }
+
+    /** An end outside the last item is kept inside it. */
+    @Test
+    fun anEndIsKeptInsideTheLastItem() {
+        assertEquals(18f, TrackState((0..3).toList(), subdivisions = 6, LazyListState(), endTick = 2f).end)
+        assertEquals(23, TrackState((0..3).toList(), subdivisions = 6, LazyListState(), endTick = 40f).maxTick)
+    }
 }

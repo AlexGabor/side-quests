@@ -4,7 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
+import com.alexgabor.bookplate.core.library.BookId
 import com.alexgabor.bookplate.feature.home.HomeScreen
+import com.alexgabor.bookplate.feature.player.PlayerScreen
 import com.alexgabor.design.navigation.RisoNavigation
 import com.alexgabor.design.navigation.rememberDeepLinkedBackStack
 import com.alexgabor.design.riso.risograph.paper.risoPaper
@@ -62,8 +64,8 @@ fun RootNavigation() {
                 )
             }
             entry<BookplateDestination.Player>(clazzContentKey = { PLAYER }) { key ->
-                PlayerPlaceholder(
-                    bookId = key.bookId,
+                PlayerScreen(
+                    bookId = BookId(key.bookId.toLong()),
                     onBackClick = { nav.back() },
                 )
             }

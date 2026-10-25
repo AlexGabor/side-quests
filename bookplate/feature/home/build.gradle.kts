@@ -11,6 +11,7 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.design.riso)
             api(projects.bookplate.core.library.api)
+            api(projects.bookplate.core.player.api)
             api(projects.lib.documentaccess.api)
             implementation(projects.lib.coroutine.dispatchers)
             implementation(libs.koin.compose)
@@ -20,6 +21,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(projects.bookplate.core.library.test)
+            implementation(projects.bookplate.core.player.test)
             implementation(projects.lib.documentaccess.test)
             implementation(projects.lib.coroutine.test)
             implementation(libs.kotlin.test)

@@ -7,8 +7,11 @@
 - Offline: never add the `INTERNET` permission.
 - No deep links: no URL schemes, associated domains, view intent filters or `LaunchParameters`. Root navigation always starts at `Home`; `LocalDeepLink` is never provided.
 - Feature modules depend on `core/*/api`, never `impl`. Bindings live in `sharedApp`.
-- Home lives in `feature/home` (`HomeScreen`, state holder `HomeState`). The Player screen in
-  `sharedApp/.../Placeholders.kt` is temporary; it moves to `feature/player`.
+- Home lives in `feature/home` (`HomeScreen`, state holders `HomeState` and `MiniPlayerState`). Player lives in
+  `feature/player` (`PlayerScreen`, state holder `PlayerScreenState`, speed and chapters sheets).
+- Playback goes through `core/player/api`'s `BookPlayer`: one `PlaybackState` flow, fire-and-forget commands,
+  book-wide positions. Until M11/M12, `sharedApp` binds `FakeBookPlayer` from `core/player/test` (a ticking clock that
+  saves progress to the library) on both platforms; see `known-deviations.md`.
 
 ## Running
 
@@ -25,7 +28,9 @@ xcodebuild -project bookplate/iosApp/iosApp.xcodeproj -scheme iosApp -configurat
 xcrun simctl install booted bookplate/iosApp/build/Build/Products/Debug-iphonesimulator/Bookplate.app
 ```
 
-Tests: `./gradlew :bookplate:feature:home:jvmTest :bookplate:sharedApp:jvmTest :bookplate:core:library:impl:jvmTest :bookplate:core:library:test:jvmTest`.
+Tests: `./gradlew :bookplate:feature:home:jvmTest :bookplate:feature:player:jvmTest :bookplate:sharedApp:jvmTest
+:bookplate:core:library:impl:jvmTest :bookplate:core:library:test:jvmTest :bookplate:core:player:api:jvmTest
+:bookplate:core:player:test:jvmTest`.
 
 The library database (`core/library/impl`, Room 3) exports its schema to `core/library/impl/schemas`; commit the new
 JSON whenever the schema version changes, and add a migration for it.
@@ -36,6 +41,9 @@ UI flows ([Maestro](https://github.com/mobile-dev-inc/maestro)) live in `maestro
 |---------|------------------------------------------------------------------------------------------------------------------------|
 | Android | `./gradlew :bookplate:androidApp:installDebug && maestro test -e APP_ID=com.alexgabor.bookplate.debug bookplate/maestro` |
 | iOS     | Build and install the Debug app on the simulator, then `maestro test -e APP_ID=com.alexgabor.bookplate bookplate/maestro` |
+
+While a book plays, Player's position ruler glides, so the screen never settles: give taps made during playback
+`waitToSettleTimeoutMs`, and don't assert an exact position after one (on a busy emulator a step can take seconds).
 
 Every flow except `launch` adds books, so put the sample audio (below) on the device first. Flows start from
 `clearState: true`, so the library is empty; the sample files live outside the app and survive that. Shared steps are

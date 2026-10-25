@@ -5,18 +5,20 @@
 # Scenario: tap a book
 #   Given "Sample Book" is in the library
 #   When I tap its row
-#   Then Player opens for that book, and back returns to Home
+#   Then Player shows that book, paused at the start, and back returns to Home
 appId: ${APP_ID}
 ---
 - launchApp:
     clearState: true
-- runFlow: ../subflows/add-sample-folder.yaml
-- extendedWaitUntil:
-    visible: "Added “Sample Book”"
-    timeout: 15000
-- tapOn: "Sample Book"
-- assertVisible: "Player"
-- assertVisible: "Book 1"
+- runFlow: ../subflows/open-sample-book.yaml
+- assertVisible: "Sample Book"
+- assertVisible: "Sample Author"
+- assertVisible: "Opening"
+- assertVisible: "3:10"
+- assertVisible: "Play"
+- assertVisible: "Speed"
+- assertVisible: "Rewind 10 seconds"
+- assertVisible: "Forward 10 seconds"
 - tapOn: "Back"
 - assertVisible: "Search title or author"
 - assertVisible: "Sample Book"
