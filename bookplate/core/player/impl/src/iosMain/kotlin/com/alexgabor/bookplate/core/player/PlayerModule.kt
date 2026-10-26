@@ -15,16 +15,18 @@ import platform.UIKit.UIApplicationDidEnterBackgroundNotification
 
 /**
  * Binds one [EngineBookPlayer] playing through AVFoundation, over the bound `LibraryRepository` and
- * `DocumentAccess`. It plays for as long as the app runs, so its scope is never cancelled.
+ * `DocumentAccess`, shown and controlled in Now Playing by a [NowPlayingPanel]. It plays for as long as the app
+ * runs, so its scope is never cancelled.
  */
 val playerModule = module {
     single {
+        val scope = CoroutineScope(SupervisorJob())
         EngineBookPlayer(
             repository = get(),
             output = AvAudioOutput(documentAccess = get()),
-            scope = CoroutineScope(SupervisorJob()),
+            scope = scope,
             backgrounded = appBackgrounded(),
-        )
+        ).also { NowPlayingPanel(it).start(scope) }
     } bind BookPlayer::class
 }
 

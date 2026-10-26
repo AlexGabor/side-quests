@@ -368,6 +368,41 @@ class EngineBookPlayerTest {
     }
 
     @Test
+    fun savesASeekThePlatformMakesWhilePaused() = rule.testScope.runTest {
+        val id = addSampleBook(position = 30.seconds)
+        val output = output()
+        val player = player(output)
+        player.load(id)
+        runCurrent()
+
+        output.platformSeek(FilePosition(1, 55.seconds))
+        runCurrent()
+
+        assertFalse(player.state.value.isPlaying)
+        assertEquals(120.seconds, player.state.value.position)
+        assertEquals(1, player.state.value.chapterIndex)
+        assertEquals(120.seconds, saved(id).position)
+    }
+
+    @Test
+    fun savesASeekThePlatformMakesWhilePlaying() = rule.testScope.runTest {
+        val id = addSampleBook()
+        val output = output()
+        val player = player(output)
+        player.load(id)
+        player.play()
+        runCurrent()
+        advanceTimeBy(1.seconds)
+
+        output.platformSeek(FilePosition(0, 40.seconds))
+        runCurrent()
+
+        assertTrue(player.state.value.isPlaying)
+        assertEquals(40.seconds, player.state.value.position)
+        assertEquals(40.seconds, saved(id).position)
+    }
+
+    @Test
     fun followsPlaybackThePlatformResumes() = rule.testScope.runTest {
         val id = addSampleBook()
         val output = output()
