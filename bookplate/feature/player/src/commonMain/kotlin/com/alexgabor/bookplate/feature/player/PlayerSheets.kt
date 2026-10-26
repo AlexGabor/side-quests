@@ -34,13 +34,12 @@ import com.alexgabor.design.riso.components.track.rememberTrackState
 import com.alexgabor.design.riso.risograph.inks.risoInk
 import kotlin.math.roundToInt
 
-/** The slowest speed in tenths: the ruler starts at 0.0×, but nothing below this plays. */
+/** The slowest speed in tenths, where the ruler starts: its first item is 0×, but nothing below this plays. */
 private val MinTenths = (SpeedRange.start * 10).roundToInt()
 
 /**
  * A ruler from 0.3× to 3×: whole speeds are its items, tenths its subdivisions. It opens at [speed];
- * every tenth the user moves it to is sent to [onSpeedChange], and a ruler let go below 0.3× springs
- * back to it.
+ * every tenth the user moves it to is sent to [onSpeedChange].
  */
 @Composable
 internal fun SpeedSheet(
@@ -50,7 +49,7 @@ internal fun SpeedSheet(
     onDismissRequest: () -> Unit,
 ) {
     val maxSpeed = SpeedRange.endInclusive.roundToInt()
-    val track = rememberTrackState((0..maxSpeed).toList(), 10, rememberLazyListState())
+    val track = rememberTrackState((0..maxSpeed).toList(), 10, rememberLazyListState(), startTick = MinTenths)
     val initialTenths = (speed * 10).roundToInt()
     val currentOnSpeedChange by rememberUpdatedState(onSpeedChange)
 
@@ -60,9 +59,7 @@ internal fun SpeedSheet(
         // Only the user's own scrolls set the speed: the ruler reads 0.0× before it is first placed.
         var wasScrolling = false
         snapshotFlow { track.isUserScrolling to track.tick }.collect { (scrolling, tick) ->
-            val tenths = tick.coerceAtLeast(MinTenths)
-            if (scrolling || wasScrolling) currentOnSpeedChange(tenths / 10f)
-            if (!scrolling && wasScrolling && tick < MinTenths) track.moveToTick(MinTenths, animate = true)
+            if (scrolling || wasScrolling) currentOnSpeedChange(tick / 10f)
             wasScrolling = scrolling
         }
     }

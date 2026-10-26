@@ -30,11 +30,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
@@ -94,6 +99,8 @@ fun <T> Track(
     state.itemSizePx = itemWidthPx.toFloat()
 
     TrackHaptics(state)
+    val layoutDirection = LocalLayoutDirection.current
+    val startStop = remember(state, layoutDirection) { StartStop(state, layoutDirection) }
 
     BoxWithConstraints(modifier) {
         LazyRow(
@@ -114,7 +121,7 @@ fun <T> Track(
                 subdivision = state.subdivisions
             ),
             userScrollEnabled = userScrollEnabled,
-            modifier = Modifier.fillMaxWidth().drawBehind {
+            modifier = Modifier.fillMaxWidth().then(if (state.start > 0) Modifier.nestedScroll(startStop) else Modifier).drawBehind {
                 if (showGuidelineDot) {
                     guidelineCircle(lineColor, firstGuideline, trackAlignment)
                 }
@@ -133,6 +140,7 @@ fun <T> Track(
                             TrackAlignment.Top -> {
                                 topRulerLines(
                                     lineColor,
+                                    state.ticksSkippedIn(index),
                                     state.ticksDrawnIn(index),
                                     state.subdivisions,
                                     subdivisionPx,
@@ -143,6 +151,7 @@ fun <T> Track(
                             TrackAlignment.Bottom -> {
                                 bottomRulerLines(
                                     lineColor,
+                                    state.ticksSkippedIn(index),
                                     state.ticksDrawnIn(index),
                                     state.subdivisions,
                                     subdivisionPx,
@@ -155,6 +164,10 @@ fun <T> Track(
                     Box(
                         modifier = Modifier.graphicsLayer {
                             translationX = -size.width / 2f
+                        }.drawWithContent {
+                            // An item whose leading edge comes before the ruler's start has no line to
+                            // label. The label is still laid out: the item's height places its lines.
+                            if (state.ticksSkippedIn(index) == 0) drawContent()
                         }
                     ) {
                         itemContent(item, 0)
@@ -172,6 +185,24 @@ fun <T> Track(
                 itemContent(state.selectedItem, state.selectedSubdivision)
             }
         }
+    }
+}
+
+/**
+ * Stops the user's scrolls, the fling and snap after a drag included, with [TrackState.start] under the
+ * guideline. The list could only stop there by itself if the start padding shrank, and the guideline
+ * would move with it.
+ */
+private class StartStop(
+    private val state: TrackState<*>,
+    private val layoutDirection: LayoutDirection,
+) : NestedScrollConnection {
+    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+        // A drag to the right scrolls an LTR row back towards its start.
+        val sign = if (layoutDirection == LayoutDirection.Ltr) -1f else 1f
+        val scroll = available.x * sign
+        val left = state.backwardScrollLeftPx()
+        return if (scroll < left) Offset((scroll - left) * sign, 0f) else Offset.Zero
     }
 }
 
@@ -207,11 +238,15 @@ fun <T> rememberTrackState(
     subdivision: Int,
     listState: LazyListState,
     endTick: Float? = null,
-) = remember(trackItems, subdivision, listState, endTick) {
-    TrackState(trackItems, subdivision, listState, endTick)
+    startTick: Int = 0,
+) = remember(trackItems, subdivision, listState, endTick, startTick) {
+    TrackState(trackItems, subdivision, listState, endTick, startTick)
 }
 
 /**
+ * @param startTick where the ruler starts, in ruler lines from the first item's leading edge, when the
+ * values before it can't be picked (a speed ruler of whole speeds that starts at 0.3×). Nothing is drawn
+ * before it, a long line opens the ruler there, and it scrolls no further back.
  * @param endTick where the ruler ends, in ruler lines from its start, when that isn't the last item's
  * leading edge: a point inside the last item, between lines if need be (a book that is 3:15 long on a
  * ruler of minutes). The ruler is drawn up to it, closed by a long line, and scrolls no further.
@@ -221,6 +256,7 @@ class TrackState<T>(
     val subdivisions: Int,
     internal val listState: LazyListState = LazyListState(),
     endTick: Float? = null,
+    startTick: Int = 0,
 ) {
     var itemSizePx by mutableFloatStateOf(0f)
 
@@ -235,6 +271,18 @@ class TrackState<T>(
      * before [end]. The end contentPadding stops there, so lines after it can't be scrolled onto it.
      */
     val maxTick: Int get() = end.toInt()
+
+    /** The first ruler line the guideline reaches: [startTick], kept before [maxTick]. */
+    val start: Int = startTick.coerceIn(0, maxTick)
+
+    /** How many ruler lines of item [index], from its leading edge, come before [start] and aren't drawn. */
+    internal fun ticksSkippedIn(index: Int): Int = (start - index * subdivisions).coerceIn(0, subdivisions)
+
+    /** How far the list may still scroll back before [start] reaches the guideline, as a negative scroll. */
+    internal fun backwardScrollLeftPx(): Float {
+        val scrolled = listState.firstVisibleItemIndex * itemSizePx + listState.firstVisibleItemScrollOffset
+        return (start * itemSizePx / subdivisions - scrolled).coerceAtMost(0f)
+    }
 
     /** The ruler is scrolled as far as it goes: [end], not [maxTick], is under the guideline. */
     val isAtEnd: Boolean get() = !listState.canScrollForward
@@ -363,7 +411,7 @@ class TrackState<T>(
      * automation, which waits for that).
      */
     suspend fun moveTo(ticks: Float, animate: Boolean) {
-        val target = ticks.coerceIn(0f, end)
+        val target = ticks.coerceIn(start.toFloat(), end)
         val whole = target.toInt()
         val size = awaitItemSize()
         val index = whole / subdivisions
@@ -390,34 +438,37 @@ class TrackState<T>(
 
 /**
  * Item lines along the bottom: a long line at the item's leading edge, short ones at its subdivisions
- * and a rule joining them, for the first [ticks] ruler lines of the item. When the ruler ends inside
- * the item, a long line closes it there.
+ * and a rule joining them, for the item's ruler lines from [skipped] up to [ticks]. When the ruler starts
+ * or ends inside the item, a long line opens or closes it there.
  */
 private fun DrawScope.bottomRulerLines(
     lineColor: Color,
+    skipped: Int,
     ticks: Float,
     subdivision: Int,
     subdivisionPx: Float,
     strokeWidth: Float,
 ) {
     val base = size.height + verticalPadding.toPx()
-    rulerLines(lineColor, ticks, subdivision, subdivisionPx, strokeWidth, base, up = true)
+    rulerLines(lineColor, skipped, ticks, subdivision, subdivisionPx, strokeWidth, base, up = true)
 }
 
 /** As [bottomRulerLines], hanging from the top. */
 private fun DrawScope.topRulerLines(
     lineColor: Color,
+    skipped: Int,
     ticks: Float,
     subdivision: Int,
     subdivisionPx: Float,
     strokeWidth: Float,
 ) {
     val base = -verticalPadding.toPx()
-    rulerLines(lineColor, ticks, subdivision, subdivisionPx, strokeWidth, base, up = false)
+    rulerLines(lineColor, skipped, ticks, subdivision, subdivisionPx, strokeWidth, base, up = false)
 }
 
 private fun DrawScope.rulerLines(
     lineColor: Color,
+    skipped: Int,
     ticks: Float,
     subdivision: Int,
     subdivisionPx: Float,
@@ -432,15 +483,18 @@ private fun DrawScope.rulerLines(
         end = Offset(x, base + direction * height.toPx()),
         strokeWidth = width,
     )
-    line(0f, highLineHeight)
-    if (ticks <= 0f) return
-    repeat(subdivision) { index ->
+    if (skipped == 0) line(0f, highLineHeight)
+    if (ticks <= skipped) return
+    for (index in skipped until subdivision) {
         if (index <= ticks) line(subdivisionPx * index, lowLineHeight)
     }
+    val startX = skipped * subdivisionPx
     val endX = ticks * subdivisionPx
+    // Inside the item: the ruler's own start, not this item's leading edge.
+    if (skipped > 0) line(startX, highLineHeight)
     drawLine(
         color = lineColor,
-        start = Offset(0f, base),
+        start = Offset(startX, base),
         end = Offset(endX, base),
         strokeWidth = strokeWidth / 2
     )

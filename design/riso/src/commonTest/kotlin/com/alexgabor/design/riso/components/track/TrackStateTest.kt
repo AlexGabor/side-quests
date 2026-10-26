@@ -80,4 +80,26 @@ class TrackStateTest {
         assertEquals(18f, TrackState((0..3).toList(), subdivisions = 6, LazyListState(), endTick = 2f).end)
         assertEquals(23, TrackState((0..3).toList(), subdivisions = 6, LazyListState(), endTick = 40f).maxTick)
     }
+
+    /** A speed ruler of whole speeds in tenths that starts at 0.3×. */
+    @Test
+    fun aRulerCanStartInsideItsFirstItem() {
+        val track = TrackState((0..3).toList(), subdivisions = 10, LazyListState(), startTick = 3)
+        track.itemSizePx = 100f
+
+        assertEquals(3, track.start)
+        assertEquals(3, track.ticksSkippedIn(0))
+        assertEquals(0, track.ticksSkippedIn(1))
+        // At 0.0× it may not go back at all; at 0.5× it may go back 20px.
+        assertEquals(0f, track.backwardScrollLeftPx())
+        assertEquals(-20f, TrackState((0..3).toList(), 10, LazyListState(0, 50), startTick = 3)
+            .apply { itemSizePx = 100f }.backwardScrollLeftPx())
+    }
+
+    /** A start past the last reachable line is kept before it. */
+    @Test
+    fun aStartIsKeptBeforeTheEnd() {
+        assertEquals(30, TrackState((0..3).toList(), subdivisions = 10, LazyListState(), startTick = 99).start)
+        assertEquals(0, TrackState((0..3).toList(), subdivisions = 10, LazyListState(), startTick = -4).start)
+    }
 }
