@@ -37,6 +37,9 @@ internal class PanelPlayer(player: Player) : ForwardingSimpleBasePlayer(player) 
                 .setArtist(info.subtitle)
                 .setSubtitle(info.subtitle)
                 .setAlbumTitle(info.title)
+                // The book's cover only, never the file's embedded picture: while a new book loads, its labels
+                // briefly sit on the old item, and that picture would show (Media3 keeps a late-decoded artwork).
+                .setArtworkData(null, null)
                 .setArtworkUri(info.coverPath?.let { Uri.fromFile(File(it)) })
                 .build()
             builder.setPlaylist(state.timeline, state.currentTracks, metadata)
