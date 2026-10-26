@@ -46,7 +46,7 @@ fun SmallProgress(
     Box(
         modifier
             .semantics { progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f) }
-            .height(RisoTheme.dimens.lineWidth)
+            .height(3.dp)
             // The accent part separates onto its own drum and the half-strength content becomes a
             // half-tone on the black one, the way a press prints a tint. Printed in register: the
             // drums' usual 3 dp throw is wider than the line, and would part the two halves.

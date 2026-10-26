@@ -261,7 +261,7 @@ private fun MiniPlayer(mini: MiniPlayerUi, onClick: () -> Unit, onPlayPause: () 
     ) {
         Box(
             ink.matchParentSize().drawBehind {
-                drawLine(colors.content, Offset.Zero, Offset(size.width, 0f), strokeWidth = lineWidth.toPx())
+                drawLine(colors.content, Offset.Zero, Offset(size.width, 0f), strokeWidth = lineWidth.toPx() * 2)
             },
         )
         Column(
