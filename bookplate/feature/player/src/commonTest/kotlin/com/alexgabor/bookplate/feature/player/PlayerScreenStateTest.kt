@@ -250,12 +250,13 @@ class PlayerScreenStateTest {
     }
 
     @Test
-    fun scrubbingShowsTheTrackPositionThenSeeks() = rule.testScope.runTest {
+    fun scrubbingMovesTheTrackThenSeeks() = rule.testScope.runTest {
         val player = player()
         val state = screen(addSampleBook(), player)
 
         state.onScrub(2.minutes)
-        assertEquals("2:00", state.shown.positionLabel)
+        assertEquals(2.minutes, state.shown.position)
+        assertEquals("0:00", state.shown.positionLabel)
         assertEquals(Duration.ZERO, player.state.value.position)
 
         state.onScrubEnd(2.minutes)
@@ -266,7 +267,7 @@ class PlayerScreenStateTest {
     }
 
     @Test
-    fun scrubbedLabelHoldsUntilThePlayerCatchesUp() = rule.testScope.runTest {
+    fun scrubbedTrackHoldsUntilThePlayerCatchesUp() = rule.testScope.runTest {
         val player = player()
         val state = screen(addSampleBook(), player)
         player.play()
@@ -275,7 +276,8 @@ class PlayerScreenStateTest {
         state.onScrub(150.seconds)
         advanceTimeBy(1.seconds)
         runCurrent()
-        assertEquals("2:30", state.shown.positionLabel)
+        assertEquals(150.seconds, state.shown.position)
+        assertEquals("0:01", state.shown.positionLabel)
 
         state.onScrubEnd(150.seconds)
         advanceTimeBy(3.seconds)

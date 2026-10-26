@@ -31,8 +31,9 @@ enum class PlayerSheet { Speed, Chapters }
 /**
  * The book as Player shows it.
  *
- * @property position where the position track and label are: the scrubbed position while the user drags
- *   the track, the playback position otherwise.
+ * @property position where the position track is: the scrubbed position while the user drags it, the
+ *   playback position otherwise.
+ * @property positionLabel the playback position, also while the user drags the track.
  * @property chapterTitle the current chapter's title, or `null` when it has none.
  */
 data class PlayerUi(
@@ -144,8 +145,8 @@ class PlayerScreenState(
     }
 
     /**
-     * The track came to rest at [position]: seek there. The label stays at [position] until the player
-     * reports it, so the track doesn't jump back to the old position in between.
+     * The track came to rest at [position]: seek there. The track stays at [position] until the player
+     * reports it, so it doesn't jump back to the old position in between.
      */
     fun onScrubEnd(position: Duration) {
         onScrub(position)
@@ -252,7 +253,7 @@ internal fun PlaybackState.toUi(scrubbing: Duration?): PlayerUi {
         chapterTitle = chapter?.title,
         position = shown,
         duration = duration,
-        positionLabel = formatDuration(shown),
+        positionLabel = formatDuration(position),
         durationLabel = formatDuration(duration),
         isPlaying = isPlaying,
         speed = speed,

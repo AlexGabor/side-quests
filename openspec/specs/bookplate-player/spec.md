@@ -278,8 +278,8 @@ screen without stopping playback.
 - **THEN** it keeps playing
 
 ### Requirement: Scrubbing the position track
-Dragging the position `Track` SHALL show the position under the guideline in the position label while dragging, and,
-when the track comes to rest, SHALL seek to it. While nobody drags it, the track SHALL follow the playback position:
+While the position `Track` is dragged, the position label SHALL keep showing the playback position, and, when the
+track comes to rest, Player SHALL seek to the position under the guideline. While nobody drags it, the track SHALL follow the playback position:
 while playing it SHALL glide continuously at the book's speed rather than step from one 10-second line to the next,
 and while paused it SHALL rest at the position.
 
