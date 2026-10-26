@@ -21,9 +21,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.alexgabor.bookplate.core.library.BookId
 import com.alexgabor.design.riso.RisoTheme
@@ -181,7 +183,7 @@ private fun PlayerContent(
                 speed = ui.speed,
                 onScrub = onScrub,
                 onScrubEnd = onScrubEnd,
-                modifier = ink.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier.bleed(padding).then(ink).fillMaxWidth().padding(vertical = 8.dp),
             )
             Row(
                 Modifier.fillMaxWidth().padding(vertical = 16.dp),
@@ -198,6 +200,19 @@ private fun PlayerContent(
             }
         }
     }
+}
+
+/** Lets this child reach [horizontal] past each side of the space its parent gives it. */
+private fun Modifier.bleed(horizontal: Dp): Modifier = layout { measurable, constraints ->
+    val side = horizontal.roundToPx()
+    val placeable = measurable.measure(
+        constraints.copy(
+            minWidth = constraints.minWidth + side * 2,
+            maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + side * 2 else constraints.maxWidth,
+        ),
+    )
+    val width = (placeable.width - side * 2).coerceIn(constraints.minWidth, constraints.maxWidth)
+    layout(width, placeable.height) { placeable.place(-side, 0) }
 }
 
 /** The ruler's grid: one item a minute, one subdivision every [TickLength]. */
