@@ -45,7 +45,6 @@ private fun render(letter: String, inks: PanelInks): ByteArray {
     canvas.drawRoundRect(box, corner, corner, paint)
 
     paint.style = Paint.Style.FILL
-    paint.color = inks.content
     paint.typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
     paint.textSize = size * PanelArtwork.LETTER_SIZE
     paint.textAlign = Paint.Align.CENTER

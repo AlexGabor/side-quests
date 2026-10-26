@@ -7,7 +7,7 @@ Bookplate's Home screen: the library as rows (cover, title, author, duration, pr
 Home SHALL list every book in the library as one row in a vertical list. Each row SHALL show:
 - the book's cover as a plain image (not printed through Riso inks), or, when the book has no cover or its image
   can't be read, a Riso placeholder of the same size showing the first letter of the title, filled with the book's
-  accent variant at 40 % opacity and bordered in the book's accent;
+  accent variant at 40 % opacity, with the letter and a border in the book's accent;
 - the title;
 - the author, or "Unknown author" when the book has none;
 - the total duration, as `m:ss` under an hour and `h:mm:ss` from an hour;
@@ -24,8 +24,7 @@ Home SHALL list every book in the library as one row in a vertical list. Each ro
 
 #### Scenario: Placeholder in the book's inks
 - **WHEN** a book with inks Teal/Yellow has no cover
-- **THEN** its placeholder has a yellow background at 40 % opacity and a teal border, and the letter stays in the
-  content color
+- **THEN** its placeholder has a yellow background at 40 % opacity and a teal border, and a teal "S"
 
 #### Scenario: Cover
 - **WHEN** a book has a cover in app storage

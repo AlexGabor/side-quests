@@ -13,7 +13,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import com.alexgabor.design.riso.RisoTheme
-import com.alexgabor.design.riso.attributes.Heading2
+import com.alexgabor.design.riso.attributes.Text
 import com.alexgabor.design.riso.risograph.inks.risoFadeAsAlpha
 import com.alexgabor.design.riso.risograph.inks.risoInk
 import com.alexgabor.lib.coroutine.CoroutineDispatchers
@@ -25,7 +25,7 @@ import org.jetbrains.compose.resources.decodeToImageBitmap
 /**
  * A book's cover, read from [coverPath] in app storage and drawn as a plain image: covers are not
  * printed through Riso inks. Without a readable cover, a printed placeholder with [title]'s first letter, on the
- * accent variant at 0.4 and bordered in the accent: the book's inks, when drawn inside them.
+ * accent variant at 0.4, the letter and the border in the accent: the book's inks, when drawn inside them.
  *
  * Having no ink to thin, the image takes the enclosing `risoFade` (a screen crossfading, the page
  * behind a bottom sheet) as transparency, so it leaves with the print around it.
@@ -50,8 +50,8 @@ internal fun BookCover(
         )
     } else {
         val colors = RisoTheme.colors
-        // One ink per layer: the tint, the border, then the letter over both.
-        Box(modifier, contentAlignment = Alignment.Center) {
+        // Two inks: the tint, then the border and the letter over it.
+        Box(modifier) {
             Box(
                 Modifier.matchParentSize()
                     .risoInk(colors.accentVariant)
@@ -61,8 +61,10 @@ internal fun BookCover(
                 Modifier.matchParentSize()
                     .risoInk(colors.accent)
                     .border(RisoTheme.dimens.lineWidth, colors.accent, shape),
-            )
-            Heading2(text = title.trim().take(1).uppercase(), modifier = Modifier.risoInk(colors.content))
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(text = title.trim().take(1).uppercase(), textStyle = RisoTheme.typography.heading2, color = colors.accent)
+            }
         }
     }
 }

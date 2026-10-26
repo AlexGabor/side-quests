@@ -14,7 +14,6 @@ class RisoPanelInkColorsTest {
         assertEquals(RisoColors.inks.teal.toArgb(), inks.accent)
         assertEquals(RisoColors.inks.yellow.toArgb(), inks.accentVariant)
         assertEquals(RisoColors.paper.toArgb(), inks.paper)
-        assertEquals(RisoColors.content.toArgb(), inks.content)
     }
 
     @Test

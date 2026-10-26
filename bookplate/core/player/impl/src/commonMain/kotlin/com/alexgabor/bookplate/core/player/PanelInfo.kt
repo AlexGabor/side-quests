@@ -31,7 +31,7 @@ data class PanelInfo(
 }
 
 /** A book's inks as colors, ARGB, for drawing the panel artwork of a book without a cover. */
-data class PanelInks(val paper: Int, val content: Int, val accent: Int, val accentVariant: Int)
+data class PanelInks(val paper: Int, val accent: Int, val accentVariant: Int)
 
 /** Turns a book's ink names into the colors they print in. `sharedApp` binds it from Riso. */
 fun interface PanelInkColors {
@@ -40,8 +40,7 @@ fun interface PanelInkColors {
 
 /**
  * The square artwork a book without a cover shows in the media panel, like Home's placeholder, as fractions of its
- * side: paper washed with the accent variant at [WASH_ALPHA], a border in the accent, and the title's letter in the
- * content ink. Each platform draws it with its own 2D API.
+ * side: paper washed with the accent variant at [WASH_ALPHA], and a border and the title's letter in the accent. Each platform draws it with its own 2D API.
  */
 object PanelArtwork {
     const val SIZE_PX = 512

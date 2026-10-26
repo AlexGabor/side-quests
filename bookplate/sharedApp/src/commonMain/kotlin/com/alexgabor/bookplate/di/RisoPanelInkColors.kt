@@ -12,7 +12,6 @@ internal object RisoPanelInkColors : PanelInkColors {
         val colors = RisoColors
         return PanelInks(
             paper = colors.paper.toArgb(),
-            content = colors.content.toArgb(),
             accent = (colors.inks.named(inks.accent)?.color ?: colors.accent).toArgb(),
             accentVariant = (colors.inks.named(inks.accentVariant)?.color ?: colors.accentVariant).toArgb(),
         )

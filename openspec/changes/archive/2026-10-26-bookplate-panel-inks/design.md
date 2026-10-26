@@ -19,8 +19,8 @@ built once per load from `BookDetails`, by `EngineBookPlayer`, by `FakeBookPlaye
 
 ## Decisions
 
-- **Ink names become colors through an injected `PanelInkColors`.** The lookup returns `PanelInks(paper, content,
-  accent, accentVariant)` as ARGB `Int`s and lives in `core/player/impl` common. `sharedApp` binds it from
+- **Ink names become colors through an injected `PanelInkColors`.** The lookup returns `PanelInks(paper, accent,
+  accentVariant)` as ARGB `Int`s and lives in `core/player/impl` common. `sharedApp` binds it from
   `RisoColors`.
   - This keeps `core/player` free of Riso and Compose, the same way the library's `BookInkPicker` works.
 - **Artwork is drawn with each platform's own 2D API**, from one common description: the layout constants and

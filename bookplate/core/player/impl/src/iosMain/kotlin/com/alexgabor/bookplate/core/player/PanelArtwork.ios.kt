@@ -43,7 +43,7 @@ internal fun renderPanelArtwork(letter: String, inks: PanelInks): UIImage {
 
         val attributes = mapOf<Any?, Any?>(
             NSFontAttributeName to UIFont.monospacedSystemFontOfSize(size * PanelArtwork.LETTER_SIZE, UIFontWeightBold),
-            NSForegroundColorAttributeName to inks.content.uiColor(),
+            NSForegroundColorAttributeName to inks.accent.uiColor(),
         )
         val text = NSString.create(string = letter)
         text.sizeWithAttributes(attributes).useContents {
