@@ -8,14 +8,19 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.alexgabor.bookplate.core.library.BookId
 import com.alexgabor.bookplate.core.library.FakeLibraryRepository
 import com.alexgabor.bookplate.core.library.fakeBook
 import com.alexgabor.bookplate.core.library.fakeLibraryModule
+import com.alexgabor.bookplate.core.player.BookPlayer
 import com.alexgabor.bookplate.core.player.fakePlayerModule
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.lib.appstateurl.AppUrl
 import com.alexgabor.lib.appstateurl.NoAppUrl
 import com.alexgabor.lib.documentaccess.fakeDocumentAccessModule
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.serialization.json.Json
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -32,7 +37,10 @@ class RootNavigationTest {
     @AfterTest
     fun tearDown() = stopKoin()
 
-    private fun ComposeUiTest.launched(library: FakeLibraryRepository.() -> Unit = {}) {
+    private fun ComposeUiTest.launched(
+        showPlaying: Flow<Unit> = emptyFlow(),
+        library: FakeLibraryRepository.() -> Unit = {},
+    ) {
         // The same AppUrl a phone gets: one that does nothing.
         startKoin {
             modules(
@@ -48,7 +56,7 @@ class RootNavigationTest {
 
         setContent {
             RisoTheme(effectsEnabled = false) {
-                RootNavigation()
+                RootNavigation(showPlaying)
             }
         }
         waitForIdle()
@@ -88,6 +96,40 @@ class RootNavigationTest {
         waitForIdle()
         onNodeWithText("Frank Herbert").assertIsDisplayed()
         onNodeWithContentDescription("Speed").assertIsDisplayed()
+    }
+
+    @Test
+    fun showingThePlayingBookOpensPlayerOnTopOfHome() = runComposeUiTest {
+        val requests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        var dune: BookId? = null
+        launched(requests) {
+            dune = add(fakeBook("Dune", author = "Frank Herbert"))
+            add(fakeBook("Emma", author = "Jane Austen"))
+        }
+        KoinPlatform.getKoin().get<BookPlayer>().load(dune!!)
+        waitForIdle()
+
+        requests.tryEmit(Unit)
+        waitForIdle()
+        onNodeWithText("Frank Herbert").assertIsDisplayed()
+
+        // Already showing it: nothing is added, so one back returns Home.
+        requests.tryEmit(Unit)
+        waitForIdle()
+        onNodeWithContentDescription("Back").performClick()
+        waitForIdle()
+        onNodeWithText("Search title or author").assertIsDisplayed()
+    }
+
+    @Test
+    fun showingThePlayingBookWithNothingLoadedStaysHome() = runComposeUiTest {
+        val requests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        launched(requests) { add(fakeBook("Dune", author = "Frank Herbert")) }
+
+        requests.tryEmit(Unit)
+        waitForIdle()
+
+        onNodeWithText("Search title or author").assertIsDisplayed()
     }
 
     @Test

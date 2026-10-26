@@ -25,6 +25,11 @@ Targets: Android and iOS. Shared modules also build for the JVM, only so their t
   playing with the screen off or locked and the app in the background (on Android with a media notification).
   Playback pauses for calls and other apps' audio (and resumes after a call on iOS), and when headphones are
   unplugged.
+- The system media panel follows the playing book: on Android the notification and lock screen, on iOS Now Playing
+  on the lock screen and in Control Center. It shows the cover, the title, the current chapter (or the author when
+  there is no chapter title) and a seek bar over the whole book, with play/pause and rewind/forward 10 s. On Android
+  tapping it opens Player for that book, and a paused notification can be swiped away.
+- Headset and Bluetooth buttons play and pause; on Android next/previous skip 10 s.
 - Works offline: no network access is requested.
 - No links: the app only opens from its icon.
 

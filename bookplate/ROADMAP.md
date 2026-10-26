@@ -213,7 +213,7 @@ after a restart, and keeps playing with the screen off.
 
 **Done when:** the M11 checks pass on iOS.
 
-## M13 — Notification and lock screen panel
+## M13 — Notification and lock screen panel ✅
 
 **Change:** `bookplate-media-panel`
 

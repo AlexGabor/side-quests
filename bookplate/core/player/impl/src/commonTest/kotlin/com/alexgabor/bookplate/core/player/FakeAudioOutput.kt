@@ -95,6 +95,13 @@ class FakeAudioOutput(private val now: () -> Duration) : AudioOutput {
         mutableChanges.tryEmit(Unit)
     }
 
+    /** Moves by itself, as the media panel's seek bar or skip buttons do. */
+    fun platformSeek(at: FilePosition) {
+        advance()
+        position = at
+        mutableChanges.tryEmit(Unit)
+    }
+
     /** Reports a change without making one, as a late listener call does. */
     fun signalChange() {
         mutableChanges.tryEmit(Unit)

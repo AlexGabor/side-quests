@@ -46,7 +46,7 @@ class EngineBookPlayer(
     private val commands = Channel<suspend () -> Unit>(Channel.UNLIMITED)
     private val processor: Job by lazy {
         scope.launch(CoroutineDispatchers.Default) {
-            launch { output.changes.collect { commands.trySend { reconcile() } } }
+            launch { output.changes.collect { commands.trySend { reconcile(save = true) } } }
             launch { backgrounded.collect { commands.trySend { saveNow() } } }
             for (command in commands) command()
         }
@@ -136,8 +136,12 @@ class EngineBookPlayer(
     /**
      * Brings the state in line with what the output is doing now. Reading the output's current status,
      * rather than trusting what a change said, keeps a late change from undoing a later command.
+     *
+     * With [save], for a change the platform signalled, the position is saved: the platform may have seeked
+     * by itself (the media panel's seek bar or skip buttons, a headset button). A poll may already have
+     * caught up with such a seek, so the position isn't compared with the state's.
      */
-    private suspend fun reconcile() {
+    private suspend fun reconcile(save: Boolean = false) {
         val current = mutableState.value
         val book = current.book ?: return
         val bookTimeline = timeline ?: return
@@ -153,6 +157,7 @@ class EngineBookPlayer(
             // A transient focus loss leaves the output asked to play, so it resumes by itself afterwards.
             current.isPlaying && !status.isPlaying -> stopPlaying(syncPosition = false, pauseOutput = status.isFailed)
             !current.isPlaying && status.isPlaying && !status.isFailed -> startPlaying(book.id)
+            save -> save(book.id)
         }
     }
 

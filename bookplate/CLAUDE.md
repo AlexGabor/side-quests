@@ -16,6 +16,12 @@
   `audio` background mode. Both read files only through `lib/documentaccess` (iOS: an AVFoundation resource loader,
   `DocumentResourceLoader`). `sharedApp` binds the engine on both; `FakeBookPlayer` from `core/player/test` (a
   ticking clock) is for tests and previews.
+- The media panel: common `PanelInfo` (title, chapter-or-author subtitle, cover, book-wide position) and
+  `PanelUpdates`. Android plays a book as one Media3 item (`BookMediaItem.kt`, a `ConcatenatingMediaSource2` of its
+  files), labelled by `PanelPlayer`; panel and headset commands go straight to ExoPlayer and the engine follows
+  through `changes`. iOS's `NowPlayingPanel` fills `MPNowPlayingInfoCenter` and sends `MPRemoteCommandCenter`
+  commands to `BookPlayer`. Tapping the Android notification sends `ACTION_SHOW_PLAYING` to `MainActivity`, which
+  passes it to `App(showPlaying)`; it is not a deep link.
 
 ## Running
 
@@ -36,6 +42,17 @@ Tests: `./gradlew :bookplate:feature:home:jvmTest :bookplate:feature:player:jvmT
 :bookplate:core:library:impl:jvmTest :bookplate:core:library:test:jvmTest :bookplate:core:player:api:jvmTest
 :bookplate:core:player:test:jvmTest :bookplate:core:player:impl:jvmTest`. The iOS output's notification handling has
 simulator tests: `./gradlew :bookplate:core:player:impl:iosSimulatorArm64Test`.
+
+Checking the media panel:
+- Android: `adb shell dumpsys media_session` shows the session's state, position and metadata;
+  `adb shell input keyevent KEYCODE_MEDIA_PLAY_PAUSE` (or `_NEXT`, `_PREVIOUS`, `_FAST_FORWARD`, `_REWIND`) stands in
+  for headset buttons. The emulator ships with its lock screen off: `adb shell locksettings set-disabled false` to
+  see it, and `true` again afterwards. On Android 16 a paused media control is dismissed by long-pressing it, then
+  "Hide".
+- iOS simulator: the lock screen (or Notification Center pulled down) shows Now Playing, but draws its buttons blank
+  and redraws late; `maestro hierarchy` lists them ("Rewind 10 seconds", "Play"/"Pause", "Fast-forward 10 seconds",
+  "Track position"). Maestro's taps don't reach them, simulator taps do. `xcrun simctl spawn booted log show
+  --predicate 'process == "Bookplate"'` shows each `Got Command`. Control Center has no modules on the simulator.
 
 The library database (`core/library/impl`, Room 3) exports its schema to `core/library/impl/schemas`; commit the new
 JSON whenever the schema version changes, and add a migration for it.
