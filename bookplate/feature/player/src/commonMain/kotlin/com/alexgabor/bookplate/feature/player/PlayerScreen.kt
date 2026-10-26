@@ -274,7 +274,7 @@ private fun PositionTrack(
     BoxWithConstraints(modifier.clearAndSetSemantics {}) {
         Track(
             state = track,
-            itemSize = 60.dp,
+            itemSize = 120.dp,
             firstGuideline = maxWidth / 2,
             showGuidelineDot = true,
             // The ruler glides between lines, so nothing is printed at the guideline: the exact position
