@@ -18,9 +18,6 @@ import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.lib.appstateurl.AppUrl
 import com.alexgabor.lib.appstateurl.NoAppUrl
 import com.alexgabor.lib.documentaccess.fakeDocumentAccessModule
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.serialization.json.Json
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -38,7 +35,6 @@ class RootNavigationTest {
     fun tearDown() = stopKoin()
 
     private fun ComposeUiTest.launched(
-        showPlaying: Flow<Unit> = emptyFlow(),
         library: FakeLibraryRepository.() -> Unit = {},
     ) {
         // The same AppUrl a phone gets: one that does nothing.
@@ -46,6 +42,7 @@ class RootNavigationTest {
             modules(
                 module {
                     single<AppUrl> { NoAppUrl }
+                    single { ShowPlaying() }
                 },
                 fakeDocumentAccessModule,
                 fakeLibraryModule,
@@ -56,7 +53,7 @@ class RootNavigationTest {
 
         setContent {
             RisoTheme(effectsEnabled = false) {
-                RootNavigation(showPlaying)
+                RootNavigation()
             }
         }
         waitForIdle()
@@ -100,21 +97,20 @@ class RootNavigationTest {
 
     @Test
     fun showingThePlayingBookOpensPlayerOnTopOfHome() = runComposeUiTest {
-        val requests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         var dune: BookId? = null
-        launched(requests) {
+        launched {
             dune = add(fakeBook("Dune", author = "Frank Herbert"))
             add(fakeBook("Emma", author = "Jane Austen"))
         }
         KoinPlatform.getKoin().get<BookPlayer>().load(dune!!)
         waitForIdle()
 
-        requests.tryEmit(Unit)
+        KoinPlatform.getKoin().get<ShowPlaying>().request()
         waitForIdle()
         onNodeWithText("Frank Herbert").assertIsDisplayed()
 
         // Already showing it: nothing is added, so one back returns Home.
-        requests.tryEmit(Unit)
+        KoinPlatform.getKoin().get<ShowPlaying>().request()
         waitForIdle()
         onNodeWithContentDescription("Back").performClick()
         waitForIdle()
@@ -123,10 +119,9 @@ class RootNavigationTest {
 
     @Test
     fun showingThePlayingBookWithNothingLoadedStaysHome() = runComposeUiTest {
-        val requests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-        launched(requests) { add(fakeBook("Dune", author = "Frank Herbert")) }
+        launched { add(fakeBook("Dune", author = "Frank Herbert")) }
 
-        requests.tryEmit(Unit)
+        KoinPlatform.getKoin().get<ShowPlaying>().request()
         waitForIdle()
 
         onNodeWithText("Search title or author").assertIsDisplayed()

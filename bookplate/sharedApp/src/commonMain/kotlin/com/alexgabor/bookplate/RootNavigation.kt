@@ -12,8 +12,6 @@ import com.alexgabor.bookplate.feature.player.PlayerScreen
 import com.alexgabor.design.navigation.RisoNavigation
 import com.alexgabor.design.navigation.rememberDeepLinkedBackStack
 import com.alexgabor.design.riso.risograph.paper.risoPaper
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.serialization.Serializable
 import org.koin.compose.koinInject
 
@@ -47,11 +45,11 @@ private const val HOME = "home"
 private const val PLAYER = "player"
 
 /**
- * @param showPlaying each emission opens Player on top for the book [BookPlayer] has loaded, unless Player is
- *   already showing it; with no book loaded it does nothing.
+ * Each [ShowPlaying] request opens Player on top for the book [BookPlayer] has loaded, unless Player is already
+ * showing it; with no book loaded it does nothing.
  */
 @Composable
-fun RootNavigation(showPlaying: Flow<Unit> = emptyFlow()) {
+fun RootNavigation() {
     val nav = rememberDeepLinkedBackStack(
         serializer = BookplateDestination.serializer(),
         appUrl = koinInject(),
@@ -61,8 +59,9 @@ fun RootNavigation(showPlaying: Flow<Unit> = emptyFlow()) {
         listOf(BookplateDestination.Home)
     }
     val player = koinInject<BookPlayer>()
+    val showPlaying = koinInject<ShowPlaying>()
     LaunchedEffect(showPlaying) {
-        showPlaying.collect {
+        showPlaying.requests.collect {
             val book = player.state.value.book ?: return@collect
             val playing = BookplateDestination.Player(book.id.value.toString())
             if (nav.backStack.lastOrNull() != playing) nav.open(playing)
