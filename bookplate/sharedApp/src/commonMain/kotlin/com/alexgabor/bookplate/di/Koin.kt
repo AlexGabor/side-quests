@@ -17,7 +17,7 @@ val sharedModule = module {
     includes(platformPlayerModule)
 }
 
-/** The app's `BookPlayer`: the Media3 engine on Android, the clock-driven fake where no engine exists yet. */
+/** The app's `BookPlayer`: the engine on Android (Media3) and iOS (AVFoundation), the clock-driven fake in JVM tests. */
 expect val platformPlayerModule: Module
 
 fun initKoin(config: KoinAppDeclaration = {}) {

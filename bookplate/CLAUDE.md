@@ -12,8 +12,10 @@
 - Playback goes through `core/player/api`'s `BookPlayer`: one `PlaybackState` flow, fire-and-forget commands,
   book-wide positions. `core/player/impl` holds `EngineBookPlayer` (common: timeline across files, chapters,
   saving and restoring progress) over a platform `AudioOutput`. On Android that is Media3 in `PlaybackService`
-  (a `MediaSessionService`), reading files through `lib/documentaccess`. `sharedApp` binds the engine on Android and,
-  until M12, `FakeBookPlayer` from `core/player/test` (a ticking clock) on iOS; see `known-deviations.md`.
+  (a `MediaSessionService`); on iOS an `AVQueuePlayer` (`AvAudioOutput`) with the `.playback` audio session and the
+  `audio` background mode. Both read files only through `lib/documentaccess` (iOS: an AVFoundation resource loader,
+  `DocumentResourceLoader`). `sharedApp` binds the engine on both; `FakeBookPlayer` from `core/player/test` (a
+  ticking clock) is for tests and previews.
 
 ## Running
 
@@ -32,7 +34,8 @@ xcrun simctl install booted bookplate/iosApp/build/Build/Products/Debug-iphonesi
 
 Tests: `./gradlew :bookplate:feature:home:jvmTest :bookplate:feature:player:jvmTest :bookplate:sharedApp:jvmTest
 :bookplate:core:library:impl:jvmTest :bookplate:core:library:test:jvmTest :bookplate:core:player:api:jvmTest
-:bookplate:core:player:test:jvmTest :bookplate:core:player:impl:jvmTest`.
+:bookplate:core:player:test:jvmTest :bookplate:core:player:impl:jvmTest`. The iOS output's notification handling has
+simulator tests: `./gradlew :bookplate:core:player:impl:iosSimulatorArm64Test`.
 
 The library database (`core/library/impl`, Room 3) exports its schema to `core/library/impl/schemas`; commit the new
 JSON whenever the schema version changes, and add a migration for it.
@@ -43,6 +46,8 @@ UI flows ([Maestro](https://github.com/mobile-dev-inc/maestro)) live in `maestro
 |---------|------------------------------------------------------------------------------------------------------------------------|
 | Android | `./gradlew :bookplate:androidApp:installDebug && maestro test -e APP_ID=com.alexgabor.bookplate.debug bookplate/maestro` |
 | iOS     | Build and install the Debug app on the simulator, then `maestro test -e APP_ID=com.alexgabor.bookplate bookplate/maestro` |
+
+With an emulator and a simulator both running, Maestro picks one; pass `--device <udid or emulator-5554>` before `test`.
 
 While a book plays, Player's position ruler glides, so the screen never settles: give taps made during playback
 `waitToSettleTimeoutMs`, and don't assert an exact position after one (on a busy emulator a step can take seconds).

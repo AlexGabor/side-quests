@@ -25,6 +25,7 @@ kotlin {
             implementation(projects.design.riso)
             implementation(projects.design.navigation)
             implementation(projects.bookplate.core.library.impl)
+            implementation(projects.bookplate.core.player.impl)
             implementation(projects.bookplate.feature.home)
             implementation(projects.bookplate.feature.player)
             implementation(projects.lib.appstateurl.impl)
@@ -34,15 +35,10 @@ kotlin {
             implementation(libs.kotlinx.serialization.core)
         }
         androidMain.dependencies {
-            implementation(projects.bookplate.core.player.impl)
             implementation(libs.koin.android)
         }
-        iosMain.dependencies {
-            // Temporary: the fake player is the iOS app's player until M12 binds the iOS engine. See
-            // docs/architecture/known-deviations.md.
-            implementation(projects.bookplate.core.player.test)
-        }
         jvmMain.dependencies {
+            // The JVM target only runs tests, which play through the clock-driven fake.
             implementation(projects.bookplate.core.player.test)
         }
         commonTest.dependencies {

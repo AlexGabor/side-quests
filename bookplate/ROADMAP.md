@@ -203,7 +203,7 @@ for sheets and mini player.
 **Done when:** on Android a multi-file book plays across file boundaries, resumes at the saved position and speed
 after a restart, and keeps playing with the screen off.
 
-## M12 — Playback engine, iOS
+## M12 — Playback engine, iOS  ✅
 
 **Change:** `bookplate-playback-ios`
 
