@@ -2,6 +2,7 @@ package com.alexgabor.bookplate.core.player
 
 import com.alexgabor.bookplate.core.library.Availability
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.BookInks
 import com.alexgabor.bookplate.core.library.FakeBookAvailability
 import com.alexgabor.bookplate.core.library.Chapter
 import com.alexgabor.bookplate.core.library.FakeLibraryRepository
@@ -68,6 +69,19 @@ class FakeBookPlayerTest {
         assertEquals(1.5f, state.speed)
         assertFalse(state.isPlaying)
         assertEquals(190.seconds, state.duration)
+    }
+
+    @Test
+    fun followsTheLoadedBooksInks() = rule.testScope.runTest {
+        val id = addSampleBook()
+        val player = player()
+        player.load(id)
+        runCurrent()
+
+        repository.setInks(id, BookInks(accent = "Green", accentVariant = "Orange"))
+        runCurrent()
+
+        assertEquals(BookInks(accent = "Green", accentVariant = "Orange"), player.state.value.book?.inks)
     }
 
     @Test

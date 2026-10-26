@@ -4,6 +4,7 @@ import com.alexgabor.bookplate.core.library.AudioFile
 import com.alexgabor.bookplate.core.library.Availability
 import com.alexgabor.bookplate.core.library.FakeBookAvailability
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.BookInks
 import com.alexgabor.bookplate.core.library.Chapter
 import com.alexgabor.bookplate.core.library.FakeLibraryRepository
 import com.alexgabor.bookplate.core.library.fakeBook
@@ -102,6 +103,26 @@ class EngineBookPlayerTest {
         assertEquals(FilePosition(1, 25.seconds), status(output).position)
         assertEquals(1.5f, output.speed)
         assertFalse(output.isPlaying)
+    }
+
+    @Test
+    fun followsTheLoadedBooksInksWithoutTouchingPlayback() = rule.testScope.runTest {
+        val id = addSampleBook(position = 30.seconds)
+        val output = output()
+        val player = player(output)
+        player.load(id)
+        runCurrent()
+        player.play()
+        runCurrent()
+
+        repository.setInks(id, BookInks(accent = "Green", accentVariant = "Orange"))
+        runCurrent()
+
+        val state = player.state.value
+        assertEquals(BookInks(accent = "Green", accentVariant = "Orange"), state.book?.inks)
+        assertTrue(state.isPlaying)
+        assertTrue(output.isPlaying)
+        assertEquals(2, output.files.size)
     }
 
     @Test

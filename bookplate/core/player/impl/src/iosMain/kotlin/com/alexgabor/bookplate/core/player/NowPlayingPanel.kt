@@ -39,13 +39,13 @@ import platform.UIKit.UIImage
  * again when that would be off: on play and pause, a seek, a speed or chapter change.
  */
 @OptIn(ExperimentalForeignApi::class)
-internal class NowPlayingPanel(private val player: BookPlayer) {
+internal class NowPlayingPanel(private val player: BookPlayer, private val inkColors: PanelInkColors) {
 
     private val updates = PanelUpdates()
 
-    /** The artwork for [artworkPath], made once per cover. */
+    /** The artwork for [artworkKey], made once per cover, or per letter and inks for a book without one. */
     private var artwork: MPMediaItemArtwork? = null
-    private var artworkPath: String? = null
+    private var artworkKey: Any? = null
 
     /** Registers the remote commands and follows [player]'s state, on the main thread, for as long as [scope]. */
     fun start(scope: CoroutineScope) {
@@ -75,17 +75,23 @@ internal class NowPlayingPanel(private val player: BookPlayer) {
             MPNowPlayingInfoPropertyMediaType to MPNowPlayingInfoMediaTypeAudio,
         )
         info.subtitle?.let { values[MPMediaItemPropertyArtist] = it }
-        artworkFor(info.coverPath)?.let { values[MPMediaItemPropertyArtwork] = it }
+        artworkFor(info)?.let { values[MPMediaItemPropertyArtwork] = it }
         center.nowPlayingInfo = values
         center.playbackState = if (info.isPlaying) MPNowPlayingPlaybackStatePlaying else MPNowPlayingPlaybackStatePaused
     }
 
-    private fun artworkFor(path: String?): MPMediaItemArtwork? {
-        if (path != artworkPath) {
-            artworkPath = path
-            artwork = path?.let { UIImage.imageWithContentsOfFile(it) }?.let { image ->
-                MPMediaItemArtwork(boundsSize = image.size) { _ -> image }
+    /** The cover, or for a book without one its ink artwork, which the system colors Now Playing from. */
+    private fun artworkFor(info: PanelInfo): MPMediaItemArtwork? {
+        val path = info.coverPath
+        val key: Any = path ?: (info.artworkLetter to info.inks)
+        if (key != artworkKey) {
+            artworkKey = key
+            val image = if (path != null) {
+                UIImage.imageWithContentsOfFile(path)
+            } else {
+                renderPanelArtwork(info.artworkLetter, inkColors.of(info.inks))
             }
+            artwork = image?.let { MPMediaItemArtwork(boundsSize = it.size) { _ -> it } }
         }
         return artwork
     }

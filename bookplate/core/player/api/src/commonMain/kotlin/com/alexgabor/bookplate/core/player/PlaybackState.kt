@@ -1,6 +1,7 @@
 package com.alexgabor.bookplate.core.player
 
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.BookInks
 import com.alexgabor.bookplate.core.library.Chapter
 import com.alexgabor.bookplate.core.library.playable
 import kotlin.time.Duration
@@ -31,6 +32,7 @@ data class PlaybackState(
  * The parts of a library book the player and its UI need.
  *
  * @property chapters top-level chapters, sections holding their own, as the library stores them.
+ * @property inks the inks the book is printed in, followed while it is loaded.
  */
 data class PlayerBook(
     val id: BookId,
@@ -39,6 +41,7 @@ data class PlayerBook(
     val coverPath: String?,
     val duration: Duration,
     val chapters: List<Chapter>,
+    val inks: BookInks = BookInks.Default,
 ) {
     /** Every chapter that can be played, in order: what [PlaybackState.chapterIndex] indexes. */
     val playableChapters: List<Chapter> = chapters.playable()

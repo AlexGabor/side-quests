@@ -1,6 +1,7 @@
 package com.alexgabor.bookplate.core.player
 
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.BookInks
 import com.alexgabor.bookplate.core.library.Chapter
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,12 +26,24 @@ class PanelInfoTest {
         position: Int = 90,
         isPlaying: Boolean = true,
         speed: Float = 1f,
+        inks: BookInks = BookInks.Default,
     ) = PlaybackState(
-        book = PlayerBook(BookId(1), title, author, "/covers/1.jpg", 190.seconds, chapters),
+        book = PlayerBook(BookId(1), title, author, "/covers/1.jpg", 190.seconds, chapters, inks),
         position = position.seconds,
         isPlaying = isPlaying,
         speed = speed,
     )
+
+    @Test
+    fun carriesTheInksAndPushesWhenTheyChange() {
+        val green = BookInks(accent = "Green", accentVariant = "Orange")
+        assertEquals(green, state(inks = green).panelInfo()?.inks)
+        assertEquals("S", state(title = " sample").panelInfo()?.artworkLetter)
+
+        val updates = PanelUpdates(TestTimeSource())
+        updates.shouldPush(state(isPlaying = false).panelInfo())
+        assertTrue(updates.shouldPush(state(isPlaying = false, inks = green).panelInfo()))
+    }
 
     @Test
     fun nothingLoadedShowsNothing() {

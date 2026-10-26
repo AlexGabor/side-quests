@@ -18,7 +18,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -52,6 +54,9 @@ class FakeBookPlayer(
 
     private var ticker: Job? = null
 
+    /** Follows the loaded book's inks; see [followInks]. */
+    private var inksJob: Job? = null
+
     /** The position last written to the library, so playback saves every [SaveInterval]. */
     private var savedPosition = Duration.ZERO
 
@@ -65,6 +70,7 @@ class FakeBookPlayer(
         val details = repository.book(id).first()
         mutableState.value = details?.toState() ?: PlaybackState()
         savedPosition = mutableState.value.position
+        followInks(details?.book?.id)
     }
 
     override fun play() = enqueue {
@@ -111,6 +117,23 @@ class FakeBookPlayer(
     override fun jumpToChapter(index: Int) = enqueue {
         val chapter = mutableState.value.book?.playableChapters?.getOrNull(index) ?: return@enqueue
         moveTo(chapter.start)
+    }
+
+    /** Follows the loaded book's inks in the library until another book is loaded, keeping [state]'s book in step. */
+    private fun followInks(id: BookId?) {
+        inksJob?.cancel()
+        inksJob = id?.let {
+            scope.launch(CoroutineDispatchers.Default) {
+                repository.book(id).mapNotNull { it?.book?.inks }.distinctUntilChanged().collect { inks ->
+                    enqueue {
+                        mutableState.update { state ->
+                            val book = state.book?.takeIf { it.id == id && it.inks != inks } ?: return@update state
+                            state.copy(book = book.copy(inks = inks))
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun enqueue(command: suspend () -> Unit) {
@@ -180,6 +203,7 @@ private fun BookDetails.toState(): PlaybackState {
         coverPath = book.coverPath,
         duration = book.duration,
         chapters = chapters,
+        inks = book.inks,
     )
     return PlaybackState(
         book = book,

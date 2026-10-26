@@ -17,7 +17,8 @@ Targets: Android and iOS. Shared modules also build for the JVM, only so their t
   move around in it, and tapping Play switches to it.
 - Each book is printed in its own pair of Riso inks, picked at random when it is added: in Player, in its row on
   Home and in the mini player. A swatch in Player's top bar shows another pair; tapping it gives the book that pair
-  and shows a new one.
+  and shows a new one. A book without a cover shows artwork in its inks in the system media panel, which
+  takes its colors from it.
 - Speed from 0.3× to 3× in steps of 0.1× in a sheet, kept per book.
 - Chapters in a sheet, grouped under their sections, with durations; the current one is highlighted and tapping one
   jumps to it.

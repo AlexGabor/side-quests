@@ -33,6 +33,10 @@
   v3). `BookInkPicker` is bound in `sharedApp` (`RisoBookInkPicker`: two different `Inks.accents`) and used at import,
   by the v2→v3 migration and for Player's swatch. Home's rows, the mini player and Player (with its sheets) print
   inside `RisoInks` with the book's pair; a name Riso doesn't know falls back to the theme's accents.
+  `PlayerBook.inks` follows the loaded book's ink changes (engine and fake). The media panel can't be colored directly
+  (Android 13+ and iOS take its colors from the artwork), so a coverless book sends `PanelArtwork` in its inks:
+  drawn with `android.graphics` as PNG in `PanelPlayer`, with UIKit in `NowPlayingPanel`, colors from the
+  `PanelInkColors` bound in `sharedApp` (`RisoPanelInkColors`).
 
 ## Running
 

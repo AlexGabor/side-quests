@@ -1,6 +1,7 @@
 package com.alexgabor.bookplate.core.player
 
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.BookInks
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
@@ -12,6 +13,7 @@ import kotlin.time.TimeSource
  *
  * @property subtitle the current chapter's title, or the author when there is no chapter title worth showing.
  * @property coverPath the cover copied into app storage, or `null` when the book has none.
+ * @property inks the book's inks, which the artwork of a book without a cover is printed in.
  */
 data class PanelInfo(
     val bookId: BookId,
@@ -22,7 +24,33 @@ data class PanelInfo(
     val position: Duration,
     val isPlaying: Boolean,
     val speed: Float,
-)
+    val inks: BookInks = BookInks.Default,
+) {
+    /** The letter a coverless book's artwork shows: the title's first, upper-cased. */
+    val artworkLetter: String get() = title.trim().take(1).uppercase()
+}
+
+/** A book's inks as colors, ARGB, for drawing the panel artwork of a book without a cover. */
+data class PanelInks(val paper: Int, val content: Int, val accent: Int, val accentVariant: Int)
+
+/** Turns a book's ink names into the colors they print in. `sharedApp` binds it from Riso. */
+fun interface PanelInkColors {
+    fun of(inks: BookInks): PanelInks
+}
+
+/**
+ * The square artwork a book without a cover shows in the media panel, like Home's placeholder, as fractions of its
+ * side: paper washed with the accent variant at [WASH_ALPHA], a border in the accent, and the title's letter in the
+ * content ink. Each platform draws it with its own 2D API.
+ */
+object PanelArtwork {
+    const val SIZE_PX = 512
+    const val WASH_ALPHA = 0.4f
+    const val BORDER_INSET = 0.06f
+    const val BORDER_WIDTH = 0.025f
+    const val CORNER_RADIUS = 0.12f
+    const val LETTER_SIZE = 0.5f
+}
 
 /**
  * The panel's view of this state, or `null` with no book loaded.
@@ -42,6 +70,7 @@ fun PlaybackState.panelInfo(): PanelInfo? {
         position = position,
         isPlaying = isPlaying,
         speed = speed,
+        inks = book.inks,
     )
 }
 

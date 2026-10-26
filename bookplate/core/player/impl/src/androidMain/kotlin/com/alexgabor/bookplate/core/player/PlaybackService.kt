@@ -38,6 +38,7 @@ class PlaybackService : MediaSessionService() {
 
     private val documentAccess: DocumentAccess by inject()
     private val bookPlayer: BookPlayer by inject()
+    private val inkColors: PanelInkColors by inject()
     private var session: MediaSession? = null
 
     override fun onCreate() {
@@ -58,7 +59,7 @@ class PlaybackService : MediaSessionService() {
             .setSeekBackIncrementMs(SkipInterval.inWholeMilliseconds)
             .setSeekForwardIncrementMs(SkipInterval.inWholeMilliseconds)
             .build()
-        val player = PanelPlayer(exoPlayer)
+        val player = PanelPlayer(exoPlayer, PanelArtworkPng(inkColors))
         val builder = MediaSession.Builder(this, player)
             .setCallback(Callback)
             .setMediaButtonPreferences(skipButtons)
@@ -79,7 +80,7 @@ class PlaybackService : MediaSessionService() {
             bookPlayer.state
                 .map { it.panelInfo() }
                 // Only what the labels show; the position comes from the player itself.
-                .distinctUntilChangedBy { info -> info?.run { listOf(bookId, title, subtitle, coverPath) } }
+                .distinctUntilChangedBy { info -> info?.run { listOf(bookId, title, subtitle, coverPath, inks) } }
                 .collect(player::show)
         }
     }

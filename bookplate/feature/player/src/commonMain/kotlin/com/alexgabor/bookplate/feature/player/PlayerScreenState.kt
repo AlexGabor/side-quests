@@ -430,6 +430,7 @@ private fun BookDetails.toSavedState(): PlaybackState = PlaybackState(
         coverPath = book.coverPath,
         duration = book.duration,
         chapters = chapters,
+        inks = book.inks,
     ),
     position = book.position.coerceIn(Duration.ZERO, book.duration),
     isPlaying = false,

@@ -15,7 +15,8 @@ import platform.UIKit.UIApplicationDidEnterBackgroundNotification
 
 /**
  * Binds one [EngineBookPlayer] playing through AVFoundation, over the bound `LibraryRepository`, `BookAvailability`
- * and `DocumentAccess`, shown and controlled in Now Playing by a [NowPlayingPanel]. It plays for as long as the app
+ * and `DocumentAccess`, shown and controlled in Now Playing by a [NowPlayingPanel] that draws coverless books in the
+ * bound [PanelInkColors]. It plays for as long as the app
  * runs, so its scope is never cancelled.
  */
 val playerModule = module {
@@ -27,7 +28,7 @@ val playerModule = module {
             output = AvAudioOutput(documentAccess = get()),
             scope = scope,
             backgrounded = appBackgrounded(),
-        ).also { NowPlayingPanel(it).start(scope) }
+        ).also { NowPlayingPanel(it, inkColors = get()).start(scope) }
     } bind BookPlayer::class
 }
 
