@@ -3,7 +3,6 @@ package com.alexgabor.design.riso
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.TextSelectionColors
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
@@ -24,6 +23,7 @@ import com.alexgabor.design.riso.attributes.Shapes
 import com.alexgabor.design.riso.attributes.Typography
 import com.alexgabor.design.riso.attributes.firaCodeFamily
 import com.alexgabor.design.riso.components.RisoBackdrop
+import com.alexgabor.design.riso.components.RisoIndication
 
 object RisoTheme {
     val colors: Colors
@@ -61,7 +61,7 @@ fun RisoTheme(effectsEnabled: Boolean = true, content: @Composable () -> Unit) {
         LocalRisoEffectsEnabled provides effectsEnabled,
         LocalShapes provides RisoShapes,
         LocalTypography provides Typography(fontFamily = firaCodeFamily()),
-        LocalIndication provides ripple(), // provides the material ripple.
+        LocalIndication provides RisoIndication(RisoColors.content),
         LocalTextSelectionColors provides TextSelectionColors(
             handleColor = RisoColors.accent,
             backgroundColor = RisoColors.accent.copy(alpha = 0.3f)

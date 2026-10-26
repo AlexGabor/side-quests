@@ -1,6 +1,9 @@
 package com.alexgabor.bookplate.feature.home
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -150,7 +154,8 @@ private fun HomeContent(
                     )
                     is Library.Books -> LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = listPadding,
+                        // Rows take the horizontal padding themselves, so their press reaches the edges.
+                        contentPadding = PaddingValues(top = padding, bottom = padding + bottomInset),
                     ) {
                         items(library.rows, key = { it.id.value }) { row ->
                             BookRowItem(row = row, onClick = { onOpenBook(row.id) })
@@ -198,21 +203,23 @@ private fun ImportStatusPanel(status: ImportStatus, onClose: () -> Unit) {
 }
 
 /**
- * One book. The cover sits outside every ink pass so it stays a plain image; the text and the rule
- * under the row are printed.
+ * One book, spanning the list's width with the screen padding inside. The cover sits outside every
+ * ink pass so it stays a plain image; the text, the rule under the row and the press are printed.
  */
 @Composable
 private fun BookRowItem(row: BookRow, onClick: () -> Unit) {
     val colors = RisoTheme.colors
     val ink = Modifier.risoInk(colors.content)
+    val interactionSource = remember { MutableInteractionSource() }
 
     Box(
         Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick),
+            .clickable(interactionSource = interactionSource, indication = null, role = Role.Button, onClick = onClick),
     ) {
+        Box(ink.matchParentSize().indication(interactionSource, LocalIndication.current))
         Row(
-            modifier = Modifier.padding(vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = RisoTheme.dimens.screenPadding, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -244,7 +251,7 @@ private fun BookRowItem(row: BookRow, onClick: () -> Unit) {
 
 /**
  * The last-played book at the bottom of Home, under a printed rule: tapping it opens Player, its button
- * plays or pauses. It takes the bottom inset.
+ * plays or pauses. It takes the bottom inset, and its press is printed with the rule, down to the bottom edge.
  */
 @Composable
 private fun MiniPlayer(mini: MiniPlayerUi, onClick: () -> Unit, onPlayPause: () -> Unit) {
@@ -252,20 +259,24 @@ private fun MiniPlayer(mini: MiniPlayerUi, onClick: () -> Unit, onPlayPause: () 
     val lineWidth = RisoTheme.dimens.lineWidth
     val padding = RisoTheme.dimens.screenPadding
     val ink = Modifier.risoInk(colors.content)
+    val interactionSource = remember { MutableInteractionSource() }
 
     Box(
         Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick)
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
+            .clickable(interactionSource = interactionSource, indication = null, role = Role.Button, onClick = onClick),
     ) {
         Box(
-            ink.matchParentSize().drawBehind {
-                drawLine(colors.content, Offset.Zero, Offset(size.width, 0f), strokeWidth = lineWidth.toPx() * 2)
-            },
+            ink.matchParentSize()
+                .drawBehind {
+                    drawLine(colors.content, Offset.Zero, Offset(size.width, 0f), strokeWidth = lineWidth.toPx() * 2)
+                }
+                .indication(interactionSource, LocalIndication.current),
         )
         Column(
-            Modifier.padding(start = padding, end = padding, top = 8.dp, bottom = padding),
+            Modifier
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                .padding(start = padding, end = padding, top = 8.dp, bottom = padding),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {

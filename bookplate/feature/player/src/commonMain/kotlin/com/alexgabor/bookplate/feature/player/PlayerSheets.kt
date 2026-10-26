@@ -1,6 +1,10 @@
 package com.alexgabor.bookplate.feature.player
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +17,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -137,21 +142,33 @@ private fun SectionHeading(section: ChapterListItem.Section) {
     )
 }
 
+/** One chapter, its press printed in the content ink across the sheet's width whatever color the line is. */
 @Composable
 private fun ChapterRow(chapter: ChapterListItem.Entry, onClick: () -> Unit) {
     val colors = RisoTheme.colors
     val color = if (chapter.isCurrent) colors.accent else colors.content
-    Row(
-        modifier = Modifier
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(start = RisoTheme.dimens.screenPadding + Indent * chapter.depth, end = RisoTheme.dimens.screenPadding)
-            .padding(vertical = 12.dp)
-            .risoInk(color),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+            .clickable(interactionSource = interactionSource, indication = null, role = Role.Button, onClick = onClick),
     ) {
-        Text(text = chapter.title, color = color, textStyle = RisoTheme.typography.body, modifier = Modifier.weight(1f))
-        Text(text = chapter.duration, color = color, textStyle = RisoTheme.typography.body)
+        Box(
+            Modifier
+                .matchParentSize()
+                .risoInk(colors.content)
+                .indication(interactionSource, LocalIndication.current),
+        )
+        Row(
+            modifier = Modifier
+                .padding(start = RisoTheme.dimens.screenPadding + Indent * chapter.depth, end = RisoTheme.dimens.screenPadding)
+                .padding(vertical = 12.dp)
+                .risoInk(color),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(text = chapter.title, color = color, textStyle = RisoTheme.typography.body, modifier = Modifier.weight(1f))
+            Text(text = chapter.duration, color = color, textStyle = RisoTheme.typography.body)
+        }
     }
 }
 

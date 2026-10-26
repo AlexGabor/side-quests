@@ -39,7 +39,7 @@ Riso is shaped like `MaterialTheme`, so it reads the way Compose developers expe
   `RisoTheme.colors`, `.typography`, `.dimens`, `.shapes` and `.press`.
 - The backing `Local*` composition locals are `internal`. Always go through `RisoTheme.*`.
 
-Material is used internally (for example Material's `Text` and `ripple()`), but it is **not exposed**:
+Material is used internally (for example Material's `Text`), but it is **not exposed**:
 `material3` is an `implementation` dependency, and only `compose.foundation` is `api`. Apps use the
 Riso components and `RisoTheme` values, never Material directly.
 
@@ -47,6 +47,10 @@ Riso components and `RisoTheme` values, never Material directly.
 
 `components/` holds the controls apps build from. Each one reads `RisoTheme` and prints with its own
 inks.
+
+There is no Material ripple. A plain `clickable`/`selectable` is overprinted in the content color at
+0.25 while pressed; pass `indication = risoIndication(color)` where the content is printed in another
+color.
 
 ## Risograph
 
