@@ -1,6 +1,5 @@
 package com.alexgabor.bookplate
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -8,19 +7,14 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.receiveAsFlow
+import org.koin.android.ext.android.get
 
 class MainActivity : ComponentActivity() {
-
-    /** Taps on the media notification, each shown once; a recreated activity starts with none. */
-    private val showPlaying = Channel<Unit>(Channel.CONFLATED)
-    private val showPlayingRequests = showPlaying.receiveAsFlow()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null && isShowPlaying(intent)) showPlaying.trySend(Unit)
+        get<ShowPlaying>().follow(this, savedInstanceState)
 
         setContent {
             val view = LocalView.current
@@ -28,12 +22,7 @@ class MainActivity : ComponentActivity() {
                 WindowCompat.getInsetsController(window, view)
                     .isAppearanceLightStatusBars = true
             }
-            App(showPlaying = showPlayingRequests)
+            App()
         }
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        if (isShowPlaying(intent)) showPlaying.trySend(Unit)
     }
 }

@@ -21,7 +21,8 @@
   files), labelled by `PanelPlayer`; panel and headset commands go straight to ExoPlayer and the engine follows
   through `changes`. iOS's `NowPlayingPanel` fills `MPNowPlayingInfoCenter` and sends `MPRemoteCommandCenter`
   commands to `BookPlayer`. Tapping the Android notification sends `ACTION_SHOW_PLAYING` to `MainActivity`, which
-  passes it to `App(showPlaying)`; it is not a deep link.
+  hands its intents to the injected `ShowPlaying` (`follow`); `RootNavigation` collects its requests. It is not a
+  deep link.
 
 ## Running
 

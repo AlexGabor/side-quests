@@ -1,5 +1,6 @@
 package com.alexgabor.bookplate.di
 
+import com.alexgabor.bookplate.ShowPlaying
 import com.alexgabor.bookplate.core.library.libraryModule
 import com.alexgabor.lib.appstateurl.appUrlModule
 import com.alexgabor.lib.documentaccess.documentAccessModule
@@ -15,6 +16,7 @@ val sharedModule = module {
     includes(documentAccessModule)
     includes(libraryModule)
     includes(platformPlayerModule)
+    single { ShowPlaying() }
 }
 
 /** The app's `BookPlayer`: the engine on Android (Media3) and iOS (AVFoundation), the clock-driven fake in JVM tests. */
