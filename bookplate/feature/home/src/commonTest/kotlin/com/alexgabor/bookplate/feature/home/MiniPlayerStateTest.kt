@@ -1,6 +1,7 @@
 package com.alexgabor.bookplate.feature.home
 
 import com.alexgabor.bookplate.core.library.Availability
+import com.alexgabor.bookplate.core.library.BookInks
 import com.alexgabor.bookplate.core.library.FakeBookAvailability
 import com.alexgabor.bookplate.core.library.FakeLibraryRepository
 import com.alexgabor.bookplate.core.library.fakeBook
@@ -58,6 +59,18 @@ class MiniPlayerStateTest {
         val shown = mini(player()).shown
 
         assertEquals(MiniPlayerUi(id, "Dune", progress = 0.25f, isPlaying = false), shown)
+    }
+
+    @Test
+    fun followsTheBooksInks() = rule.testScope.runTest {
+        val id = repository.add(fakeBook("Dune", lastPlayedAt = Instant.fromEpochSeconds(10), inks = BookInks("Teal", "Yellow")))
+        val state = mini(player())
+        assertEquals(BookInks("Teal", "Yellow"), state.shown.inks)
+
+        repository.setInks(id, BookInks("Green", "Orange"))
+        runCurrent()
+
+        assertEquals(BookInks("Green", "Orange"), state.shown.inks)
     }
 
     @Test

@@ -25,6 +25,7 @@ kotlin {
         commonTest.dependencies {
             implementation(projects.lib.coroutine.test)
             implementation(projects.lib.documentaccess.test)
+            implementation(projects.bookplate.core.library.test)
             implementation(libs.kotlin.test)
         }
         // The lib/audiometadata fixtures, read in place rather than copied.

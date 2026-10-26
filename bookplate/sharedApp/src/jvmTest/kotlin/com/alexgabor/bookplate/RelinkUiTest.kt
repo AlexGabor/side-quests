@@ -13,6 +13,8 @@ import com.alexgabor.bookplate.core.library.BookImporter
 import com.alexgabor.bookplate.core.library.ImportResult
 import com.alexgabor.bookplate.core.library.LibraryRepository
 import com.alexgabor.bookplate.core.library.libraryModule
+import com.alexgabor.bookplate.core.library.BookInkPicker
+import com.alexgabor.bookplate.core.library.FakeBookInkPicker
 import com.alexgabor.bookplate.core.player.fakePlayerModule
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.lib.appstateurl.AppUrl
@@ -53,6 +55,7 @@ class RelinkUiTest {
                 module {
                     single<AppUrl> { NoAppUrl }
                     single { ShowPlaying() }
+                    single<BookInkPicker> { FakeBookInkPicker() }
                     single { documents } binds arrayOf(DocumentAccess::class, DocumentPicker::class)
                 },
                 libraryModule,

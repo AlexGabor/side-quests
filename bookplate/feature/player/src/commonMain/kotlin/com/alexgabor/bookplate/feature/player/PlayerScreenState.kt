@@ -11,6 +11,8 @@ import com.alexgabor.bookplate.core.library.Availability
 import com.alexgabor.bookplate.core.library.BookAvailability
 import com.alexgabor.bookplate.core.library.BookDetails
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.BookInkPicker
+import com.alexgabor.bookplate.core.library.BookInks
 import com.alexgabor.bookplate.core.library.BookRelinker
 import com.alexgabor.bookplate.core.library.Chapter
 import com.alexgabor.bookplate.core.library.FailureReason
@@ -46,6 +48,7 @@ enum class PlayerSheet { Speed, Chapters }
  * @property chapterTitle the current chapter's title, or `null` when it has none.
  * @property unavailable why the book's files can't be reached, shown in place of the controls; `null` while they can.
  * @property needsFolder the book was added from a folder, so relinking picks a folder; otherwise a file.
+ * @property inks the inks the book is printed in.
  */
 data class PlayerUi(
     val title: String,
@@ -62,6 +65,7 @@ data class PlayerUi(
     val chapters: List<ChapterListItem>,
     val unavailable: UnavailableUi? = null,
     val needsFolder: Boolean = true,
+    val inks: BookInks = BookInks.Default,
 )
 
 /** What Player says about a book whose files can't be reached. */
@@ -109,7 +113,10 @@ sealed interface ChapterListItem {
  * controls, and nothing plays from it; [onRelinkPicked] then points it at their new place through [relinker], asking
  * first when only some are found.
  *
- * Only the open [sheet] is saved; everything else is read back from the player and the library.
+ * The swatch button offers [candidateInks], from [inks]; [onInksClick] gives them to the book and picks the next.
+ *
+ * Only the open [sheet] and the candidate inks are saved; everything else is read back from the player and the
+ * library.
  */
 class PlayerScreenState(
     private val scope: CoroutineScope,
@@ -118,7 +125,9 @@ class PlayerScreenState(
     private val library: LibraryRepository,
     private val availability: BookAvailability,
     private val relinker: BookRelinker,
+    private val inks: BookInkPicker,
     sheet: PlayerSheet? = null,
+    candidateInks: BookInks? = null,
 ) {
 
     /** `null` until the book is known, from the player or the library. */
@@ -128,6 +137,10 @@ class PlayerScreenState(
     val sheet: State<PlayerSheet?>
         field = mutableStateOf(sheet)
 
+    /** The inks the swatch button shows: what the book gets when it is tapped. */
+    val candidateInks: State<BookInks>
+        field = mutableStateOf(candidateInks ?: inks.pick())
+
     /** The running relink, or the last one's result until it is closed; `null` for none. */
     val relink: State<RelinkStatus?>
         field = mutableStateOf<RelinkStatus?>(null)
@@ -136,6 +149,7 @@ class PlayerScreenState(
 
     private var bookAvailability = Availability.Available
     private var sourceIsFolder = true
+    private var bookInks = BookInks.Default
 
     /** [bookId] as the library holds it: what Player shows while the player holds another book. */
     private var saved: PlaybackState? = null
@@ -165,7 +179,10 @@ class PlayerScreenState(
         scope.launch {
             library.book(bookId).collect { details ->
                 saved = details?.toSavedState()
-                details?.let { sourceIsFolder = it.book.source.isFolder }
+                details?.let {
+                    sourceIsFolder = it.book.source.isFolder
+                    bookInks = it.book.inks
+                }
                 onShownChanged()
             }
         }
@@ -316,6 +333,15 @@ class PlayerScreenState(
         saveAt { chapter.start }
     }
 
+    /** The swatch button: the book takes the candidate inks, shown at once, and the button offers new ones. */
+    fun onInksClick() {
+        val chosen = candidateInks.value
+        bookInks = chosen
+        candidateInks.value = inks.pick()
+        publish()
+        scope.launch { library.setInks(bookId, chosen) }
+    }
+
     fun onSpeedClick() {
         sheet.value = PlayerSheet.Speed
     }
@@ -361,6 +387,7 @@ class PlayerScreenState(
         ui.value = shown?.takeIf { it.book != null }?.toUi(scrubbing)?.copy(
             unavailable = bookAvailability.toUi(),
             needsFolder = sourceIsFolder,
+            inks = bookInks,
         )
     }
 
@@ -474,10 +501,18 @@ internal fun playerScreenStateSaver(
     library: LibraryRepository,
     availability: BookAvailability,
     relinker: BookRelinker,
-): Saver<PlayerScreenState, Int> = Saver(
-    save = { state -> state.sheet.value?.ordinal ?: -1 },
+    inks: BookInkPicker,
+): Saver<PlayerScreenState, List<Any>> = Saver(
+    save = { state ->
+        val candidate = state.candidateInks.value
+        listOf(state.sheet.value?.ordinal ?: -1, candidate.accent, candidate.accentVariant)
+    },
     restore = { saved ->
-        PlayerScreenState(scope, bookId, player, library, availability, relinker, sheet = PlayerSheet.entries.getOrNull(saved))
+        PlayerScreenState(
+            scope, bookId, player, library, availability, relinker, inks,
+            sheet = PlayerSheet.entries.getOrNull(saved[0] as Int),
+            candidateInks = BookInks(accent = saved[1] as String, accentVariant = saved[2] as String),
+        )
     },
 )
 
@@ -488,12 +523,13 @@ fun rememberPlayerScreenState(
     library: LibraryRepository = koinInject(),
     availability: BookAvailability = koinInject(),
     relinker: BookRelinker = koinInject(),
+    inks: BookInkPicker = koinInject(),
 ): PlayerScreenState {
     val scope = rememberCoroutineScope()
-    val saver = remember(scope, bookId, player, library, availability, relinker) {
-        playerScreenStateSaver(scope, bookId, player, library, availability, relinker)
+    val saver = remember(scope, bookId, player, library, availability, relinker, inks) {
+        playerScreenStateSaver(scope, bookId, player, library, availability, relinker, inks)
     }
-    return rememberSaveable(scope, bookId, player, library, availability, relinker, saver = saver) {
-        PlayerScreenState(scope, bookId, player, library, availability, relinker)
+    return rememberSaveable(scope, bookId, player, library, availability, relinker, inks, saver = saver) {
+        PlayerScreenState(scope, bookId, player, library, availability, relinker, inks)
     }
 }

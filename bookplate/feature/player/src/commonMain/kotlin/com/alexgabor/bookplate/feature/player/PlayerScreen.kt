@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,12 +29,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.BookInks
+import com.alexgabor.design.riso.RisoInks
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Text
 import com.alexgabor.design.riso.components.Button
 import com.alexgabor.design.riso.components.FlatButton
 import com.alexgabor.design.riso.components.IconType
+import com.alexgabor.design.riso.components.SwatchButton
 import com.alexgabor.design.riso.components.Toolbar
 import com.alexgabor.design.riso.components.track.Track
 import com.alexgabor.design.riso.components.track.rememberTrackState
@@ -68,40 +72,57 @@ fun PlayerScreen(
     val sheet by state.sheet
     val launcher = picker.rememberLauncher(state::onRelinkPicked)
 
-    PlayerContent(
-        ui = ui,
-        relink = state.relink.value,
-        onRelink = { if (ui?.needsFolder != false) launcher.pickFolder() else launcher.pickFile(AudioMimeTypes) },
-        onCheckAgain = state::onCheckAgain,
-        onRelinkConfirmed = state::onRelinkConfirmed,
-        onRelinkCancelled = state::onRelinkCancelled,
-        onRelinkStatusClosed = state::onRelinkStatusClosed,
-        onBackClick = onBackClick,
-        onChaptersClick = state::onChaptersClick,
-        onSpeedClick = state::onSpeedClick,
-        onPlayPause = state::onPlayPause,
-        onSkipBack = state::onSkipBack,
-        onSkipForward = state::onSkipForward,
-        onScrub = state::onScrub,
-        onScrubEnd = state::onScrubEnd,
-        modifier = modifier,
-    )
+    // The sheets too: they are laid over the page, outside PlayerContent.
+    WithBookInks(ui?.inks) {
+        PlayerContent(
+            ui = ui,
+            candidateInks = state.candidateInks.value,
+            onInksClick = state::onInksClick,
+            relink = state.relink.value,
+            onRelink = { if (ui?.needsFolder != false) launcher.pickFolder() else launcher.pickFile(AudioMimeTypes) },
+            onCheckAgain = state::onCheckAgain,
+            onRelinkConfirmed = state::onRelinkConfirmed,
+            onRelinkCancelled = state::onRelinkCancelled,
+            onRelinkStatusClosed = state::onRelinkStatusClosed,
+            onBackClick = onBackClick,
+            onChaptersClick = state::onChaptersClick,
+            onSpeedClick = state::onSpeedClick,
+            onPlayPause = state::onPlayPause,
+            onSkipBack = state::onSkipBack,
+            onSkipForward = state::onSkipForward,
+            onScrub = state::onScrub,
+            onScrubEnd = state::onScrubEnd,
+            modifier = modifier,
+        )
 
-    val shown = ui?.takeIf { it.unavailable == null } ?: return
-    when (sheet) {
-        PlayerSheet.Speed -> SpeedSheet(
-            speed = shown.speed,
-            speedLabel = shown.speedLabel,
-            onSpeedChange = state::onSpeedChange,
-            onDismissRequest = state::onSheetDismissed,
-        )
-        PlayerSheet.Chapters -> ChaptersSheet(
-            chapters = shown.chapters,
-            onChapterClick = state::onChapterClick,
-            onDismissRequest = state::onSheetDismissed,
-        )
-        null -> Unit
+        val shown = ui?.takeIf { it.unavailable == null } ?: return@WithBookInks
+        when (sheet) {
+            PlayerSheet.Speed -> SpeedSheet(
+                speed = shown.speed,
+                speedLabel = shown.speedLabel,
+                onSpeedChange = state::onSpeedChange,
+                onDismissRequest = state::onSheetDismissed,
+            )
+            PlayerSheet.Chapters -> ChaptersSheet(
+                chapters = shown.chapters,
+                onChapterClick = state::onChapterClick,
+                onDismissRequest = state::onSheetDismissed,
+            )
+            null -> Unit
+        }
     }
+}
+
+/** Prints [content] in the book's [inks], or the theme's own accents while the book isn't known. */
+@Composable
+private fun WithBookInks(inks: BookInks?, content: @Composable () -> Unit) {
+    if (inks == null) return content()
+    val colors = RisoTheme.colors
+    RisoInks(
+        accent = colors.inks.named(inks.accent)?.color ?: colors.accent,
+        accentVariant = colors.inks.named(inks.accentVariant)?.color ?: colors.accentVariant,
+        content = content,
+    )
 }
 
 /** What the file picker offers when relinking a single-file book. */
@@ -110,6 +131,8 @@ internal val AudioMimeTypes = listOf("audio/*")
 @Composable
 private fun PlayerContent(
     ui: PlayerUi?,
+    candidateInks: BookInks,
+    onInksClick: () -> Unit,
     relink: RelinkStatus?,
     onRelink: () -> Unit,
     onCheckAgain: () -> Unit,
@@ -145,7 +168,8 @@ private fun PlayerContent(
                 },
                 endContent = {
                     if (ui != null && ui.unavailable == null) {
-                        Row {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            InkSwatch(candidateInks, onClick = onInksClick)
                             FlatButton(icon = IconType.Chapters, contentDescription = "Chapters", onClick = onChaptersClick)
                             FlatButton(icon = IconType.Speed, contentDescription = "Speed", onClick = onSpeedClick)
                         }
@@ -236,6 +260,19 @@ private fun PlayerContent(
             }
         }
     }
+}
+
+/** The swatch button: the inks the book gets when it is tapped. */
+@Composable
+private fun InkSwatch(inks: BookInks, onClick: () -> Unit) {
+    val colors = RisoTheme.colors
+    SwatchButton(
+        accent = colors.inks.named(inks.accent)?.color ?: colors.accent,
+        accentVariant = colors.inks.named(inks.accentVariant)?.color ?: colors.accentVariant,
+        onClick = onClick,
+        contentDescription = "Change inks",
+        modifier = Modifier.padding(horizontal = 8.dp).size(24.dp),
+    )
 }
 
 /**
@@ -425,36 +462,40 @@ private data class Playback(val position: Duration, val duration: Duration, val 
 @Composable
 private fun PlayerPreview() {
     RisoTheme {
-        PlayerContent(
-            ui = PlayerUi(
-                title = "Sample Book",
-                author = "Sample Author",
-                coverPath = null,
-                chapterTitle = "Middle",
-                position = 90.seconds,
-                duration = 190.seconds,
-                positionLabel = "1:30",
-                durationLabel = "3:10",
-                isPlaying = false,
-                speed = 1f,
-                speedLabel = "1.0×",
-                chapters = emptyList(),
-            ),
-            relink = null,
-            onRelink = {},
-            onCheckAgain = {},
-            onRelinkConfirmed = {},
-            onRelinkCancelled = {},
-            onRelinkStatusClosed = {},
-            onBackClick = {},
-            onChaptersClick = {},
-            onSpeedClick = {},
-            onPlayPause = {},
-            onSkipBack = {},
-            onSkipForward = {},
-            onScrub = {},
-            onScrubEnd = {},
-            modifier = Modifier.risoPaper(),
-        )
+        WithBookInks(BookInks(accent = "Teal", accentVariant = "Yellow")) {
+            PlayerContent(
+                ui = PlayerUi(
+                    title = "Sample Book",
+                    author = "Sample Author",
+                    coverPath = null,
+                    chapterTitle = "Middle",
+                    position = 90.seconds,
+                    duration = 190.seconds,
+                    positionLabel = "1:30",
+                    durationLabel = "3:10",
+                    isPlaying = false,
+                    speed = 1f,
+                    speedLabel = "1.0×",
+                    chapters = emptyList(),
+                ),
+                candidateInks = BookInks(accent = "Red", accentVariant = "Blue"),
+                onInksClick = {},
+                relink = null,
+                onRelink = {},
+                onCheckAgain = {},
+                onRelinkConfirmed = {},
+                onRelinkCancelled = {},
+                onRelinkStatusClosed = {},
+                onBackClick = {},
+                onChaptersClick = {},
+                onSpeedClick = {},
+                onPlayPause = {},
+                onSkipBack = {},
+                onSkipForward = {},
+                onScrub = {},
+                onScrubEnd = {},
+                modifier = Modifier.risoPaper(),
+            )
+        }
     }
 }

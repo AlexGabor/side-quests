@@ -45,6 +45,21 @@ class FakeLibraryTest {
     }
 
     @Test
+    fun updatesInks() = runTest {
+        val id = repository.add(fakeBook("Dune"))
+        repository.setInks(id, BookInks(accent = "Green", accentVariant = "Orange"))
+        assertEquals(BookInks(accent = "Green", accentVariant = "Orange"), repository.book(id).first()!!.book.inks)
+    }
+
+    @Test
+    fun inkPickerGivesItsPairsInOrder() {
+        val picker = FakeBookInkPicker()
+        assertEquals(BookInks(accent = "Teal", accentVariant = "Yellow"), picker.pick())
+        assertEquals(BookInks(accent = "Red", accentVariant = "Blue"), picker.pick())
+        assertEquals(2, picker.picked)
+    }
+
+    @Test
     fun scriptedResults() = runTest {
         importer.enqueue(ImportResult.AlreadyInLibrary(BookId(7)))
         importer.enqueueBook(fakeBook("Dune"), progress = listOf(ImportProgress.Listing))

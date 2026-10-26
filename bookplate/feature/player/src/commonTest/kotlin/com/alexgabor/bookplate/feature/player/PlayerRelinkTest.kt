@@ -5,6 +5,7 @@ import com.alexgabor.bookplate.core.library.BookId
 import com.alexgabor.bookplate.core.library.Chapter
 import com.alexgabor.bookplate.core.library.FailureReason
 import com.alexgabor.bookplate.core.library.FakeBookAvailability
+import com.alexgabor.bookplate.core.library.FakeBookInkPicker
 import com.alexgabor.bookplate.core.library.FakeBookRelinker
 import com.alexgabor.bookplate.core.library.FakeLibraryRepository
 import com.alexgabor.bookplate.core.library.RelinkResult
@@ -62,7 +63,7 @@ class PlayerRelinkTest {
     private fun TestScope.player() = FakeBookPlayer(repository, availability, backgroundScope)
 
     private fun TestScope.screen(id: BookId, player: FakeBookPlayer = player()) =
-        PlayerScreenState(backgroundScope, id, player, repository, availability, relinker).also { runCurrent() }
+        PlayerScreenState(backgroundScope, id, player, repository, availability, relinker, FakeBookInkPicker()).also { runCurrent() }
 
     private val PlayerScreenState.shown: PlayerUi get() = assertNotNull(ui.value)
 

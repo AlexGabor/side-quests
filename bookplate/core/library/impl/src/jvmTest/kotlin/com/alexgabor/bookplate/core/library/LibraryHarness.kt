@@ -18,11 +18,12 @@ internal class LibraryHarness(
     access: DocumentAccess = documents,
 ) {
     val clock = FixedClock()
+    val inks = FakeBookInkPicker()
     private val coversDirectory = temporaryDirectory()
     val covers = CoverStore(FileSystem.SYSTEM, coversDirectory)
     val database = inMemoryLibraryDatabase()
     val repository = LibraryRepositoryImpl(database.dao(), covers)
-    val importer = BookImporterImpl(database.dao(), covers, access, clock)
+    val importer = BookImporterImpl(database.dao(), covers, access, clock, inks)
     val availability = BookAvailabilityImpl(repository, access)
     val relinker = BookRelinkerImpl(database.dao(), access, availability)
 

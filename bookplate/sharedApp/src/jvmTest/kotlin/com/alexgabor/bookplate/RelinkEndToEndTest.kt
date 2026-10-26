@@ -7,6 +7,8 @@ import com.alexgabor.bookplate.core.library.BookImporter
 import com.alexgabor.bookplate.core.library.ImportResult
 import com.alexgabor.bookplate.core.library.LibraryRepository
 import com.alexgabor.bookplate.core.library.libraryModule
+import com.alexgabor.bookplate.core.library.BookInkPicker
+import com.alexgabor.bookplate.core.library.FakeBookInkPicker
 import com.alexgabor.bookplate.core.player.FakeBookPlayer
 import com.alexgabor.bookplate.core.player.fakePlayerModule
 import com.alexgabor.bookplate.feature.home.BookRow
@@ -65,7 +67,10 @@ class RelinkEndToEndTest {
         documents = FakeDocumentAccess(followsRenames)
         koin = koinApplication {
             modules(
-                module { single { documents } binds arrayOf(DocumentAccess::class, DocumentPicker::class) },
+                module {
+                    single { documents } binds arrayOf(DocumentAccess::class, DocumentPicker::class)
+                    single<BookInkPicker> { FakeBookInkPicker() }
+                },
                 libraryModule,
                 fakePlayerModule,
             )
@@ -102,7 +107,7 @@ class RelinkEndToEndTest {
         HomeState(backgroundScope, repository, koin.get(), koin.get()).also { runCurrent() }
 
     private fun TestScope.player(id: BookId) =
-        PlayerScreenState(backgroundScope, id, player, repository, koin.get(), koin.get()).also { runCurrent() }
+        PlayerScreenState(backgroundScope, id, player, repository, koin.get(), koin.get(), koin.get()).also { runCurrent() }
 
     private val HomeState.row: BookRow get() = (library.value as Library.Books).rows.single()
 

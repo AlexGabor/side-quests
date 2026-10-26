@@ -30,6 +30,11 @@ internal data class BookEntity(
     @ColumnInfo(defaultValue = "1.0") val speed: Float = 1f,
     @ColumnInfo(name = "imported_at") val importedAt: Long,
     @ColumnInfo(name = "last_played_at") val lastPlayedAt: Long? = null,
+    /** `NamedInk.name` of the book's accent. Since version 3. */
+    @ColumnInfo(name = "ink_accent", defaultValue = "Purple") val inkAccent: String = BookInks.Default.accent,
+    /** `NamedInk.name` of the book's accent variant. Since version 3. */
+    @ColumnInfo(name = "ink_accent_variant", defaultValue = "Fluorescent Pink")
+    val inkAccentVariant: String = BookInks.Default.accentVariant,
 )
 
 @Entity(

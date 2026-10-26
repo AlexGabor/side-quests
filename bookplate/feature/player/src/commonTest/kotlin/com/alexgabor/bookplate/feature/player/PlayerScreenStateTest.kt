@@ -1,6 +1,8 @@
 package com.alexgabor.bookplate.feature.player
 
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.BookInks
+import com.alexgabor.bookplate.core.library.FakeBookInkPicker
 import com.alexgabor.bookplate.core.library.Chapter
 import com.alexgabor.bookplate.core.library.FakeBookAvailability
 import com.alexgabor.bookplate.core.library.FakeBookRelinker
@@ -31,6 +33,7 @@ class PlayerScreenStateTest {
     private val repository = FakeLibraryRepository()
     private val availability = FakeBookAvailability()
     private val relinker = FakeBookRelinker()
+    private val inks = FakeBookInkPicker()
 
     @BeforeTest
     fun setUp() = rule.install()
@@ -50,7 +53,7 @@ class PlayerScreenStateTest {
     private fun TestScope.player() = FakeBookPlayer(repository, availability, backgroundScope)
 
     private fun TestScope.screen(id: BookId, player: FakeBookPlayer, sheet: PlayerSheet? = null) =
-        PlayerScreenState(backgroundScope, id, player, repository, availability, relinker, sheet).also { runCurrent() }
+        PlayerScreenState(backgroundScope, id, player, repository, availability, relinker, inks, sheet).also { runCurrent() }
 
     private val PlayerScreenState.shown: PlayerUi get() = assertNotNull(ui.value)
 
@@ -70,6 +73,40 @@ class PlayerScreenStateTest {
     }
 
     @Test
+    fun printsInTheBooksInks() = rule.testScope.runTest {
+        val id = repository.add(fakeBook("Dune", inks = BookInks(accent = "Purple", accentVariant = "Burgundy")))
+
+        assertEquals(BookInks(accent = "Purple", accentVariant = "Burgundy"), screen(id, player()).shown.inks)
+    }
+
+    @Test
+    fun swatchGivesTheBookItsInksAndOffersTheNextPair() = rule.testScope.runTest {
+        val id = addSampleBook()
+        val state = screen(id, player())
+        val teal = BookInks(accent = "Teal", accentVariant = "Yellow")
+        assertEquals(teal, state.candidateInks.value)
+
+        state.onInksClick()
+        assertEquals(teal, state.shown.inks)
+        runCurrent()
+
+        assertEquals(teal, repository.all.single { it.book.id == id }.book.inks)
+        assertEquals(teal, state.shown.inks)
+        assertEquals(BookInks(accent = "Red", accentVariant = "Blue"), state.candidateInks.value)
+    }
+
+    @Test
+    fun inksChangedElsewhereShow() = rule.testScope.runTest {
+        val id = addSampleBook()
+        val state = screen(id, player())
+
+        repository.setInks(id, BookInks(accent = "Green", accentVariant = "Orange"))
+        runCurrent()
+
+        assertEquals(BookInks(accent = "Green", accentVariant = "Orange"), state.shown.inks)
+    }
+
+    @Test
     fun noAuthorAndLongDurations() = rule.testScope.runTest {
         val id = repository.add(fakeBook("Long", duration = 2.hours, position = 1.hours + 5.minutes + 3.seconds))
 
@@ -85,7 +122,7 @@ class PlayerScreenStateTest {
     fun showsNothingWhileThePlayerHoldsAnotherBook() = rule.testScope.runTest {
         val id = addSampleBook()
 
-        val state = PlayerScreenState(backgroundScope, BookId(99), player(), repository, availability, relinker)
+        val state = PlayerScreenState(backgroundScope, BookId(99), player(), repository, availability, relinker, inks)
         runCurrent()
 
         assertNull(state.ui.value)

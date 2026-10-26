@@ -24,4 +24,6 @@ interface LibraryRepository {
     suspend fun setSpeed(id: BookId, speed: Float)
 
     suspend fun setLastPlayed(id: BookId, at: Instant)
+
+    suspend fun setInks(id: BookId, inks: BookInks)
 }

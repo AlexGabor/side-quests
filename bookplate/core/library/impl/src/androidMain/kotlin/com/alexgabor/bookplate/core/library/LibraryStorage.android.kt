@@ -15,7 +15,7 @@ internal actual val libraryStorageModule: Module = module {
             context = context,
             name = context.getDatabasePath(DATABASE_FILE_NAME).absolutePath,
             factory = LibraryDatabaseConstructor::initialize,
-        ).buildLibraryDatabase()
+        ).buildLibraryDatabase(get())
     }
     single {
         CoverStore(FileSystem.SYSTEM, File(androidContext().filesDir, COVERS_DIRECTORY_NAME).absolutePath.toPath())

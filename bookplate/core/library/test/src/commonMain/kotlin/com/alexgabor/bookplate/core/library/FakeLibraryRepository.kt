@@ -55,6 +55,8 @@ class FakeLibraryRepository : LibraryRepository {
 
     override suspend fun setLastPlayed(id: BookId, at: Instant) = change(id) { copy(lastPlayedAt = at) }
 
+    override suspend fun setInks(id: BookId, inks: BookInks) = change(id) { copy(inks = inks) }
+
     private fun change(id: BookId, block: Book.() -> Book) {
         library.update { books -> books.map { if (it.book.id == id) it.copy(book = it.book.block()) else it } }
     }
@@ -72,5 +74,6 @@ fun fakeBook(
     speed: Float = 1f,
     importedAt: Instant = Instant.fromEpochMilliseconds(0),
     lastPlayedAt: Instant? = null,
+    inks: BookInks = BookInks.Default,
     id: BookId = BookId(0),
-): Book = Book(id, title, author, narrator, duration, coverPath, source, position, speed, importedAt, lastPlayedAt)
+): Book = Book(id, title, author, narrator, duration, coverPath, source, position, speed, importedAt, lastPlayedAt, inks)

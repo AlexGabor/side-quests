@@ -18,7 +18,7 @@ internal actual val libraryStorageModule: Module = module {
         Room.databaseBuilder(
             name = (directory / DATABASE_FILE_NAME).toString(),
             factory = LibraryDatabaseConstructor::initialize,
-        ).buildLibraryDatabase()
+        ).buildLibraryDatabase(get())
     }
     single { CoverStore(FileSystem.SYSTEM, applicationSupport() / COVERS_DIRECTORY_NAME) }
 }

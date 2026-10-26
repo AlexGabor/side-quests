@@ -19,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -69,21 +71,24 @@ fun Button(
     }
 }
 
+/** [Button]'s fill: the accent variant mixed over the accent. */
+internal fun buttonFill(accent: Color, accentVariant: Color): RisoMix = RisoMix(
+    accentVariant to .7f,
+    accent to .7f,
+    unprinted = accent,
+)
+
 @Composable
-private fun ButtonContainer(
+internal fun ButtonContainer(
     onClick: () -> Unit,
     modifier: Modifier,
     padding: PaddingValues,
+    shape: Shape = RisoTheme.shapes.standardShape,
+    fill: RisoMix = buttonFill(RisoTheme.colors.accent, RisoTheme.colors.accentVariant),
     content: @Composable () -> Unit,
 ) {
     var pressed by remember { mutableStateOf(false) }
     val offset by animateFloatAsState(targetValue = if (pressed) 0f else 2f)
-    val colors = RisoTheme.colors
-    val fill = RisoMix(
-        colors.inks.fluorescentPink to .7f,
-        colors.inks.purple to .7f,
-        unprinted = colors.accent,
-    )
     val risoEffectsEnabled = LocalRisoEffectsEnabled.current
 
     Box(
@@ -109,7 +114,7 @@ private fun ButtonContainer(
                 translationY = (2-offset) * 1.dp.toPx()
             }
             .risoInk(fill, offsetScale = offset)
-            .background(fill.color(), shape = RisoTheme.shapes.standardShape)
+            .background(fill.color(), shape = shape)
             .padding(padding),
     ) {
         content()

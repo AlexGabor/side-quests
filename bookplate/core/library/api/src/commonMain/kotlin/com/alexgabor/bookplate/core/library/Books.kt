@@ -14,6 +14,7 @@ value class BookId(val value: Long)
  * @property coverPath absolute path of the cover copied into app storage, or `null` when it has none.
  * @property source the file or folder the user picked.
  * @property position where playback is in the book's timeline.
+ * @property inks the pair of inks the book is printed in.
  */
 data class Book(
     val id: BookId,
@@ -27,10 +28,27 @@ data class Book(
     val speed: Float,
     val importedAt: Instant,
     val lastPlayedAt: Instant?,
+    val inks: BookInks,
 ) {
     /** The later of [lastPlayedAt] and [importedAt]; the library is sorted by it. */
     val updatedAt: Instant
         get() = lastPlayedAt?.takeIf { it > importedAt } ?: importedAt
+}
+
+/**
+ * A book's pair of inks, by their Riso names (`NamedInk.name`): the accent and the accent variant it is printed in.
+ * Names, not colors, so the library stays free of Compose and a stored pair always names a real ink.
+ */
+data class BookInks(val accent: String, val accentVariant: String) {
+    companion object {
+        /** The theme's own accents: what books had before they had inks of their own. */
+        val Default = BookInks(accent = "Purple", accentVariant = "Fluorescent Pink")
+    }
+}
+
+/** Picks the inks a book gets: at import, at migration and as Player's next candidate. */
+fun interface BookInkPicker {
+    fun pick(): BookInks
 }
 
 /**

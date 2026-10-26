@@ -64,6 +64,9 @@ internal abstract class LibraryDao {
     @Query("UPDATE books SET last_played_at = :at WHERE id = :id")
     abstract suspend fun setLastPlayed(id: Long, at: Long)
 
+    @Query("UPDATE books SET ink_accent = :accent, ink_accent_variant = :accentVariant WHERE id = :id")
+    abstract suspend fun setInks(id: Long, accent: String, accentVariant: String)
+
     /** Saves a whole book at once: the row, its files and its chapter tree. Returns the book's id. */
     @Transaction
     open suspend fun insert(book: BookEntity, files: List<AudioFileEntity>, chapters: List<Chapter>): Long {

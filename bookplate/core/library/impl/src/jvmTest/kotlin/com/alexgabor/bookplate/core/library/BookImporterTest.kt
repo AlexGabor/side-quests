@@ -35,7 +35,7 @@ class BookImporterTest {
         rule.install()
         // Built after the rule, so Room's queries run on the test IO dispatcher.
         database = inMemoryLibraryDatabase()
-        importer = BookImporterImpl(database.dao(), covers, documents, clock)
+        importer = BookImporterImpl(database.dao(), covers, documents, clock, FakeBookInkPicker())
         repository = LibraryRepositoryImpl(database.dao(), covers)
     }
 
@@ -60,6 +60,8 @@ class BookImporterTest {
             assertEquals(Duration.ZERO, position)
             assertEquals(1f, speed)
             assertNull(lastPlayedAt)
+            // The picker's first pair.
+            assertEquals(BookInks(accent = "Teal", accentVariant = "Yellow"), inks)
         }
         assertEquals(listOf("Fixture.m4b"), details.files.map { it.relativePath })
         // QuickTime chapters are preferred over the upper-cased Nero ones.

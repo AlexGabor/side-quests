@@ -2,6 +2,7 @@ package com.alexgabor.bookplate.feature.home
 
 import com.alexgabor.bookplate.core.library.Availability
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.BookInks
 import com.alexgabor.bookplate.core.library.BookImporter
 import com.alexgabor.bookplate.core.library.FailureReason
 import com.alexgabor.bookplate.core.library.FakeBookAvailability
@@ -73,6 +74,19 @@ class HomeStateTest {
         assertEquals("0:42", rows.getValue("Single").duration)
         assertEquals("0%", rows.getValue("Single").percent)
         assertNull(rows.getValue("Single").coverPath)
+    }
+
+    @Test
+    fun rowsCarryTheirBooksInksAndFollowChanges() = rule.testScope.runTest {
+        val dune = repository.add(fakeBook("Dune", importedAt = Instant.fromEpochSeconds(1), inks = BookInks("Teal", "Yellow")))
+        repository.add(fakeBook("Emma", importedAt = Instant.fromEpochSeconds(2), inks = BookInks("Red", "Blue")))
+        val home = home()
+        assertEquals(listOf(BookInks("Red", "Blue"), BookInks("Teal", "Yellow")), home.rows.map { it.inks })
+
+        repository.setInks(dune, BookInks("Green", "Orange"))
+        runCurrent()
+
+        assertEquals(listOf(BookInks("Red", "Blue"), BookInks("Green", "Orange")), home.rows.map { it.inks })
     }
 
     @Test

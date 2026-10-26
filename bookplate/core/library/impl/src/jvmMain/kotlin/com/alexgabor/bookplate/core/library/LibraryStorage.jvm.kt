@@ -11,5 +11,7 @@ internal actual val libraryStorageModule: Module = module {
     single { CoverStore(FileSystem.SYSTEM, FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "bookplate-$COVERS_DIRECTORY_NAME") }
 }
 
+// An in-memory database starts at the latest version, so the picker never runs.
 internal fun inMemoryLibraryDatabase(): LibraryDatabase =
-    Room.inMemoryDatabaseBuilder(factory = LibraryDatabaseConstructor::initialize).buildLibraryDatabase()
+    Room.inMemoryDatabaseBuilder(factory = LibraryDatabaseConstructor::initialize)
+        .buildLibraryDatabase { BookInks.Default }

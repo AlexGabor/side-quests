@@ -47,6 +47,10 @@ internal class LibraryRepositoryImpl(
         dao.setLastPlayed(id.value, at.toEpochMilliseconds())
     }
 
+    override suspend fun setInks(id: BookId, inks: BookInks) = withContext(CoroutineDispatchers.IO) {
+        dao.setInks(id.value, inks.accent, inks.accentVariant)
+    }
+
     private fun Book.matches(needle: String): Boolean =
         title.contains(needle, ignoreCase = true) || author?.contains(needle, ignoreCase = true) == true
 
@@ -62,6 +66,7 @@ internal class LibraryRepositoryImpl(
         speed = speed,
         importedAt = Instant.fromEpochMilliseconds(importedAt),
         lastPlayedAt = lastPlayedAt?.let(Instant::fromEpochMilliseconds),
+        inks = BookInks(accent = inkAccent, accentVariant = inkAccentVariant),
     )
 
     private fun BookWithContents.toDetails(): BookDetails {

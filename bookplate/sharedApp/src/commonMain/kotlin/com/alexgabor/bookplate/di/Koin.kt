@@ -1,6 +1,7 @@
 package com.alexgabor.bookplate.di
 
 import com.alexgabor.bookplate.ShowPlaying
+import com.alexgabor.bookplate.core.library.BookInkPicker
 import com.alexgabor.bookplate.core.library.libraryModule
 import com.alexgabor.lib.appstateurl.appUrlModule
 import com.alexgabor.lib.documentaccess.documentAccessModule
@@ -15,6 +16,7 @@ val sharedModule = module {
     includes(appUrlModule)
     includes(documentAccessModule)
     includes(libraryModule)
+    single<BookInkPicker> { RisoBookInkPicker() }
     includes(platformPlayerModule)
     single { ShowPlaying() }
 }

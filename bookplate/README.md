@@ -15,6 +15,9 @@ Targets: Android and iOS. Shared modules also build for the JVM, only so their t
   drag to scrub, and rewind 10 s / play-pause / forward 10 s. Back returns to Home and keeps playing.
 - Opening another book while one plays leaves it playing: the other book shows at its saved place, where you can
   move around in it, and tapping Play switches to it.
+- Each book is printed in its own pair of Riso inks, picked at random when it is added: in Player, in its row on
+  Home and in the mini player. A swatch in Player's top bar shows another pair; tapping it gives the book that pair
+  and shows a new one.
 - Speed from 0.3× to 3× in steps of 0.1× in a sheet, kept per book.
 - Chapters in a sheet, grouped under their sections, with durations; the current one is highlighted and tapping one
   jumps to it.

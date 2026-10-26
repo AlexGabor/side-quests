@@ -29,6 +29,10 @@
   then name, then size and duration), so "Relink anyway" passes the confirmed missing paths. Files that a partial
   relink left out keep their place on the timeline with `audio_files.missing` set (schema v2), and `BookTimeline`
   skips them. Relinking happens in Player only; Home's row leads there.
+- Book inks: each book stores a pair of Riso ink names (`BookInks`, `books.ink_accent`/`ink_accent_variant`, schema
+  v3). `BookInkPicker` is bound in `sharedApp` (`RisoBookInkPicker`: two different `Inks.accents`) and used at import,
+  by the v2→v3 migration and for Player's swatch. Home's rows, the mini player and Player (with its sheets) print
+  inside `RisoInks` with the book's pair; a name Riso doesn't know falls back to the theme's accents.
 
 ## Running
 

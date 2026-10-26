@@ -9,6 +9,7 @@ import com.alexgabor.bookplate.core.library.Availability
 import com.alexgabor.bookplate.core.library.Book
 import com.alexgabor.bookplate.core.library.BookAvailability
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.BookInks
 import com.alexgabor.bookplate.core.library.LibraryRepository
 import com.alexgabor.bookplate.core.library.of
 import com.alexgabor.bookplate.core.player.BookPlayer
@@ -21,7 +22,7 @@ import org.koin.compose.koinInject
 
 /**
  * The last-played book as the mini player shows it. [progress] is the fraction played. While [isUnavailable], its
- * files can't be reached: no button, and nothing plays.
+ * files can't be reached: no button, and nothing plays. [inks] are the book's, which the mini player is printed in.
  */
 data class MiniPlayerUi(
     val bookId: BookId,
@@ -29,6 +30,7 @@ data class MiniPlayerUi(
     val progress: Float,
     val isPlaying: Boolean,
     val isUnavailable: Boolean = false,
+    val inks: BookInks = BookInks.Default,
 )
 
 /**
@@ -85,6 +87,7 @@ internal fun miniPlayerOf(
         progress = if (duration > Duration.ZERO) (position / duration).toFloat().coerceIn(0f, 1f) else 0f,
         isPlaying = live?.isPlaying == true,
         isUnavailable = availability != Availability.Available,
+        inks = book.inks,
     )
 }
 

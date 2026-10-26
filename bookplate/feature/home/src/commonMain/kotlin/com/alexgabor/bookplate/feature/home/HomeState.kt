@@ -12,6 +12,7 @@ import com.alexgabor.bookplate.core.library.Availability
 import com.alexgabor.bookplate.core.library.Book
 import com.alexgabor.bookplate.core.library.BookAvailability
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.BookInks
 import com.alexgabor.bookplate.core.library.BookImporter
 import com.alexgabor.bookplate.core.library.FailureReason
 import com.alexgabor.bookplate.core.library.ImportProgress
@@ -46,7 +47,8 @@ sealed interface Library {
 
 /**
  * One book as its row shows it. [progress] is the fraction played, for `SmallProgress`. [unavailable] says why the
- * book's files can't be reached and that tapping relinks it, or is `null` while they can.
+ * book's files can't be reached and that tapping relinks it, or is `null` while they can. [inks] are the inks the row
+ * is printed in.
  */
 data class BookRow(
     val id: BookId,
@@ -57,6 +59,7 @@ data class BookRow(
     val percent: String,
     val coverPath: String?,
     val unavailable: String? = null,
+    val inks: BookInks = BookInks.Default,
 )
 
 /** The import Home is running, or the result of the last one. */
@@ -217,6 +220,7 @@ internal fun Book.toRow(availability: Availability = Availability.Available): Bo
             Availability.Missing -> "Files missing · Tap to relink"
             Availability.AccessLost -> "Access lost · Tap to relink"
         },
+        inks = inks,
     )
 }
 

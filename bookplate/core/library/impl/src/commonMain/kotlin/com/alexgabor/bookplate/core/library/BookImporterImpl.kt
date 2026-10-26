@@ -23,6 +23,7 @@ internal class BookImporterImpl(
     private val covers: CoverStore,
     private val documents: DocumentAccess,
     private val clock: Clock,
+    private val inks: BookInkPicker,
 ) : BookImporter {
 
     override suspend fun import(document: PickedDocument, onProgress: (ImportProgress) -> Unit): ImportResult =
@@ -72,6 +73,7 @@ internal class BookImporterImpl(
 
         onProgress(ImportProgress.Saving)
         val coverFile = saveCover(parsed, entries)
+        val bookInks = inks.pick()
         val row = BookEntity(
             sourceRef = sourceRef,
             fingerprint = fingerprint,
@@ -81,6 +83,8 @@ internal class BookImporterImpl(
             durationMs = book.duration.inWholeMilliseconds,
             coverFile = coverFile,
             importedAt = clock.now().toEpochMilliseconds(),
+            inkAccent = bookInks.accent,
+            inkAccentVariant = bookInks.accentVariant,
         )
         val files = book.files.mapIndexed { i, file ->
             AudioFileEntity(

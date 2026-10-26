@@ -54,6 +54,12 @@ data class Inks(
         NamedInk("Burgundy", burgundy),
         NamedInk("Black", vintageBlack),
     )
+
+    /** Every ink in [all] except Black, which is the content ink — the inks an accent can be. */
+    val accents: List<NamedInk> = all.filter { it.color != vintageBlack }
+
+    /** The ink in [all] named exactly [name], or `null` when there is none. */
+    fun named(name: String): NamedInk? = all.firstOrNull { it.name == name }
 }
 
 /** A RISO ink paired with the name it is ordered by. */

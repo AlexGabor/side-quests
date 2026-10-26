@@ -32,7 +32,7 @@ class LibraryRepositoryImplTest {
         rule.install()
         database = inMemoryLibraryDatabase()
         val covers = CoverStore(FileSystem.SYSTEM, coversDirectory)
-        importer = BookImporterImpl(database.dao(), covers, documents, clock)
+        importer = BookImporterImpl(database.dao(), covers, documents, clock, FakeBookInkPicker())
         repository = LibraryRepositoryImpl(database.dao(), covers)
     }
 
@@ -103,6 +103,21 @@ class LibraryRepositoryImplTest {
         val other = repository.book(emma).first()!!.book
         assertEquals(0.seconds, other.position)
         assertEquals(1f, other.speed)
+    }
+
+    @Test
+    fun inksChangeOnlyThatBookAndKeepItsPlace() = rule.testScope.runTest {
+        val dune = add("Dune")
+        val emma = add("Emma")
+        repository.setLastPlayed(dune, clock.now.plus(1.seconds))
+        val green = BookInks(accent = "Green", accentVariant = "Orange")
+
+        repository.setInks(dune, green)
+
+        assertEquals(green, repository.book(dune).first()!!.book.inks)
+        assertEquals(green, repository.lastPlayed.first()!!.inks)
+        assertEquals(listOf("Dune" to green, "Emma" to BookInks("Red", "Blue")), repository.books().first().map { it.title to it.inks })
+        assertEquals(BookInks("Red", "Blue"), repository.book(emma).first()!!.book.inks)
     }
 
     @Test

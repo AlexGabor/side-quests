@@ -1,6 +1,7 @@
 package com.alexgabor.bookplate.feature.home
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
@@ -23,7 +24,8 @@ import org.jetbrains.compose.resources.decodeToImageBitmap
 
 /**
  * A book's cover, read from [coverPath] in app storage and drawn as a plain image: covers are not
- * printed through Riso inks. Without a readable cover, a printed placeholder with [title]'s first letter.
+ * printed through Riso inks. Without a readable cover, a printed placeholder with [title]'s first letter, on the
+ * accent variant at 0.4 and bordered in the accent: the book's inks, when drawn inside them.
  *
  * Having no ink to thin, the image takes the enclosing `risoFade` (a screen crossfading, the page
  * behind a bottom sheet) as transparency, so it leaves with the print around it.
@@ -47,13 +49,20 @@ internal fun BookCover(
             modifier = modifier.risoFadeAsAlpha().clip(shape),
         )
     } else {
-        Box(
-            modifier = modifier
-                .risoInk(RisoTheme.colors.content)
-                .border(RisoTheme.dimens.lineWidth, RisoTheme.colors.content, shape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Heading2(text = title.trim().take(1).uppercase())
+        val colors = RisoTheme.colors
+        // One ink per layer: the tint, the border, then the letter over both.
+        Box(modifier, contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.matchParentSize()
+                    .risoInk(colors.accentVariant)
+                    .background(colors.accentVariant.copy(alpha = .4f), shape),
+            )
+            Box(
+                Modifier.matchParentSize()
+                    .risoInk(colors.accent)
+                    .border(RisoTheme.dimens.lineWidth, colors.accent, shape),
+            )
+            Heading2(text = title.trim().take(1).uppercase(), modifier = Modifier.risoInk(colors.content))
         }
     }
 }

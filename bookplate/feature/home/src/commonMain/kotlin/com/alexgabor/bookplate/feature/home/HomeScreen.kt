@@ -35,6 +35,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.BookInks
+import com.alexgabor.design.riso.RisoInks
 import com.alexgabor.design.riso.RisoTheme
 import com.alexgabor.design.riso.attributes.Body
 import com.alexgabor.design.riso.attributes.Heading1
@@ -158,13 +160,17 @@ private fun HomeContent(
                         contentPadding = PaddingValues(top = padding, bottom = padding + bottomInset),
                     ) {
                         items(library.rows, key = { it.id.value }) { row ->
-                            BookRowItem(row = row, onClick = { onOpenBook(row.id) })
+                            WithBookInks(row.inks) {
+                                BookRowItem(row = row, onClick = { onOpenBook(row.id) })
+                            }
                         }
                     }
                 }
             }
             if (mini != null) {
-                MiniPlayer(mini = mini, onClick = { onOpenBook(mini.bookId) }, onPlayPause = onMiniPlayPause)
+                WithBookInks(mini.inks) {
+                    MiniPlayer(mini = mini, onClick = { onOpenBook(mini.bookId) }, onPlayPause = onMiniPlayPause)
+                }
             }
         }
     }
@@ -200,6 +206,17 @@ private fun ImportStatusPanel(status: ImportStatus, onClose: () -> Unit) {
             FlatButton(icon = IconType.Close, contentDescription = "Close", onClick = onClose)
         }
     }
+}
+
+/** Prints [content] in a book's [inks]: its row and the mini player. */
+@Composable
+private fun WithBookInks(inks: BookInks, content: @Composable () -> Unit) {
+    val colors = RisoTheme.colors
+    RisoInks(
+        accent = colors.inks.named(inks.accent)?.color ?: colors.accent,
+        accentVariant = colors.inks.named(inks.accentVariant)?.color ?: colors.accentVariant,
+        content = content,
+    )
 }
 
 /**
@@ -348,8 +365,8 @@ private fun AddBookSheet(launcher: DocumentPickerLauncher, onDismissRequest: () 
 internal val AudioMimeTypes = listOf("audio/*")
 
 private val PreviewRows = listOf(
-    BookRow(BookId(1), "Dune", "Frank Herbert", "21:02:00", 0.25f, "25%", coverPath = null),
-    BookRow(BookId(2), "Emma", "Jane Austen", "16:10:42", 0f, "0%", coverPath = null),
+    BookRow(BookId(1), "Dune", "Frank Herbert", "21:02:00", 0.25f, "25%", coverPath = null, inks = BookInks("Teal", "Yellow")),
+    BookRow(BookId(2), "Emma", "Jane Austen", "16:10:42", 0f, "0%", coverPath = null, inks = BookInks("Red", "Blue")),
     BookRow(BookId(3), "Single", "Unknown author", "0:42", 1f, "100%", coverPath = null, unavailable = "Files missing · Tap to relink"),
 )
 
@@ -382,7 +399,7 @@ private fun HomeLibraryPreview() {
     HomePreview(
         library = Library.Books(PreviewRows),
         importStatus = ImportStatus.Running("Sample Book", "Reading file 1 of 2", 0.5f),
-        mini = MiniPlayerUi(BookId(1), "Dune", progress = 0.25f, isPlaying = true),
+        mini = MiniPlayerUi(BookId(1), "Dune", progress = 0.25f, isPlaying = true, inks = BookInks("Teal", "Yellow")),
     )
 }
 

@@ -20,7 +20,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okio.FileSystem
 
-/** A version 1 database, made from its exported schema, opens with this version and keeps its books. */
+/** Older databases, made from their exported schemas, open with this version and keep their books. */
 class LibraryMigrationTest {
 
     private val rule = TestScopeRule()
@@ -40,7 +40,8 @@ class LibraryMigrationTest {
     fun version1MigratesKeepingEveryBookWithNoFileLeftOut() = rule.testScope.runTest {
         createVersion1()
 
-        val database = Room.databaseBuilder(file.absolutePath, LibraryDatabaseConstructor::initialize).buildLibraryDatabase()
+        val database = Room.databaseBuilder(file.absolutePath, LibraryDatabaseConstructor::initialize)
+            .buildLibraryDatabase(FakeBookInkPicker())
         val covers = CoverStore(FileSystem.SYSTEM, temporaryDirectory())
         val details = assertNotNull(LibraryRepositoryImpl(database.dao(), covers).book(BookId(1)).first())
         database.close()
@@ -53,8 +54,36 @@ class LibraryMigrationTest {
         assertEquals(listOf("One"), details.chapters.map { it.title })
     }
 
+    @Test
+    fun version2MigratesGivingEveryBookInksFromThePicker() = rule.testScope.runTest {
+        createSchema(version = 2)
+        insertBooks()
+
+        val database = Room.databaseBuilder(file.absolutePath, LibraryDatabaseConstructor::initialize)
+            .buildLibraryDatabase(FakeBookInkPicker())
+        val covers = CoverStore(FileSystem.SYSTEM, temporaryDirectory())
+        val repository = LibraryRepositoryImpl(database.dao(), covers)
+        val dune = assertNotNull(repository.book(BookId(1)).first())
+        val emma = assertNotNull(repository.book(BookId(2)).first())
+        database.close()
+
+        assertEquals("Dune", dune.book.title)
+        assertEquals(42.seconds, dune.book.position)
+        assertEquals(listOf("01.mp3", "02.mp3"), dune.files.map { it.relativePath })
+        assertEquals("Emma", emma.book.title)
+        assertEquals(
+            setOf(BookInks(accent = "Teal", accentVariant = "Yellow"), BookInks(accent = "Red", accentVariant = "Blue")),
+            setOf(dune.book.inks, emma.book.inks),
+        )
+    }
+
     private fun createVersion1() {
-        val schema = Json.parseToJsonElement(File("schemas/${LibraryDatabase::class.qualifiedName}/1.json").readText())
+        createSchema(version = 1)
+        insertBooks(emma = false)
+    }
+
+    private fun createSchema(version: Int) {
+        val schema = Json.parseToJsonElement(File("schemas/${LibraryDatabase::class.qualifiedName}/$version.json").readText())
             .jsonObject.getValue("database").jsonObject
         val connection = BundledSQLiteDriver().open(file.absolutePath)
         try {
@@ -66,7 +95,15 @@ class LibraryMigrationTest {
                 }
             }
             schema.getValue("setupQueries").jsonArray.forEach { connection.execSQL(it.jsonPrimitive.content) }
-            connection.execSQL("PRAGMA user_version = 1")
+            connection.execSQL("PRAGMA user_version = $version")
+        } finally {
+            connection.close()
+        }
+    }
+
+    private fun insertBooks(emma: Boolean = true) {
+        val connection = BundledSQLiteDriver().open(file.absolutePath)
+        try {
             val ref = "docref1;D;Books/Dune"
             connection.execSQL(
                 "INSERT INTO books (id, source_ref, fingerprint, title, duration_ms, position_ms, speed, imported_at) " +
@@ -79,6 +116,12 @@ class LibraryMigrationTest {
             connection.execSQL(
                 "INSERT INTO chapters (book_id, parent_id, ordinal, title, start_ms, end_ms) VALUES (1, NULL, 0, 'One', 0, 2000)",
             )
+            if (emma) {
+                connection.execSQL(
+                    "INSERT INTO books (id, source_ref, fingerprint, title, duration_ms, position_ms, speed, imported_at) " +
+                        "VALUES (2, 'docref1;D;Books/Emma', 'g', 'Emma', 1000, 0, 1.0, 1)",
+                )
+            }
         } finally {
             connection.close()
         }

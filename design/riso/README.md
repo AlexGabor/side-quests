@@ -38,6 +38,10 @@ Riso is shaped like `MaterialTheme`, so it reads the way Compose developers expe
 - The `RisoTheme { }` composable provides the values; the `RisoTheme` object reads them:
   `RisoTheme.colors`, `.typography`, `.dimens`, `.shapes` and `.press`.
 - The backing `Local*` composition locals are `internal`. Always go through `RisoTheme.*`.
+- `RisoInks(accent, accentVariant) { }` prints a part of the UI with other accents, for example one
+  per item. Components inside it pick them up. Take the inks from `RisoTheme.colors.inks`:
+  `inks.accents` lists every ink an accent can be (all but Black), and `inks.named("Teal")` looks one
+  up by its RISO name.
 
 Material is used internally (for example Material's `Text`), but it is **not exposed**:
 `material3` is an `implementation` dependency, and only `compose.foundation` is `api`. Apps use the
@@ -47,6 +51,9 @@ Riso components and `RisoTheme` values, never Material directly.
 
 `components/` holds the controls apps build from. Each one reads `RisoTheme` and prints with its own
 inks.
+
+`SwatchButton(accent, accentVariant, …)` is a `Button` with no content, in the small shape, printed in
+the ink pair it is given — for showing or picking a pair of inks. The caller sizes it.
 
 There is no Material ripple. A plain `clickable`/`selectable` is overprinted in the content color at
 0.25 while pressed; pass `indication = risoIndication(color)` where the content is printed in another
