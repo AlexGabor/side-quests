@@ -244,6 +244,14 @@ private fun BookRowItem(row: BookRow, onClick: () -> Unit) {
                     Body(text = row.percent, modifier = ink)
                 }
                 SmallProgress(progress = row.progress, modifier = Modifier.padding(top = 4.dp).fillMaxWidth())
+                row.unavailable?.let { unavailable ->
+                    Text(
+                        text = unavailable,
+                        color = colors.accent,
+                        textStyle = RisoTheme.typography.body,
+                        modifier = Modifier.padding(top = 4.dp).risoInk(colors.accent),
+                    )
+                }
             }
         }
     }
@@ -287,11 +295,20 @@ private fun MiniPlayer(mini: MiniPlayerUi, onClick: () -> Unit, onPlayPause: () 
                     overflow = TextOverflow.Ellipsis,
                     modifier = ink.weight(1f),
                 )
-                FlatButton(
-                    icon = if (mini.isPlaying) IconType.Pause else IconType.Play,
-                    contentDescription = if (mini.isPlaying) "Pause" else "Play",
-                    onClick = onPlayPause,
-                )
+                if (mini.isUnavailable) {
+                    Text(
+                        text = "Unavailable",
+                        color = colors.accent,
+                        textStyle = RisoTheme.typography.body,
+                        modifier = Modifier.risoInk(colors.accent),
+                    )
+                } else {
+                    FlatButton(
+                        icon = if (mini.isPlaying) IconType.Pause else IconType.Play,
+                        contentDescription = if (mini.isPlaying) "Pause" else "Play",
+                        onClick = onPlayPause,
+                    )
+                }
             }
             SmallProgress(progress = mini.progress, modifier = Modifier.fillMaxWidth())
         }
@@ -333,7 +350,7 @@ internal val AudioMimeTypes = listOf("audio/*")
 private val PreviewRows = listOf(
     BookRow(BookId(1), "Dune", "Frank Herbert", "21:02:00", 0.25f, "25%", coverPath = null),
     BookRow(BookId(2), "Emma", "Jane Austen", "16:10:42", 0f, "0%", coverPath = null),
-    BookRow(BookId(3), "Single", "Unknown author", "0:42", 1f, "100%", coverPath = null),
+    BookRow(BookId(3), "Single", "Unknown author", "0:42", 1f, "100%", coverPath = null, unavailable = "Files missing · Tap to relink"),
 )
 
 @Composable

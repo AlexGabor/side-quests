@@ -225,7 +225,7 @@ after a restart, and keeps playing with the screen off.
 **Done when:** controls from the panel and from headset buttons work on both platforms and the panel follows chapter
 changes.
 
-## M14 — Relink moved files
+## M14 — Relink moved files ✅
 
 **Change:** `bookplate-relink`
 
@@ -245,6 +245,8 @@ position; JVM tests for the matching rules.
   thumbnails.
 - Process death and configuration changes on Player and Home.
 - Edge cases: book with no chapters, zero-length or corrupt files, unsupported files inside a folder.
+- Left over from M14: release the old Android persisted folder permission after a relink; refresh stale iOS
+  bookmarks.
 - Full Maestro pass on both platforms; README feature list complete; `known-deviations.md` updated.
 
 **Done when:** all flows and tests green on both platforms.

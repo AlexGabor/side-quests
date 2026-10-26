@@ -1,0 +1,36 @@
+# Relink, step 2, after the host moved or renamed the book's files: the app restarts, Home's check marks the book,
+# Player offers to relink it, the folder ${FOLDER} is picked, and the book resumes at 0:40.
+#
+# Scenario: moved folder (or a file renamed inside it), relinked
+#   Given "Sample Book" at 0:40, whose files were moved or renamed
+#   When the app starts
+#   Then its row says "Files missing · Tap to relink"
+#   When I open it, tap "Relink" and pick ${FOLDER}
+#   Then Player says it was relinked and shows it at 0:40, and it plays
+appId: ${APP_ID}
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Files missing · Tap to relink"
+    timeout: 10000
+- tapOn: "Sample Book"
+- assertVisible: "Files missing"
+- assertNotVisible: "Play"
+- tapOn: "Relink"
+- runFlow:
+    file: ../subflows/pick-folder.yaml
+- extendedWaitUntil:
+    visible: "Relinked “Sample Book”"
+    timeout: 15000
+- assertVisible: "0:40"
+- assertVisible: "Opening"
+- tapOn:
+    text: "Play"
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "Pause"
+- tapOn:
+    text: "Pause"
+    waitToSettleTimeoutMs: 1000
+- tapOn: "Back"
+- assertVisible: "Search title or author"
+- assertNotVisible: "Files missing · Tap to relink"

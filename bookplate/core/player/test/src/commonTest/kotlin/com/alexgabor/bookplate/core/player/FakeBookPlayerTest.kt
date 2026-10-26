@@ -1,6 +1,8 @@
 package com.alexgabor.bookplate.core.player
 
+import com.alexgabor.bookplate.core.library.Availability
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.FakeBookAvailability
 import com.alexgabor.bookplate.core.library.Chapter
 import com.alexgabor.bookplate.core.library.FakeLibraryRepository
 import com.alexgabor.bookplate.core.library.fakeBook
@@ -27,6 +29,7 @@ class FakeBookPlayerTest {
 
     private val rule = TestScopeRule()
     private val repository = FakeLibraryRepository()
+    private val availability = FakeBookAvailability()
     private val now = Instant.fromEpochSeconds(1_000_000)
     private val clock = object : Clock {
         override fun now() = now
@@ -47,7 +50,7 @@ class FakeBookPlayerTest {
         ),
     )
 
-    private fun TestScope.player() = FakeBookPlayer(repository, backgroundScope, clock)
+    private fun TestScope.player() = FakeBookPlayer(repository, availability, backgroundScope, clock)
 
     private fun saved(id: BookId) = repository.all.first { it.book.id == id }.book
 
@@ -278,5 +281,57 @@ class FakeBookPlayerTest {
         runCurrent()
 
         assertFalse(player.state.value.isPlaying)
+    }
+
+    @Test
+    fun refusesToPlayAnUnavailableBook() = rule.testScope.runTest {
+        val id = addSampleBook(position = 30.seconds)
+        availability.set(id, Availability.Missing)
+        val player = player()
+        player.load(id)
+
+        player.play()
+        runCurrent()
+        advanceTimeBy(2.seconds)
+        runCurrent()
+
+        assertFalse(player.state.value.isPlaying)
+        assertEquals(30.seconds, player.state.value.position)
+        assertEquals(listOf(id), availability.checks)
+    }
+
+    @Test
+    fun aPlayingBookFoundMissingIsPaused() = rule.testScope.runTest {
+        val id = addSampleBook()
+        val player = player()
+        player.load(id)
+        player.play()
+        runCurrent()
+        availability.set(id, Availability.Missing)
+
+        advanceTimeBy(30.seconds)
+        runCurrent()
+
+        assertFalse(player.state.value.isPlaying)
+        assertEquals(Availability.Missing, availability.availability.value[id])
+    }
+
+    @Test
+    fun aFailedPlaybackStopsSavesAndChecksTheBook() = rule.testScope.runTest {
+        val id = addSampleBook()
+        val player = player()
+        player.load(id)
+        player.play()
+        runCurrent()
+        advanceTimeBy(2.seconds)
+        runCurrent()
+        availability.set(id, Availability.Missing)
+
+        player.failPlayback()
+        runCurrent()
+
+        assertFalse(player.state.value.isPlaying)
+        assertEquals(2.seconds, repository.all.single().book.position)
+        assertEquals(Availability.Missing, availability.availability.value[id])
     }
 }

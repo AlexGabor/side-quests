@@ -1,8 +1,10 @@
 package com.alexgabor.bookplate.feature.home
 
+import com.alexgabor.bookplate.core.library.Availability
 import com.alexgabor.bookplate.core.library.BookId
 import com.alexgabor.bookplate.core.library.BookImporter
 import com.alexgabor.bookplate.core.library.FailureReason
+import com.alexgabor.bookplate.core.library.FakeBookAvailability
 import com.alexgabor.bookplate.core.library.FakeBookImporter
 import com.alexgabor.bookplate.core.library.FakeLibraryRepository
 import com.alexgabor.bookplate.core.library.ImportProgress
@@ -32,6 +34,7 @@ class HomeStateTest {
     private val rule = TestScopeRule()
     private val repository = FakeLibraryRepository()
     private val importer = FakeBookImporter(repository)
+    private val availability = FakeBookAvailability()
 
     @BeforeTest
     fun setUp() = rule.install()
@@ -40,7 +43,7 @@ class HomeStateTest {
     fun tearDown() = rule.reset()
 
     private fun TestScope.home(query: String = ""): HomeState =
-        HomeState(backgroundScope, repository, importer, query = query).also { runCurrent() }
+        HomeState(backgroundScope, repository, importer, availability, query = query).also { runCurrent() }
 
     private val HomeState.rows: List<BookRow>
         get() = (library.value as Library.Books).rows
@@ -217,7 +220,7 @@ class HomeStateTest {
                 return ImportResult.NoAudioFound
             }
         }
-        val home = HomeState(backgroundScope, repository, slowImporter)
+        val home = HomeState(backgroundScope, repository, slowImporter, availability)
 
         home.onPicked(pick("Sample"))
         runCurrent()
@@ -272,5 +275,77 @@ class HomeStateTest {
         val id = repository.add(fakeBook("Dune"))
         assertEquals(listOf(id), home().rows.map { it.id })
         assertTrue(id != BookId(0))
+    }
+
+    // Unavailable books (M14)
+
+    @Test
+    fun creatingHomeChecksEveryBookOnce() = rule.testScope.runTest {
+        repository.add(fakeBook("Dune"))
+
+        home()
+
+        assertEquals(1, availability.checkAllCount)
+    }
+
+    @Test
+    fun aMissingBooksRowSaysSoAndOffersRelink() = rule.testScope.runTest {
+        val dune = repository.add(fakeBook("Dune", importedAt = Instant.fromEpochSeconds(1)))
+        repository.add(fakeBook("Emma", importedAt = Instant.fromEpochSeconds(2)))
+        availability.set(dune, Availability.Missing)
+
+        val rows = home().rows.associateBy { it.title }
+
+        assertEquals("Files missing · Tap to relink", rows.getValue("Dune").unavailable)
+        assertNull(rows.getValue("Emma").unavailable)
+        // Everything else about the row stays.
+        assertEquals("0%", rows.getValue("Dune").percent)
+    }
+
+    @Test
+    fun anAccessLostBooksRowSaysSo() = rule.testScope.runTest {
+        val dune = repository.add(fakeBook("Dune"))
+        availability.set(dune, Availability.AccessLost)
+
+        assertEquals("Access lost · Tap to relink", home().rows.single().unavailable)
+    }
+
+    @Test
+    fun rowsShowAtOnceAndChangeAsChecksComeBack() = rule.testScope.runTest {
+        val dune = repository.add(fakeBook("Dune"))
+        val home = home()
+        assertNull(home.rows.single().unavailable)
+
+        availability.set(dune, Availability.Missing)
+        availability.check(dune)
+        runCurrent()
+
+        assertEquals("Files missing · Tap to relink", home.rows.single().unavailable)
+    }
+
+    @Test
+    fun aBookThatIsAvailableAgainLosesItsLine() = rule.testScope.runTest {
+        val dune = repository.add(fakeBook("Dune"))
+        availability.set(dune, Availability.Missing)
+        val home = home()
+        assertEquals("Files missing · Tap to relink", home.rows.single().unavailable)
+
+        availability.set(dune, Availability.Available)
+        availability.check(dune)
+        runCurrent()
+
+        assertNull(home.rows.single().unavailable)
+    }
+
+    @Test
+    fun searchKeepsTheUnavailableLine() = rule.testScope.runTest {
+        val dune = repository.add(fakeBook("Dune", author = "Frank Herbert"))
+        availability.set(dune, Availability.Missing)
+        val home = home()
+
+        home.onQueryChange("herbert")
+        runCurrent()
+
+        assertEquals("Files missing · Tap to relink", home.rows.single().unavailable)
     }
 }

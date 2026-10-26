@@ -1,0 +1,14 @@
+# Relink, step 2 for a file going missing during playback: the host deleted the second file while the first plays.
+# When playback reaches it, it stops and Player shows the book missing.
+#
+# Scenario: a file disappears during playback
+#   Given "Sample Book" playing in its first file
+#   When its second file is deleted
+#   Then, once playback gets there, Player shows "Files missing" and "Relink", and nothing plays
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible: "Files missing"
+    timeout: 120000
+- assertVisible: "Relink"
+- assertNotVisible: "Pause"

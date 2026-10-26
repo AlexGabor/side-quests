@@ -1,0 +1,11 @@
+# Relink, step 2 for files that come back: after the host moved a file out of the folder, the app restarts and
+# Player shows the book missing. The host then puts the file back (step 3).
+appId: ${APP_ID}
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Files missing · Tap to relink"
+    timeout: 10000
+- tapOn: "Sample Book"
+- assertVisible: "Files missing"
+- assertVisible: "Check again"

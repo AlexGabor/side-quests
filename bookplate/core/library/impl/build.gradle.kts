@@ -29,6 +29,10 @@ kotlin {
         }
         // The lib/audiometadata fixtures, read in place rather than copied.
         jvmTest {
+            dependencies {
+                // Reads the exported schema to build a version 1 database for the migration test.
+                implementation(libs.kotlinx.serialization.json)
+            }
             resources.srcDir(rootProject.file("lib/audiometadata/src/jvmTest/resources"))
         }
     }

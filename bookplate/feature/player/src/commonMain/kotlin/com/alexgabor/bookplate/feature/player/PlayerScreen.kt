@@ -40,6 +40,7 @@ import com.alexgabor.design.riso.components.track.rememberTrackState
 import com.alexgabor.design.riso.layout.contentWidth
 import com.alexgabor.design.riso.risograph.inks.risoInk
 import com.alexgabor.design.riso.risograph.paper.risoPaper
+import com.alexgabor.lib.documentaccess.DocumentPicker
 import kotlin.math.floor
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -48,10 +49,12 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import org.koin.compose.koinInject
 
 /**
  * Bookplate's Player for book [bookId]: what is playing, where, and the controls, with the speed and
- * chapters sheets.
+ * chapters sheets. While the book's files can't be reached, it says so and offers to relink the book, picking a
+ * folder or a file through [picker] as the book was added.
  */
 @Composable
 fun PlayerScreen(
@@ -59,12 +62,20 @@ fun PlayerScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     state: PlayerScreenState = rememberPlayerScreenState(bookId),
+    picker: DocumentPicker = koinInject(),
 ) {
     val ui by state.ui
     val sheet by state.sheet
+    val launcher = picker.rememberLauncher(state::onRelinkPicked)
 
     PlayerContent(
         ui = ui,
+        relink = state.relink.value,
+        onRelink = { if (ui?.needsFolder != false) launcher.pickFolder() else launcher.pickFile(AudioMimeTypes) },
+        onCheckAgain = state::onCheckAgain,
+        onRelinkConfirmed = state::onRelinkConfirmed,
+        onRelinkCancelled = state::onRelinkCancelled,
+        onRelinkStatusClosed = state::onRelinkStatusClosed,
         onBackClick = onBackClick,
         onChaptersClick = state::onChaptersClick,
         onSpeedClick = state::onSpeedClick,
@@ -76,7 +87,7 @@ fun PlayerScreen(
         modifier = modifier,
     )
 
-    val shown = ui ?: return
+    val shown = ui?.takeIf { it.unavailable == null } ?: return
     when (sheet) {
         PlayerSheet.Speed -> SpeedSheet(
             speed = shown.speed,
@@ -93,9 +104,18 @@ fun PlayerScreen(
     }
 }
 
+/** What the file picker offers when relinking a single-file book. */
+internal val AudioMimeTypes = listOf("audio/*")
+
 @Composable
 private fun PlayerContent(
     ui: PlayerUi?,
+    relink: RelinkStatus?,
+    onRelink: () -> Unit,
+    onCheckAgain: () -> Unit,
+    onRelinkConfirmed: () -> Unit,
+    onRelinkCancelled: () -> Unit,
+    onRelinkStatusClosed: () -> Unit,
     onBackClick: () -> Unit,
     onChaptersClick: () -> Unit,
     onSpeedClick: () -> Unit,
@@ -124,7 +144,7 @@ private fun PlayerContent(
                     FlatButton(icon = IconType.Back, contentDescription = "Back", onClick = onBackClick)
                 },
                 endContent = {
-                    if (ui != null) {
+                    if (ui != null && ui.unavailable == null) {
                         Row {
                             FlatButton(icon = IconType.Chapters, contentDescription = "Chapters", onClick = onChaptersClick)
                             FlatButton(icon = IconType.Speed, contentDescription = "Speed", onClick = onSpeedClick)
@@ -163,6 +183,22 @@ private fun PlayerContent(
                 )
             }
 
+            if (ui.unavailable != null) {
+                UnavailablePanel(
+                    unavailable = ui.unavailable,
+                    relink = relink,
+                    onRelink = onRelink,
+                    onCheckAgain = onCheckAgain,
+                    onRelinkConfirmed = onRelinkConfirmed,
+                    onRelinkCancelled = onRelinkCancelled,
+                    onRelinkStatusClosed = onRelinkStatusClosed,
+                )
+                return@Column
+            }
+            if (relink is RelinkStatus.Finished) {
+                RelinkResultRow(relink, onClose = onRelinkStatusClosed)
+            }
+
             ui.chapterTitle?.let { chapter ->
                 Text(
                     text = chapter,
@@ -199,6 +235,69 @@ private fun PlayerContent(
                 FlatButton(icon = IconType.Forward10, contentDescription = "Forward 10 seconds", onClick = onSkipForward)
             }
         }
+    }
+}
+
+/**
+ * In place of the controls while the book's files can't be reached: why, and "Relink" and "Check again"; while a
+ * relink runs or asks to confirm a partial match, its progress or question instead of those buttons.
+ */
+@Composable
+private fun UnavailablePanel(
+    unavailable: UnavailableUi,
+    relink: RelinkStatus?,
+    onRelink: () -> Unit,
+    onCheckAgain: () -> Unit,
+    onRelinkConfirmed: () -> Unit,
+    onRelinkCancelled: () -> Unit,
+    onRelinkStatusClosed: () -> Unit,
+) {
+    val colors = RisoTheme.colors
+    val ink = Modifier.risoInk(colors.content)
+    Column(
+        Modifier.fillMaxWidth().padding(bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = unavailable.title,
+            textStyle = RisoTheme.typography.heading3,
+            color = colors.accent,
+            modifier = Modifier.risoInk(colors.accent),
+        )
+        Body(text = unavailable.message, modifier = ink)
+        when (relink) {
+            is RelinkStatus.Running -> Body(text = relink.message, modifier = ink)
+            is RelinkStatus.NeedsConfirmation -> {
+                Body(text = relink.message, modifier = ink)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Button(text = "Relink anyway", onClick = onRelinkConfirmed)
+                    FlatButton(text = "Cancel", onClick = onRelinkCancelled)
+                }
+            }
+            is RelinkStatus.Finished, null -> {
+                if (relink is RelinkStatus.Finished) RelinkResultRow(relink, onClose = onRelinkStatusClosed)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Button(text = "Relink", onClick = onRelink)
+                    FlatButton(text = "Check again", onClick = onCheckAgain)
+                }
+            }
+        }
+    }
+}
+
+/** A finished relink's result, with a button to close it. */
+@Composable
+private fun RelinkResultRow(status: RelinkStatus.Finished, onClose: () -> Unit) {
+    val colors = RisoTheme.colors
+    val color = if (status.isError) colors.accent else colors.content
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = status.message,
+            color = color,
+            textStyle = RisoTheme.typography.body,
+            modifier = Modifier.weight(1f).risoInk(color),
+        )
+        FlatButton(icon = IconType.Close, contentDescription = "Close", onClick = onClose)
     }
 }
 
@@ -341,6 +440,12 @@ private fun PlayerPreview() {
                 speedLabel = "1.0×",
                 chapters = emptyList(),
             ),
+            relink = null,
+            onRelink = {},
+            onCheckAgain = {},
+            onRelinkConfirmed = {},
+            onRelinkCancelled = {},
+            onRelinkStatusClosed = {},
             onBackClick = {},
             onChaptersClick = {},
             onSpeedClick = {},

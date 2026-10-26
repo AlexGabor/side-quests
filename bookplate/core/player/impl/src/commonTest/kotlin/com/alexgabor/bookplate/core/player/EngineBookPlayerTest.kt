@@ -1,6 +1,8 @@
 package com.alexgabor.bookplate.core.player
 
 import com.alexgabor.bookplate.core.library.AudioFile
+import com.alexgabor.bookplate.core.library.Availability
+import com.alexgabor.bookplate.core.library.FakeBookAvailability
 import com.alexgabor.bookplate.core.library.BookId
 import com.alexgabor.bookplate.core.library.Chapter
 import com.alexgabor.bookplate.core.library.FakeLibraryRepository
@@ -30,6 +32,7 @@ class EngineBookPlayerTest {
 
     private val rule = TestScopeRule()
     private val repository = FakeLibraryRepository()
+    private val availability = FakeBookAvailability()
     private val backgrounded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private var now = Instant.fromEpochSeconds(1_000_000)
     private val clock = object : Clock {
@@ -74,7 +77,7 @@ class EngineBookPlayerTest {
     private fun TestScope.output() = FakeAudioOutput { testScheduler.currentTime.milliseconds }
 
     private fun TestScope.player(output: AudioOutput) =
-        EngineBookPlayer(repository, output, backgroundScope, clock, backgrounded)
+        EngineBookPlayer(repository, availability, output, backgroundScope, clock, backgrounded)
 
     private fun saved(id: BookId) = repository.all.first { it.book.id == id }.book
 
@@ -587,5 +590,201 @@ class EngineBookPlayerTest {
         assertEquals("Empty", player.state.value.book?.title)
         assertFalse(player.state.value.isPlaying)
         assertFalse(output.isPlaying)
+    }
+
+    // Availability (M14)
+
+    @Test
+    fun playingAnUnavailableBookStaysPausedAndPlaysNothing() = rule.testScope.runTest {
+        val id = addSampleBook(position = 30.seconds)
+        availability.set(id, Availability.Missing)
+        val output = output()
+        val player = player(output)
+        player.load(id)
+
+        player.play()
+        runCurrent()
+        advanceTimeBy(3.seconds)
+        runCurrent()
+
+        assertFalse(player.state.value.isPlaying)
+        assertFalse(output.isPlaying)
+        assertEquals(30.seconds, player.state.value.position)
+        assertEquals(listOf(id), availability.checks)
+        assertEquals(Availability.Missing, availability.availability.value[id])
+        assertNull(saved(id).lastPlayedAt)
+    }
+
+    @Test
+    fun accessLostAlsoStaysPaused() = rule.testScope.runTest {
+        val id = addSampleBook()
+        availability.set(id, Availability.AccessLost)
+        val output = output()
+        val player = player(output)
+        player.load(id)
+
+        player.play()
+        runCurrent()
+
+        assertFalse(output.isPlaying)
+    }
+
+    @Test
+    fun anAvailableBookIsCheckedAndPlays() = rule.testScope.runTest {
+        val id = addSampleBook()
+        val output = output()
+        val player = player(output)
+        player.load(id)
+
+        player.play()
+        runCurrent()
+
+        assertTrue(output.isPlaying)
+        assertEquals(listOf(id), availability.checks)
+    }
+
+    @Test
+    fun aFileGoingMissingDuringPlaybackStopsWithTheBookUnavailable() = rule.testScope.runTest {
+        val id = addSampleBook(position = 60.seconds)
+        val output = output()
+        val player = player(output)
+        player.load(id)
+        player.play()
+        runCurrent()
+        advanceTimeBy(3.seconds)
+
+        // The second file is deleted; the output fails when it gets to it.
+        availability.set(id, Availability.Missing)
+        output.platformFail()
+        runCurrent()
+
+        assertFalse(player.state.value.isPlaying)
+        assertEquals(63.seconds, player.state.value.position)
+        assertEquals(63.seconds, saved(id).position)
+        assertEquals(Availability.Missing, availability.availability.value[id])
+        assertEquals(listOf(id, id), availability.checks)
+    }
+
+    @Test
+    fun aPlayingBookIsCheckedEveryThirtySecondsAndStopsWhenAFileWentMissing() = rule.testScope.runTest {
+        // The platform may have buffered the rest of the book, so no error comes: the periodic check stops it.
+        val id = addSampleBook()
+        val output = output()
+        val player = player(output)
+        player.load(id)
+        player.play()
+        runCurrent()
+        advanceTimeBy(29.seconds)
+        runCurrent()
+        assertEquals(listOf(id), availability.checks)
+
+        availability.set(id, Availability.Missing)
+        advanceTimeBy(1.seconds)
+        runCurrent()
+
+        assertEquals(listOf(id, id), availability.checks)
+        assertFalse(player.state.value.isPlaying)
+        assertFalse(output.isPlaying)
+        assertEquals(30.seconds, saved(id).position)
+        assertEquals(Availability.Missing, availability.availability.value[id])
+    }
+
+    @Test
+    fun aPlayingBookThatIsStillThereKeepsPlaying() = rule.testScope.runTest {
+        val id = addSampleBook()
+        val output = output()
+        val player = player(output)
+        player.load(id)
+        player.play()
+        runCurrent()
+
+        advanceTimeBy(61.seconds)
+        runCurrent()
+
+        assertTrue(player.state.value.isPlaying)
+        assertEquals(3, availability.checks.size)
+    }
+
+    @Test
+    fun aFailureIsCheckedOnceNotOnEveryChange() = rule.testScope.runTest {
+        val id = addSampleBook()
+        val output = output()
+        val player = player(output)
+        player.load(id)
+        player.play()
+        runCurrent()
+
+        output.platformFail()
+        runCurrent()
+        output.signalChange()
+        runCurrent()
+        output.signalChange()
+        runCurrent()
+
+        assertEquals(listOf(id, id), availability.checks)
+    }
+
+    @Test
+    fun aPanelPlayOfAMissingBookEndsPausedAndUnavailable() = rule.testScope.runTest {
+        // On Android the panel's play goes straight to the platform, which fails to open the missing file.
+        val id = addSampleBook()
+        availability.set(id, Availability.Missing)
+        val output = output()
+        val player = player(output)
+        player.load(id)
+        runCurrent()
+
+        output.platformPlay()
+        runCurrent()
+        output.platformFail()
+        runCurrent()
+
+        assertFalse(player.state.value.isPlaying)
+        assertFalse(output.isPlaying)
+        assertEquals(Availability.Missing, availability.availability.value[id])
+    }
+
+    @Test
+    fun playingAfterARelinkLoadsTheFilesFromTheirNewPlace() = rule.testScope.runTest {
+        val id = addSampleBook(position = 90.seconds)
+        val output = output()
+        val player = player(output)
+        player.load(id)
+        runCurrent()
+        // Relinked to `Books/Moved`, as the library would after the user picked it.
+        val details = repository.all.single().let { it.copy(files = it.files.map { file -> file.copy(ref = file.ref.copy(root = "Books/Moved")) }) }
+        repository.add(details.book, details.files, details.chapters)
+
+        player.play()
+        runCurrent()
+
+        assertEquals(listOf("Books/Moved", "Books/Moved"), output.files.map { it.ref.root })
+        assertTrue(output.isPlaying)
+        assertEquals(FilePosition(1, 25.seconds), status(output).position)
+        assertEquals(90.seconds, player.state.value.position)
+    }
+
+    @Test
+    fun filesLeftOutByAPartialRelinkAreNotGivenToTheOutput() = rule.testScope.runTest {
+        val id = repository.add(
+            fakeBook("Gaps", duration = 180.seconds),
+            files = listOf(
+                file("Gaps", 0, "01.mp3", start = Duration.ZERO, duration = 60.seconds),
+                file("Gaps", 1, "02.mp3", start = 60.seconds, duration = 60.seconds).copy(isMissing = true),
+                file("Gaps", 2, "03.mp3", start = 120.seconds, duration = 60.seconds),
+            ),
+        )
+        val output = output()
+        val player = player(output)
+        player.load(id)
+
+        player.seekTo(90.seconds)
+        runCurrent()
+
+        assertEquals(listOf("01.mp3", "03.mp3"), output.files.map { it.ref.child })
+        // Inside the left-out file: on from the start of the next one.
+        assertEquals(FilePosition(1, Duration.ZERO), output.seeks.last())
+        assertEquals(120.seconds, player.state.value.position)
+        assertEquals(120.seconds, saved(id).position)
     }
 }

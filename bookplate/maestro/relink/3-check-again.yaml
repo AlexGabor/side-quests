@@ -1,0 +1,15 @@
+# Relink, step 3 for files that come back: with the file back where it was, "Check again" shows the book as before,
+# without a relink.
+#
+# Scenario: files come back
+#   Given Player shows "Sample Book" missing
+#   When its file is put back and I tap "Check again"
+#   Then Player shows it at 0:40 with "Play"
+appId: ${APP_ID}
+---
+- tapOn: "Check again"
+- extendedWaitUntil:
+    visible: "Play"
+    timeout: 5000
+- assertVisible: "0:40"
+- assertNotVisible: "Files missing"

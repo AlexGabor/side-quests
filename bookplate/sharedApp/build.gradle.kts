@@ -54,6 +54,9 @@ kotlin {
         // build for whichever machine is running the tests.
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
+            // The relink end-to-end test runs the real library and state holders on test dispatchers.
+            implementation(projects.lib.coroutine.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

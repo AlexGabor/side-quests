@@ -1,0 +1,18 @@
+# In the system folder picker, picks the folder ${FOLDER} inside the sample library's Audiobooks folder.
+appId: ${APP_ID}
+---
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runFlow: android-open-audiobooks.yaml
+      - tapOn: "${FOLDER}"
+      - tapOn: "USE THIS FOLDER"
+      - tapOn: "ALLOW"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow: ios-open-audiobooks.yaml
+      - tapOn: "${FOLDER}, .*"
+      - tapOn: "Open"

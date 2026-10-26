@@ -1,5 +1,7 @@
 package com.alexgabor.bookplate.core.player
 
+import com.alexgabor.bookplate.core.library.Availability
+import com.alexgabor.bookplate.core.library.BookAvailability
 import com.alexgabor.bookplate.core.library.BookDetails
 import com.alexgabor.bookplate.core.library.BookId
 import com.alexgabor.bookplate.core.library.LibraryRepository
@@ -24,13 +26,16 @@ import kotlinx.coroutines.launch
 /**
  * [BookPlayer] without audio: while playing, a clock ticks every [TickInterval] and moves the position
  * on by that much times the speed. Progress is read from and saved to [repository] the way a real
- * engine does, so Home and the mini player follow it.
+ * engine does, so Home and the mini player follow it. Like the engine, playing first checks the book with
+ * [availability] and stays paused when it is unavailable, a playing book is checked every [AvailabilityInterval] and
+ * paused when it is unavailable, and [failPlayback] stops as an output error would, then checks the book.
  *
  * Commands and ticks run one at a time, in order, on [scope] with `CoroutineDispatchers.Default`, which
  * is read when the first command arrives.
  */
 class FakeBookPlayer(
     private val repository: LibraryRepository,
+    private val availability: BookAvailability,
     private val scope: CoroutineScope,
     private val clock: Clock = Clock.System,
 ) : BookPlayer {
@@ -50,6 +55,8 @@ class FakeBookPlayer(
     /** The position last written to the library, so playback saves every [SaveInterval]. */
     private var savedPosition = Duration.ZERO
 
+    private var ticks = 0
+
     override fun load(id: BookId) = enqueue {
         val current = mutableState.value
         if (current.book?.id == id) return@enqueue
@@ -64,9 +71,11 @@ class FakeBookPlayer(
         val current = mutableState.value
         val book = current.book ?: return@enqueue
         if (current.isPlaying) return@enqueue
+        if (availability.check(book.id) != Availability.Available) return@enqueue
         if (current.position >= book.duration) mutableState.update { it.copy(position = Duration.ZERO) }
         mutableState.update { it.copy(isPlaying = true) }
         repository.setLastPlayed(book.id, clock.now())
+        ticks = 0
         ticker = scope.launch(CoroutineDispatchers.Default) {
             while (isActive) {
                 delay(TickInterval)
@@ -77,6 +86,13 @@ class FakeBookPlayer(
 
     override fun pause() = enqueue {
         if (mutableState.value.isPlaying) stopPlaying()
+    }
+
+    /** Stops playing as the engine does when its output fails, as for a file that went missing, and checks the book. */
+    fun failPlayback() = enqueue {
+        val book = mutableState.value.book ?: return@enqueue
+        if (mutableState.value.isPlaying) stopPlaying()
+        availability.check(book.id)
     }
 
     override fun seekTo(position: Duration) = enqueue { moveTo(position) }
@@ -115,6 +131,7 @@ class FakeBookPlayer(
         }
         mutableState.update { it.copy(position = next) }
         if (next - savedPosition >= SaveInterval) save(book.id)
+        if (++ticks % AvailabilityTicks == 0 && availability.check(book.id) != Availability.Available) stopPlaying()
     }
 
     /** Moves to [position] within the book and saves it; reaching the end pauses. */
@@ -147,6 +164,11 @@ class FakeBookPlayer(
 
         /** How much book time may pass between saves while playing. */
         val SaveInterval: Duration = 5.seconds
+
+        /** How often a playing book's files are checked, as the engine does. */
+        val AvailabilityInterval: Duration = 30.seconds
+
+        private val AvailabilityTicks = (AvailabilityInterval / TickInterval).toInt()
     }
 }
 

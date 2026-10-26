@@ -1,7 +1,7 @@
 # bookplate-home Specification
 
 ## Purpose
-Bookplate's Home screen: the library as rows (cover, title, author, duration, progress) newest first, search by title or author, adding a book from a folder or file with import progress and results, empty and no-results states, opening a book in Player, and the bottom bar kept for the mini player. Implemented in `bookplate/feature/home`.
+Bookplate's Home screen: the library as rows (cover, title, author, duration, progress) newest first, search by title or author, adding a book from a folder or file with import progress and results, empty and no-results states, opening a book in Player, marking books whose files are missing or no longer accessible, and the bottom bar kept for the mini player. Implemented in `bookplate/feature/home`.
 ## Requirements
 ### Requirement: Library rows
 Home SHALL list every book in the library as one row in a vertical list. Each row SHALL show:
@@ -114,6 +114,33 @@ Tapping a row SHALL open Player for that book's id.
 - **WHEN** the user taps the row of the book with id 7
 - **THEN** Player opens for book "7"
 
+### Requirement: Unavailable books
+When Home is created it SHALL start checking the availability of every book in the library, in the background, so
+the list shows at once and rows change as results arrive. The row of a book that is missing SHALL add the line
+"Files missing · Tap to relink", and the row of a book whose access was lost "Access lost · Tap to relink", both in the
+accent color. The row SHALL show everything else as before. Tapping it SHALL open Player for the book, where it can
+be relinked. When a book becomes available again its row SHALL go back to normal.
+
+#### Scenario: Missing book
+- **WHEN** Home opens and the check finds `Sample Book`'s files missing
+- **THEN** its row shows "Files missing · Tap to relink"
+
+#### Scenario: Access lost
+- **WHEN** the check finds that access to `Sample Book` was lost
+- **THEN** its row shows "Access lost · Tap to relink"
+
+#### Scenario: Checked when Home opens
+- **WHEN** Home is created
+- **THEN** a check of every book is started once
+
+#### Scenario: Back to normal
+- **WHEN** an unavailable book is relinked, or found again by a later check
+- **THEN** its row no longer shows the unavailable line
+
+#### Scenario: Tapping opens Player
+- **WHEN** the user taps an unavailable book's row
+- **THEN** Player opens for that book
+
 ### Requirement: Room for the mini player
 Home SHALL lay out a bottom bar below the list, outside the scrolling content, holding the mini player. The bar SHALL
 take the bottom safe-drawing inset when shown; when the mini player is hidden the bar SHALL be empty and take no space,
@@ -133,7 +160,8 @@ position over its duration, and a play/pause button labelled "Play" or "Pause". 
 loaded, the mini player SHALL follow the player's live position and playing state; otherwise it SHALL show the
 position saved in the library, paused. Tapping the button SHALL play or pause that book, loading it first when the
 player holds another book or none. Tapping anywhere else on the mini player SHALL open Player for that book. When no
-book has been played, the mini player SHALL be hidden and take no space.
+book has been played, the mini player SHALL be hidden and take no space. When the book is unavailable, the mini
+player SHALL show "Unavailable" in place of the button, and nothing SHALL play from it.
 
 #### Scenario: Fresh install
 - **WHEN** Home opens and no book has ever been played
@@ -151,3 +179,7 @@ book has been played, the mini player SHALL be hidden and take no space.
 - **WHEN** the user taps the mini player's title
 - **THEN** Player opens for that book
 
+#### Scenario: Unavailable last-played book
+- **WHEN** the last-played book is found missing
+- **THEN** the mini player shows its title, its progress and "Unavailable", has no play button, and playing from it
+  does nothing

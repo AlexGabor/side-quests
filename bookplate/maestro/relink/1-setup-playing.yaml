@@ -1,0 +1,12 @@
+# Relink, step 1 for a file going missing during playback: "Sample Book" playing from 0:00 in Player, so it
+# reaches the second file (at 1:05) about a minute later.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/open-sample-book.yaml
+- tapOn:
+    text: "Play"
+    waitToSettleTimeoutMs: 1000
+- assertVisible:
+    text: "Pause"

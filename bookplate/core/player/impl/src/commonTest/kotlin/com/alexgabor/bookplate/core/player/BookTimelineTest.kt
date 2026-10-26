@@ -73,17 +73,63 @@ class BookTimelineTest {
         assertEquals(75.seconds, withEmpty.positionOf(FilePosition(1, 10.seconds)))
     }
 
+    /** Three 1:00 files with the second left out by a partial relink. */
+    private val withGap = BookTimeline(
+        listOf(
+            file(0, start = 0.seconds, duration = 60.seconds),
+            file(1, start = 60.seconds, duration = 60.seconds, isMissing = true),
+            file(2, start = 120.seconds, duration = 60.seconds),
+        ),
+        duration = 180.seconds,
+    )
+
+    @Test
+    fun filesLeftOutByAPartialRelinkAreNotPlayedAndKeepTheOthersPlaces() {
+        assertEquals(listOf(0, 2), withGap.files.map { it.index })
+        assertEquals(FilePosition(1, 30.seconds), withGap.locate(150.seconds))
+        assertEquals(150.seconds, withGap.positionOf(FilePosition(1, 30.seconds)))
+    }
+
+    @Test
+    fun aPositionInALeftOutFilePlaysFromTheNextFile() {
+        assertEquals(FilePosition(1, Duration.ZERO), withGap.locate(90.seconds))
+        assertEquals(FilePosition(1, Duration.ZERO), withGap.locate(60.seconds))
+        assertEquals(120.seconds, withGap.positionOf(withGap.locate(90.seconds)!!))
+    }
+
+    @Test
+    fun aPositionAfterTheLastPlayedFileIsItsEnd() {
+        val endGap = BookTimeline(
+            listOf(file(0, start = 0.seconds, duration = 60.seconds), file(1, start = 60.seconds, duration = 60.seconds, isMissing = true)),
+            duration = 120.seconds,
+        )
+
+        assertEquals(FilePosition(0, 60.seconds), endGap.locate(90.seconds))
+    }
+
+    @Test
+    fun aLeftOutFirstFilePlaysFromTheSecond() {
+        val startGap = BookTimeline(
+            listOf(file(0, start = 0.seconds, duration = 60.seconds, isMissing = true), file(1, start = 60.seconds, duration = 60.seconds)),
+            duration = 120.seconds,
+        )
+
+        assertEquals(FilePosition(0, Duration.ZERO), startGap.locate(10.seconds))
+        assertEquals(60.seconds, startGap.positionOf(FilePosition(0, Duration.ZERO)))
+    }
+
     @Test
     fun noFilesLocateNothing() {
         assertNull(BookTimeline(emptyList(), 60.seconds).locate(10.seconds))
     }
 
-    private fun file(index: Int, start: Duration, duration: Duration) = AudioFile(
+    private fun file(index: Int, start: Duration, duration: Duration, isMissing: Boolean = false) = AudioFile(
         ref = DocumentRef("Books/Sample", child = "$index.mp3", isFolder = false),
         relativePath = "$index.mp3",
         size = null,
         duration = duration,
         index = index,
         start = start,
+        isMissing = isMissing,
     )
 }

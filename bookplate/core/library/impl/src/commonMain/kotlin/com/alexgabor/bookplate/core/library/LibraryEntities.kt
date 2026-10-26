@@ -54,6 +54,8 @@ internal data class AudioFileEntity(
     @ColumnInfo(name = "duration_ms") val durationMs: Long,
     /** Where the file starts in the book's timeline. */
     @ColumnInfo(name = "start_ms") val startMs: Long,
+    /** A confirmed partial relink didn't find it: left out of playback until a relink does. Since version 2. */
+    @ColumnInfo(defaultValue = "0") val missing: Boolean = false,
 )
 
 @Entity(

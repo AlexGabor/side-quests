@@ -40,6 +40,8 @@ data class Book(
  * @property duration zero when the file's duration couldn't be read.
  * @property index the file's place in the book, from 0.
  * @property start where the file starts in the book's timeline: the sum of the files before it.
+ * @property isMissing a confirmed partial relink didn't find it: it keeps its place on the timeline but is left out
+ *   of playback and of availability checks, until a relink finds it.
  */
 data class AudioFile(
     val ref: DocumentRef,
@@ -48,6 +50,7 @@ data class AudioFile(
     val duration: Duration,
     val index: Int,
     val start: Duration,
+    val isMissing: Boolean = false,
 )
 
 /**

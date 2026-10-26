@@ -8,19 +8,23 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.alexgabor.bookplate.core.library.Availability
 import com.alexgabor.bookplate.core.library.Book
+import com.alexgabor.bookplate.core.library.BookAvailability
 import com.alexgabor.bookplate.core.library.BookId
 import com.alexgabor.bookplate.core.library.BookImporter
 import com.alexgabor.bookplate.core.library.FailureReason
 import com.alexgabor.bookplate.core.library.ImportProgress
 import com.alexgabor.bookplate.core.library.ImportResult
 import com.alexgabor.bookplate.core.library.LibraryRepository
+import com.alexgabor.bookplate.core.library.of
 import com.alexgabor.lib.documentaccess.PickedDocument
 import kotlin.time.Duration
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -40,7 +44,10 @@ sealed interface Library {
     data class Books(val rows: List<BookRow>) : Library
 }
 
-/** One book as its row shows it. [progress] is the fraction played, for `SmallProgress`. */
+/**
+ * One book as its row shows it. [progress] is the fraction played, for `SmallProgress`. [unavailable] says why the
+ * book's files can't be reached and that tapping relinks it, or is `null` while they can.
+ */
 data class BookRow(
     val id: BookId,
     val title: String,
@@ -49,6 +56,7 @@ data class BookRow(
     val progress: Float,
     val percent: String,
     val coverPath: String?,
+    val unavailable: String? = null,
 )
 
 /** The import Home is running, or the result of the last one. */
@@ -63,7 +71,8 @@ sealed interface ImportStatus {
 }
 
 /**
- * Home: the library filtered by [query], the add-book choice and the import it starts.
+ * Home: the library filtered by [query], the add-book choice and the import it starts. Creating it starts a check
+ * of every book's files with [availability], in the background; rows of books found unavailable say so.
  *
  * Only the query and whether the add sheet is open are saved; the library is read back from
  * [repository], and an import does not outlive [scope].
@@ -73,6 +82,7 @@ class HomeState(
     private val scope: CoroutineScope,
     private val repository: LibraryRepository,
     private val importer: BookImporter,
+    private val availability: BookAvailability,
     query: String = "",
     addSheetOpen: Boolean = false,
 ) {
@@ -98,9 +108,13 @@ class HomeState(
     init {
         scope.launch {
             queries
-                .flatMapLatest { query -> repository.books(query).map { books -> libraryOf(query, books) } }
+                .flatMapLatest { query ->
+                    combine(repository.books(query), availability.availability) { books, checked -> libraryOf(query, books, checked) }
+                }
                 .collect { library.value = it }
         }
+        // The library loading: the list shows at once, and rows change as each book's check comes back.
+        scope.launch { availability.checkAll() }
     }
 
     fun onQueryChange(value: String) {
@@ -181,13 +195,13 @@ private val FailureReason.explanation: String
         FailureReason.Unreadable -> "A file couldn't be read."
     }
 
-internal fun libraryOf(query: String, books: List<Book>): Library = when {
-    books.isNotEmpty() -> Library.Books(books.map { it.toRow() })
+internal fun libraryOf(query: String, books: List<Book>, availability: Map<BookId, Availability> = emptyMap()): Library = when {
+    books.isNotEmpty() -> Library.Books(books.map { it.toRow(availability.of(it.id)) })
     query.isBlank() -> Library.Empty
     else -> Library.NoResults(query.trim())
 }
 
-internal fun Book.toRow(): BookRow {
+internal fun Book.toRow(availability: Availability = Availability.Available): BookRow {
     val fraction = if (duration > Duration.ZERO) (position / duration).toFloat().coerceIn(0f, 1f) else 0f
     return BookRow(
         id = id,
@@ -198,6 +212,11 @@ internal fun Book.toRow(): BookRow {
         // Rounded down, so a book only reads 100% once it is finished.
         percent = "${(fraction * 100).toInt()}%",
         coverPath = coverPath,
+        unavailable = when (availability) {
+            Availability.Available -> null
+            Availability.Missing -> "Files missing · Tap to relink"
+            Availability.AccessLost -> "Access lost · Tap to relink"
+        },
     )
 }
 
@@ -212,10 +231,11 @@ internal fun homeStateSaver(
     scope: CoroutineScope,
     repository: LibraryRepository,
     importer: BookImporter,
+    availability: BookAvailability,
 ): Saver<HomeState, Any> = listSaver(
     save = { state -> listOf(state.query.value, state.addSheetOpen.value) },
     restore = { saved ->
-        HomeState(scope, repository, importer, query = saved[0] as String, addSheetOpen = saved[1] as Boolean)
+        HomeState(scope, repository, importer, availability, query = saved[0] as String, addSheetOpen = saved[1] as Boolean)
     },
 )
 
@@ -223,10 +243,11 @@ internal fun homeStateSaver(
 fun rememberHomeState(
     repository: LibraryRepository = koinInject(),
     importer: BookImporter = koinInject(),
+    availability: BookAvailability = koinInject(),
 ): HomeState {
     val scope = rememberCoroutineScope()
-    val saver = remember(scope, repository, importer) { homeStateSaver(scope, repository, importer) }
-    return rememberSaveable(scope, repository, importer, saver = saver) {
-        HomeState(scope, repository, importer)
+    val saver = remember(scope, repository, importer, availability) { homeStateSaver(scope, repository, importer, availability) }
+    return rememberSaveable(scope, repository, importer, availability, saver = saver) {
+        HomeState(scope, repository, importer, availability)
     }
 }

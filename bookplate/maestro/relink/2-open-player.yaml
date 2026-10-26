@@ -1,0 +1,8 @@
+# Relink, step 2 for playback start: the app restarts and Player shows "Sample Book", still available. The host then
+# moves its folder away (step 3).
+appId: ${APP_ID}
+---
+- launchApp
+- tapOn: "Sample Book"
+- assertVisible: "Play"
+- assertNotVisible: "Files missing"

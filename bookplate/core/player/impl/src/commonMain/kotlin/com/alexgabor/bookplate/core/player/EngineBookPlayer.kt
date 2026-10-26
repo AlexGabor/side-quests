@@ -1,5 +1,8 @@
 package com.alexgabor.bookplate.core.player
 
+import com.alexgabor.bookplate.core.library.AudioFile
+import com.alexgabor.bookplate.core.library.Availability
+import com.alexgabor.bookplate.core.library.BookAvailability
 import com.alexgabor.bookplate.core.library.BookDetails
 import com.alexgabor.bookplate.core.library.BookId
 import com.alexgabor.bookplate.core.library.LibraryRepository
@@ -31,9 +34,14 @@ import kotlinx.coroutines.launch
  * `CoroutineDispatchers.Default`, read when the first command arrives. While playing, the output is polled
  * every [PollInterval] and the position saved every [SaveInterval]. The position is also saved on each
  * emission of [backgrounded], which the platform sends when the app goes to the background.
+ *
+ * Playing first checks the book with [availability]: an unavailable book stays paused. While playing, the book is
+ * checked again every [AvailabilityInterval], and when the output fails; a book found unavailable then is paused, so
+ * a file that goes missing during playback stops it, even when the platform had already buffered what follows.
  */
 class EngineBookPlayer(
     private val repository: LibraryRepository,
+    private val availability: BookAvailability,
     private val output: AudioOutput,
     private val scope: CoroutineScope,
     private val clock: Clock = Clock.System,
@@ -58,6 +66,12 @@ class EngineBookPlayer(
     /** The loaded book's files; `null` with no book loaded. */
     private var timeline: BookTimeline? = null
 
+    /** The library's files the output was loaded with, to notice a relink. */
+    private var loadedFiles: List<AudioFile> = emptyList()
+
+    /** Whether the output had failed at the last reconcile, so a failure is checked once. */
+    private var wasFailed = false
+
     override fun load(id: BookId) = enqueue {
         val current = mutableState.value
         if (current.book?.id == id) return@enqueue
@@ -65,29 +79,28 @@ class EngineBookPlayer(
         val details = repository.book(id).first()
         if (details == null) {
             timeline = null
+            loadedFiles = emptyList()
             mutableState.value = PlaybackState()
             output.clear()
             return@enqueue
         }
         val loaded = details.toState()
-        val bookTimeline = BookTimeline(details.files, loaded.duration)
-        timeline = bookTimeline
         mutableState.value = loaded
-        val at = bookTimeline.locate(loaded.position)
-        if (at == null) {
-            output.clear()
-        } else {
-            val book = details.book
-            val files = bookTimeline.files.map { OutputFile(it.ref, it.duration, book.title, book.author) }
-            output.load(files, at, loaded.speed)
-        }
+        loadOutput(details, loaded.position, loaded.speed)
     }
 
     override fun play() = enqueue {
         val current = mutableState.value
         val book = current.book ?: return@enqueue
+        if (current.isPlaying) return@enqueue
+        if (availability.check(book.id) != Availability.Available) return@enqueue
+        // A relink since loading points the files elsewhere, and an output that failed may hold on to the failure:
+        // load them afresh, where they are now.
+        repository.book(book.id).first()?.takeIf { it.files != loadedFiles || wasFailed }?.let { details ->
+            loadOutput(details, current.position, current.speed)
+        }
         val bookTimeline = timeline ?: return@enqueue
-        if (current.isPlaying || bookTimeline.files.isEmpty()) return@enqueue
+        if (bookTimeline.files.isEmpty()) return@enqueue
         if (current.position >= book.duration) {
             mutableState.update { it.copy(position = Duration.ZERO) }
             output.seekTo(bookTimeline.locate(Duration.ZERO) ?: return@enqueue)
@@ -119,17 +132,39 @@ class EngineBookPlayer(
         moveTo(chapter.start)
     }
 
+    /** Gives the output [details]' playable files, at [position] and [speed]; with none, clears it. */
+    private suspend fun loadOutput(details: BookDetails, position: Duration, speed: Float) {
+        val bookTimeline = BookTimeline(details.files, details.book.duration)
+        timeline = bookTimeline
+        loadedFiles = details.files
+        wasFailed = false
+        val at = bookTimeline.locate(position)
+        if (at == null) {
+            output.clear()
+        } else {
+            val book = details.book
+            val files = bookTimeline.files.map { OutputFile(it.ref, it.duration, book.title, book.author) }
+            output.load(files, at, speed)
+        }
+    }
+
     private fun enqueue(command: suspend () -> Unit) {
         processor
         commands.trySend(command)
     }
 
-    /** Moves to [position] within the book and saves it; reaching the end pauses. */
+    /**
+     * Moves to [position] within the book and saves it; reaching the end pauses. A position in the gap a left-out
+     * file leaves moves on to where the next played file starts.
+     */
     private suspend fun moveTo(position: Duration) {
         val book = mutableState.value.book ?: return
         val clamped = position.coerceIn(Duration.ZERO, book.duration)
-        mutableState.update { it.copy(position = clamped) }
-        timeline?.locate(clamped)?.let { output.seekTo(it) }
+        val bookTimeline = timeline
+        val at = bookTimeline?.locate(clamped)
+        val moved = if (at == null || clamped == book.duration) clamped else bookTimeline.positionOf(at)
+        mutableState.update { it.copy(position = moved) }
+        at?.let { output.seekTo(it) }
         if (clamped == book.duration && mutableState.value.isPlaying) stopPlaying() else save(book.id)
     }
 
@@ -159,6 +194,9 @@ class EngineBookPlayer(
             !current.isPlaying && status.isPlaying && !status.isFailed -> startPlaying(book.id)
             save -> save(book.id)
         }
+        // A file that can't be read may be one that went missing: the book shows as unavailable then.
+        if (status.isFailed && !wasFailed) availability.check(book.id)
+        wasFailed = status.isFailed
     }
 
     private suspend fun tick() {
@@ -166,7 +204,10 @@ class EngineBookPlayer(
         reconcile()
         val current = mutableState.value
         val book = current.book ?: return
-        if (current.isPlaying && ++polls % SavePolls == 0) save(book.id)
+        if (!current.isPlaying) return
+        polls++
+        if (polls % SavePolls == 0) save(book.id)
+        if (polls % AvailabilityPolls == 0 && availability.check(book.id) != Availability.Available) stopPlaying()
     }
 
     private suspend fun startPlaying(id: BookId) {
@@ -228,7 +269,11 @@ class EngineBookPlayer(
         /** How much playback may pass between saves. */
         val SaveInterval: Duration = 5.seconds
 
+        /** How often a playing book's files are checked. */
+        val AvailabilityInterval: Duration = 30.seconds
+
         private val SavePolls = (SaveInterval / PollInterval).toInt()
+        private val AvailabilityPolls = (AvailabilityInterval / PollInterval).toInt()
     }
 }
 

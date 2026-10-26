@@ -4,6 +4,7 @@ import androidx.room3.Dao
 import androidx.room3.Insert
 import androidx.room3.Query
 import androidx.room3.Transaction
+import androidx.room3.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -27,6 +28,32 @@ internal abstract class LibraryDao {
 
     @Query("SELECT id FROM books WHERE fingerprint = :fingerprint ORDER BY id LIMIT 1")
     abstract suspend fun idByFingerprint(fingerprint: String): Long?
+
+    @Query("SELECT id FROM books WHERE fingerprint = :fingerprint ORDER BY id")
+    abstract suspend fun idsByFingerprint(fingerprint: String): List<Long>
+
+    @Query("SELECT id FROM books ORDER BY id")
+    abstract suspend fun ids(): List<Long>
+
+    @Transaction
+    @Query("SELECT * FROM books WHERE id = :id")
+    abstract suspend fun bookNow(id: Long): BookWithContents?
+
+    @Query("UPDATE books SET source_ref = :sourceRef, fingerprint = :fingerprint WHERE id = :id")
+    protected abstract suspend fun setSource(id: Long, sourceRef: String, fingerprint: String)
+
+    @Update
+    protected abstract suspend fun updateFiles(files: List<AudioFileEntity>)
+
+    /**
+     * Points book [id] at a new source: its row's reference and fingerprint, and [files] (rows of that book, by
+     * their ids) with their new references, paths, sizes and left-out marks. Nothing else changes.
+     */
+    @Transaction
+    open suspend fun relink(id: Long, sourceRef: String, fingerprint: String, files: List<AudioFileEntity>) {
+        setSource(id, sourceRef, fingerprint)
+        updateFiles(files)
+    }
 
     @Query("UPDATE books SET position_ms = :positionMs WHERE id = :id")
     abstract suspend fun setPosition(id: Long, positionMs: Long)

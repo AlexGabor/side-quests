@@ -1,0 +1,18 @@
+# Relink, step 2 on iOS after the host renamed the picked folder itself: its bookmark follows it, so after a restart
+# the book is still available, where it was, with no relink.
+#
+# Scenario: picked folder renamed on iOS
+#   Given "Sample Book" at 0:40, whose folder was renamed
+#   When the app starts and I open it
+#   Then it isn't marked, and Player shows it at 0:40 with "Play"
+appId: ${APP_ID}
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Sample Book"
+    timeout: 10000
+- assertNotVisible: "Files missing · Tap to relink"
+- tapOn: "Sample Book"
+- assertVisible: "Play"
+- assertVisible: "0:40"
+- assertNotVisible: "Files missing"

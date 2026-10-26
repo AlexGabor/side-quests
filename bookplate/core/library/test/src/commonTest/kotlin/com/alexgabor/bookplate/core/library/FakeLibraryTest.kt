@@ -59,5 +59,33 @@ class FakeLibraryTest {
         assertEquals(listOf(pick, pick), importer.imported)
     }
 
+    @Test
+    fun scriptedAvailability() = runTest {
+        val availability = FakeBookAvailability()
+        val dune = BookId(1)
+        availability.set(dune, Availability.Missing)
+
+        assertEquals(Availability.Missing, availability.check(dune))
+        assertEquals(Availability.Missing, availability.availability.value.of(dune))
+        assertEquals(Availability.Available, availability.check(BookId(2)))
+        assertEquals(listOf(dune, BookId(2)), availability.checks)
+        availability.checkAll()
+        assertEquals(1, availability.checkAllCount)
+    }
+
+    @Test
+    fun scriptedRelinks() = runTest {
+        val relinker = FakeBookRelinker()
+        var ran = false
+        relinker.enqueue(RelinkResult.NoMatch)
+        relinker.enqueue(RelinkResult.Relinked(emptyList())) { ran = true }
+
+        assertEquals(RelinkResult.NoMatch, relinker.relink(BookId(1), pick))
+        assertEquals(false, ran)
+        assertEquals(RelinkResult.Relinked(emptyList()), relinker.relink(BookId(1), pick, setOf("a.mp3")))
+        assertEquals(true, ran)
+        assertEquals(setOf("a.mp3"), relinker.calls.last().confirmMissing)
+    }
+
     private fun at(seconds: Long) = Instant.fromEpochMilliseconds(seconds * 1000)
 }

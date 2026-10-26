@@ -11,6 +11,8 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.design.riso)
             api(projects.bookplate.core.player.api)
+            // Relinking picks the book's new folder or file.
+            api(projects.lib.documentaccess.api)
             implementation(projects.lib.coroutine.dispatchers)
             implementation(libs.koin.compose)
             // Covers are files in app storage: read with okio, decoded by Compose resources.
@@ -20,6 +22,7 @@ kotlin {
         commonTest.dependencies {
             implementation(projects.bookplate.core.player.test)
             implementation(projects.bookplate.core.library.test)
+            implementation(projects.lib.documentaccess.test)
             implementation(projects.lib.coroutine.test)
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)

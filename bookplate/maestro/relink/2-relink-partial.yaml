@@ -1,0 +1,46 @@
+# Relink, step 2, after the host moved the folder to ${FOLDER} without "Disc 2/02 - Middle.mp3": the partial match is
+# cancelled once (nothing changes), then confirmed, and the book plays without the missing file.
+#
+# Scenario: partial match, cancelled then confirmed
+#   Given "Sample Book" at 0:40, moved to ${FOLDER} without its second file
+#   When I relink it to ${FOLDER}
+#   Then Player says 1 of 2 files was found and names the missing one
+#   When I tap "Cancel"
+#   Then the book is still missing
+#   When I relink again and tap "Relink anyway"
+#   Then Player says the missing file will be skipped, and the book plays from 0:40
+appId: ${APP_ID}
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Files missing · Tap to relink"
+    timeout: 10000
+- tapOn: "Sample Book"
+- tapOn: "Relink"
+- runFlow:
+    file: ../subflows/pick-folder.yaml
+- extendedWaitUntil:
+    visible: "Found 1 of 2 files in “${FOLDER}”.*"
+    timeout: 15000
+- assertVisible: ".*Not found: Disc 2/02 - Middle.mp3.*"
+- tapOn: "Cancel"
+- assertVisible: "Files missing"
+- assertVisible: "Relink"
+- tapOn: "Relink"
+- runFlow:
+    file: ../subflows/pick-folder.yaml
+- extendedWaitUntil:
+    visible: "Relink anyway"
+    timeout: 15000
+- tapOn: "Relink anyway"
+- extendedWaitUntil:
+    visible: "Relinked “Sample Book”. 1 missing file will be skipped."
+    timeout: 15000
+- assertVisible: "0:40"
+- tapOn:
+    text: "Play"
+    waitToSettleTimeoutMs: 1000
+- assertVisible: "Pause"
+- tapOn:
+    text: "Pause"
+    waitToSettleTimeoutMs: 1000

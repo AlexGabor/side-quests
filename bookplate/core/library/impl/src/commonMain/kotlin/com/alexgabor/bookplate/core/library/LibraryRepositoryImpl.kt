@@ -79,6 +79,7 @@ internal class LibraryRepositoryImpl(
                     duration = it.durationMs.milliseconds,
                     index = it.ordinal,
                     start = it.startMs.milliseconds,
+                    isMissing = it.missing,
                 )
             },
             chapters = level(null),

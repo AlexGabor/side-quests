@@ -1,0 +1,15 @@
+# Relink, step 3 for playback start: with the folder moved away while Player was open, tapping "Play" checks the
+# book, plays nothing, and Player shows it missing.
+#
+# Scenario: playing a book whose files just went missing
+#   Given Player shows "Sample Book", and its folder is then moved away
+#   When I tap "Play"
+#   Then nothing plays and Player shows "Files missing" with "Relink"
+appId: ${APP_ID}
+---
+- tapOn: "Play"
+- extendedWaitUntil:
+    visible: "Files missing"
+    timeout: 5000
+- assertVisible: "Relink"
+- assertNotVisible: "Pause"

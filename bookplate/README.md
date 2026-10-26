@@ -30,6 +30,14 @@ Targets: Android and iOS. Shared modules also build for the JVM, only so their t
   there is no chapter title) and a seek bar over the whole book, with play/pause and rewind/forward 10 s. On Android
   tapping it opens Player for that book, and a paused notification can be swiped away.
 - Headset and Bluetooth buttons play and pause; on Android next/previous skip 10 s.
+- Books whose files were moved, renamed or deleted, or that Bookplate may no longer open, are noticed when the
+  library loads, when a book opens in Player and while it plays: Home marks them ("Files missing" or "Access lost"),
+  and Player shows why instead of playing, with "Relink" and "Check again". Files that come back are found again
+  without a relink.
+- Relink a book by picking where its folder or file is now. Files are matched by their path in the folder, then by
+  name, then by size and length. When only some are found, Bookplate says which are missing and asks first. Missing
+  parts are then skipped, and a later relink can bring them back. Progress, speed, chapters and cover are kept, and
+  a folder that is already another book is refused. The original files are only ever read.
 - Works offline: no network access is requested.
 - No links: the app only opens from its icon.
 

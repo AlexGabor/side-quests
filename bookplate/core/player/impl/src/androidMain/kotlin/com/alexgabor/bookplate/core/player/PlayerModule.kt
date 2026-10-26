@@ -15,13 +15,14 @@ import org.koin.dsl.bind
 import org.koin.dsl.module
 
 /**
- * Binds one [EngineBookPlayer] playing through [PlaybackService], over the bound `LibraryRepository` and
- * `DocumentAccess`. It plays for as long as the app runs, so its scope is never cancelled.
+ * Binds one [EngineBookPlayer] playing through [PlaybackService], over the bound `LibraryRepository`,
+ * `BookAvailability` and `DocumentAccess`. It plays for as long as the app runs, so its scope is never cancelled.
  */
 val playerModule = module {
     single {
         EngineBookPlayer(
             repository = get(),
+            availability = get(),
             output = Media3AudioOutput(androidContext()),
             scope = CoroutineScope(SupervisorJob()),
             backgrounded = appBackgrounded(),

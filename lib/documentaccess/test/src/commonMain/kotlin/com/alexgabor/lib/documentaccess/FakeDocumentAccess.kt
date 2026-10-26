@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import com.alexgabor.lib.coroutine.CoroutineDispatchers
+import kotlin.time.Duration
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
@@ -15,9 +17,13 @@ import kotlinx.coroutines.withContext
  * grants it, or [grant] does so directly, and [revoke] takes it away again. [delete] and [rename]
  * change the tree under live references, the way the user would in a file manager.
  *
+ * By default a rename acts as on Android: references to the old path are missing. With [followsRenames], renaming
+ * a granted, picked item moves it under its old references, as iOS bookmarks follow the item they were made from;
+ * renaming something inside a picked folder still leaves references to the old path missing.
+ *
  * Not thread safe: change the tree from the test, not concurrently with calls in flight.
  */
-class FakeDocumentAccess : DocumentAccess, DocumentPicker {
+class FakeDocumentAccess(private val followsRenames: Boolean = false) : DocumentAccess, DocumentPicker {
 
     private class FakeFile(val bytes: ByteArray, val lastModified: Long)
 
@@ -26,6 +32,9 @@ class FakeDocumentAccess : DocumentAccess, DocumentPicker {
     private val grants = mutableSetOf<String>()
     private val picks = ArrayDeque<String?>()
 
+    /** Where a granted root that was renamed (with [followsRenames]) is now. */
+    private val moved = mutableMapOf<String, String>()
+
     /** What each launched pick asked for, in order: `folder`, or `file:` and the MIME types. */
     val pickRequests: List<String>
         field = mutableListOf<String>()
@@ -33,6 +42,19 @@ class FakeDocumentAccess : DocumentAccess, DocumentPicker {
     /** How many sources are open right now, so a test can check they were closed. */
     var openSources: Int = 0
         private set
+
+    /** How long each [reachability] call takes, in the caller's (test) time. */
+    var checkDelay: Duration = Duration.ZERO
+
+    /** How many [reachability] calls have been made. */
+    var reachabilityChecks: Int = 0
+        private set
+
+    /** The most [reachability] calls that were in flight at once. */
+    var peakConcurrentChecks: Int = 0
+        private set
+
+    private var runningChecks = 0
 
     fun addFile(path: String, bytes: ByteArray, lastModified: Long = 0L) {
         files[normalize(path)] = FakeFile(bytes, lastModified)
@@ -61,6 +83,8 @@ class FakeDocumentAccess : DocumentAccess, DocumentPicker {
             else -> error("Nothing at $path to grant")
         }
         grants += normalized
+        // A new pick is a new bookmark: it points at what is at [path] now.
+        moved -= normalized
         return DocumentRef(root = normalized, child = null, isFolder = isFolder)
     }
 
@@ -80,6 +104,9 @@ class FakeDocumentAccess : DocumentAccess, DocumentPicker {
     fun rename(from: String, to: String) {
         val source = normalize(from)
         val target = normalize(to)
+        if (followsRenames) {
+            grants.filter { resolve(it) == source }.forEach { moved[it] = target }
+        }
         val moved = files.filterKeys { it.isAtOrBelow(source) }
         moved.keys.forEach(files::remove)
         moved.forEach { (path, file) -> files[target + path.removePrefix(source)] = file }
@@ -120,7 +147,15 @@ class FakeDocumentAccess : DocumentAccess, DocumentPicker {
     }
 
     override suspend fun reachability(ref: DocumentRef): Reachability = withContext(CoroutineDispatchers.IO) {
-        reachabilityOf(ref)
+        reachabilityChecks++
+        runningChecks++
+        peakConcurrentChecks = maxOf(peakConcurrentChecks, runningChecks)
+        try {
+            if (checkDelay.isPositive()) delay(checkDelay)
+            reachabilityOf(ref)
+        } finally {
+            runningChecks--
+        }
     }
 
     @Composable
@@ -164,8 +199,10 @@ class FakeDocumentAccess : DocumentAccess, DocumentPicker {
     private fun folderExists(path: String): Boolean =
         path.isEmpty() || path in folders || files.keys.any { it.startsWith("$path/") }
 
+    private fun resolve(root: String): String = moved[root] ?: root
+
     private val DocumentRef.path: String
-        get() = listOf(root, child.orEmpty()).filter { it.isNotEmpty() }.joinToString("/")
+        get() = listOf(resolve(root), child.orEmpty()).filter { it.isNotEmpty() }.joinToString("/")
 
     private inner class FakeSource(private val bytes: ByteArray) : DocumentSource {
         private var closed = false

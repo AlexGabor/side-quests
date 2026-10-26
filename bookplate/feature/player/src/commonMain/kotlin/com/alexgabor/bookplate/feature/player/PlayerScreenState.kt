@@ -7,21 +7,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.alexgabor.bookplate.core.library.Availability
+import com.alexgabor.bookplate.core.library.BookAvailability
 import com.alexgabor.bookplate.core.library.BookDetails
 import com.alexgabor.bookplate.core.library.BookId
+import com.alexgabor.bookplate.core.library.BookRelinker
 import com.alexgabor.bookplate.core.library.Chapter
+import com.alexgabor.bookplate.core.library.FailureReason
 import com.alexgabor.bookplate.core.library.LibraryRepository
+import com.alexgabor.bookplate.core.library.RelinkResult
+import com.alexgabor.bookplate.core.library.of
 import com.alexgabor.bookplate.core.player.BookPlayer
 import com.alexgabor.bookplate.core.player.PlaybackState
 import com.alexgabor.bookplate.core.player.PlayerBook
 import com.alexgabor.bookplate.core.player.SkipInterval
 import com.alexgabor.bookplate.core.player.snapSpeed
+import com.alexgabor.lib.documentaccess.PickedDocument
 import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -35,6 +44,8 @@ enum class PlayerSheet { Speed, Chapters }
  *   playback position otherwise.
  * @property positionLabel the playback position, also while the user drags the track.
  * @property chapterTitle the current chapter's title, or `null` when it has none.
+ * @property unavailable why the book's files can't be reached, shown in place of the controls; `null` while they can.
+ * @property needsFolder the book was added from a folder, so relinking picks a folder; otherwise a file.
  */
 data class PlayerUi(
     val title: String,
@@ -49,7 +60,28 @@ data class PlayerUi(
     val speed: Float,
     val speedLabel: String,
     val chapters: List<ChapterListItem>,
+    val unavailable: UnavailableUi? = null,
+    val needsFolder: Boolean = true,
 )
+
+/** What Player says about a book whose files can't be reached. */
+data class UnavailableUi(val title: String, val message: String)
+
+/** The relink Player is running, or the result of the last one. */
+sealed interface RelinkStatus {
+    val message: String
+
+    data class Running(override val message: String) : RelinkStatus
+
+    /** Only some files were found: [pick] is relinked once the user confirms [missing]. */
+    data class NeedsConfirmation(
+        override val message: String,
+        val pick: PickedDocument,
+        val missing: Set<String>,
+    ) : RelinkStatus
+
+    data class Finished(override val message: String, val isError: Boolean) : RelinkStatus
+}
 
 /** One line of the chapters sheet. */
 sealed interface ChapterListItem {
@@ -73,6 +105,10 @@ sealed interface ChapterListItem {
  * [library] has it, "Play" loads and plays it, and seeking, skipping, chapter jumps and speed change its
  * saved progress. Otherwise opening loads [bookId] (a no-op when it is already loaded).
  *
+ * Opening checks the book with [availability]. While its files can't be reached, Player shows why instead of the
+ * controls, and nothing plays from it; [onRelinkPicked] then points it at their new place through [relinker], asking
+ * first when only some are found.
+ *
  * Only the open [sheet] is saved; everything else is read back from the player and the library.
  */
 class PlayerScreenState(
@@ -80,6 +116,8 @@ class PlayerScreenState(
     val bookId: BookId,
     private val player: BookPlayer,
     private val library: LibraryRepository,
+    private val availability: BookAvailability,
+    private val relinker: BookRelinker,
     sheet: PlayerSheet? = null,
 ) {
 
@@ -90,7 +128,14 @@ class PlayerScreenState(
     val sheet: State<PlayerSheet?>
         field = mutableStateOf(sheet)
 
+    /** The running relink, or the last one's result until it is closed; `null` for none. */
+    val relink: State<RelinkStatus?>
+        field = mutableStateOf<RelinkStatus?>(null)
+
     private var playback = PlaybackState()
+
+    private var bookAvailability = Availability.Available
+    private var sourceIsFolder = true
 
     /** [bookId] as the library holds it: what Player shows while the player holds another book. */
     private var saved: PlaybackState? = null
@@ -120,12 +165,23 @@ class PlayerScreenState(
         scope.launch {
             library.book(bookId).collect { details ->
                 saved = details?.toSavedState()
+                details?.let { sourceIsFolder = it.book.source.isFolder }
                 onShownChanged()
             }
         }
+        scope.launch {
+            availability.availability.collect { checked ->
+                bookAvailability = checked.of(bookId)
+                publish()
+            }
+        }
+        scope.launch { availability.check(bookId) }
     }
 
+    private val isUnavailable: Boolean get() = bookAvailability != Availability.Available
+
     fun onPlayPause() {
+        if (isUnavailable) return
         if (!drivesPlayer) {
             if (saved == null) return
             load()
@@ -133,12 +189,96 @@ class PlayerScreenState(
         if (shown?.isPlaying == true) player.pause() else player.play()
     }
 
-    fun onSkipBack() = if (drivesPlayer) player.skipBack() else saveAt { it - SkipInterval }
+    fun onSkipBack() {
+        if (isUnavailable) return
+        if (drivesPlayer) player.skipBack() else saveAt { it - SkipInterval }
+    }
 
-    fun onSkipForward() = if (drivesPlayer) player.skipForward() else saveAt { it + SkipInterval }
+    fun onSkipForward() {
+        if (isUnavailable) return
+        if (drivesPlayer) player.skipForward() else saveAt { it + SkipInterval }
+    }
+
+    /** Checks the book's files again, as when they were put back. */
+    fun onCheckAgain() {
+        scope.launch { availability.check(bookId) }
+    }
+
+    /** The user picked [pick] for "Relink"; `null` is a cancelled pick. Ignored while a relink runs. */
+    fun onRelinkPicked(pick: PickedDocument?) {
+        if (pick == null) return
+        runRelink(pick, confirmMissing = emptySet())
+    }
+
+    /** "Relink anyway" for a partial match: relinks again, accepting the files that weren't found. */
+    fun onRelinkConfirmed() {
+        val asked = relink.value as? RelinkStatus.NeedsConfirmation ?: return
+        runRelink(asked.pick, asked.missing)
+    }
+
+    /** "Cancel" for a partial match: nothing changes. */
+    fun onRelinkCancelled() {
+        if (relink.value is RelinkStatus.NeedsConfirmation) relink.value = null
+    }
+
+    /** Closes a finished relink's result. */
+    fun onRelinkStatusClosed() {
+        if (relink.value is RelinkStatus.Finished) relink.value = null
+    }
+
+    private fun runRelink(pick: PickedDocument, confirmMissing: Set<String>) {
+        if (relink.value is RelinkStatus.Running) return
+        relink.value = RelinkStatus.Running("Looking for the book's files in “${pick.name}”…")
+        scope.launch {
+            val result = try {
+                relinker.relink(bookId, pick, confirmMissing)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                RelinkResult.Failed(FailureReason.Unreadable, e.message)
+            }
+            relink.value = statusOf(result, pick)
+        }
+    }
+
+    private suspend fun statusOf(result: RelinkResult, pick: PickedDocument): RelinkStatus? {
+        val title = shown?.book?.title ?: pick.name
+        return when (result) {
+            is RelinkResult.Relinked -> {
+                val skipped = result.leftOut.size
+                val message = when (skipped) {
+                    0 -> "Relinked “$title”"
+                    1 -> "Relinked “$title”. 1 missing file will be skipped."
+                    else -> "Relinked “$title”. $skipped missing files will be skipped."
+                }
+                RelinkStatus.Finished(message, isError = false)
+            }
+            RelinkResult.Unchanged -> RelinkStatus.Finished("“$title” is already linked to “${pick.name}”", isError = false)
+            is RelinkResult.NeedsConfirmation -> RelinkStatus.NeedsConfirmation(
+                message = "Found ${result.found} of ${result.total} files in “${pick.name}”. " +
+                    "Not found: ${result.missing.joinToString(", ")}. Parts of the book without their files will be skipped.",
+                pick = pick,
+                missing = result.missing.toSet(),
+            )
+            RelinkResult.NoMatch -> RelinkStatus.Finished("None of this book's files are in “${pick.name}”", isError = true)
+            is RelinkResult.WrongKind -> RelinkStatus.Finished(
+                if (result.needsFolder) "“$title” was added from a folder. Pick its folder."
+                else "“$title” was added from a single file. Pick the file.",
+                isError = true,
+            )
+            is RelinkResult.OtherBook -> {
+                val other = library.book(result.bookId).first()?.book?.title ?: pick.name
+                RelinkStatus.Finished("“${pick.name}” is already the book “$other”", isError = true)
+            }
+            is RelinkResult.Failed ->
+                RelinkStatus.Finished("Couldn't open “${pick.name}”. ${result.reason.explanation}", isError = true)
+            RelinkResult.NoSuchBook -> null
+        }
+    }
 
     /** The user is dragging the position track, which is at [position]. */
     fun onScrub(position: Duration) {
+        if (isUnavailable) return
         scrubTimeout?.cancel()
         scrubbing = position.coerceIn(Duration.ZERO, shown?.duration ?: Duration.ZERO)
         publish()
@@ -149,6 +289,7 @@ class PlayerScreenState(
      * reports it, so it doesn't jump back to the old position in between.
      */
     fun onScrubEnd(position: Duration) {
+        if (isUnavailable) return
         onScrub(position)
         if (drivesPlayer) player.seekTo(position) else saveAt { position }
         scrubTimeout = scope.launch {
@@ -159,6 +300,7 @@ class PlayerScreenState(
     }
 
     fun onSpeedChange(speed: Float) {
+        if (isUnavailable) return
         if (drivesPlayer) return player.setSpeed(speed)
         val book = saved ?: return
         val snapped = snapSpeed(speed)
@@ -168,6 +310,7 @@ class PlayerScreenState(
     }
 
     fun onChapterClick(index: Int) {
+        if (isUnavailable) return
         if (drivesPlayer) return player.jumpToChapter(index)
         val chapter = saved?.book?.playableChapters?.getOrNull(index) ?: return
         saveAt { chapter.start }
@@ -215,7 +358,10 @@ class PlayerScreenState(
     }
 
     private fun publish() {
-        ui.value = shown?.takeIf { it.book != null }?.toUi(scrubbing)
+        ui.value = shown?.takeIf { it.book != null }?.toUi(scrubbing)?.copy(
+            unavailable = bookAvailability.toUi(),
+            needsFolder = sourceIsFolder,
+        )
     }
 
     private fun PlaybackState.isNear(target: Duration): Boolean =
@@ -226,6 +372,27 @@ class PlayerScreenState(
         val ScrubHold = 1.seconds
     }
 }
+
+private fun Availability.toUi(): UnavailableUi? = when (this) {
+    Availability.Available -> null
+    Availability.Missing -> UnavailableUi(
+        title = "Files missing",
+        message = "Bookplate can't find this book's files. If you moved or renamed them, relink the book to where " +
+            "they are now.",
+    )
+    Availability.AccessLost -> UnavailableUi(
+        title = "Access lost",
+        message = "Bookplate is no longer allowed to open this book's files. Relink the book by picking them again.",
+    )
+}
+
+/** As Home words import failures. */
+private val FailureReason.explanation: String
+    get() = when (this) {
+        FailureReason.SourceMissing -> "The file or folder is gone."
+        FailureReason.AccessLost -> "Bookplate can no longer open it."
+        FailureReason.Unreadable -> "A file couldn't be read."
+    }
 
 /** The book at its saved position and speed, paused, as the player would load it. */
 private fun BookDetails.toSavedState(): PlaybackState = PlaybackState(
@@ -305,10 +472,12 @@ internal fun playerScreenStateSaver(
     bookId: BookId,
     player: BookPlayer,
     library: LibraryRepository,
+    availability: BookAvailability,
+    relinker: BookRelinker,
 ): Saver<PlayerScreenState, Int> = Saver(
     save = { state -> state.sheet.value?.ordinal ?: -1 },
     restore = { saved ->
-        PlayerScreenState(scope, bookId, player, library, sheet = PlayerSheet.entries.getOrNull(saved))
+        PlayerScreenState(scope, bookId, player, library, availability, relinker, sheet = PlayerSheet.entries.getOrNull(saved))
     },
 )
 
@@ -317,10 +486,14 @@ fun rememberPlayerScreenState(
     bookId: BookId,
     player: BookPlayer = koinInject(),
     library: LibraryRepository = koinInject(),
+    availability: BookAvailability = koinInject(),
+    relinker: BookRelinker = koinInject(),
 ): PlayerScreenState {
     val scope = rememberCoroutineScope()
-    val saver = remember(scope, bookId, player, library) { playerScreenStateSaver(scope, bookId, player, library) }
-    return rememberSaveable(scope, bookId, player, library, saver = saver) {
-        PlayerScreenState(scope, bookId, player, library)
+    val saver = remember(scope, bookId, player, library, availability, relinker) {
+        playerScreenStateSaver(scope, bookId, player, library, availability, relinker)
+    }
+    return rememberSaveable(scope, bookId, player, library, availability, relinker, saver = saver) {
+        PlayerScreenState(scope, bookId, player, library, availability, relinker)
     }
 }

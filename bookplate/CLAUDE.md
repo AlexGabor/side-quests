@@ -23,6 +23,12 @@
   commands to `BookPlayer`. Tapping the Android notification sends `ACTION_SHOW_PLAYING` to `MainActivity`, which
   hands its intents to the injected `ShowPlaying` (`follow`); `RootNavigation` collects its requests. It is not a
   deep link.
+- Unavailable books and relinking (`core/library`): `BookAvailability` checks a book's source, then its files, and
+  holds the answer in memory, never stored. It is checked when Home is created, when Player opens, on play, every
+  30 s while playing, and after an output error. `BookRelinker` re-matches on every call (`RelinkMatcher`: path,
+  then name, then size and duration), so "Relink anyway" passes the confirmed missing paths. Files that a partial
+  relink left out keep their place on the timeline with `audio_files.missing` set (schema v2), and `BookTimeline`
+  skips them. Relinking happens in Player only; Home's row leads there.
 
 ## Running
 
@@ -41,8 +47,8 @@ xcrun simctl install booted bookplate/iosApp/build/Build/Products/Debug-iphonesi
 
 Tests: `./gradlew :bookplate:feature:home:jvmTest :bookplate:feature:player:jvmTest :bookplate:sharedApp:jvmTest
 :bookplate:core:library:impl:jvmTest :bookplate:core:library:test:jvmTest :bookplate:core:player:api:jvmTest
-:bookplate:core:player:test:jvmTest :bookplate:core:player:impl:jvmTest`. The iOS output's notification handling has
-simulator tests: `./gradlew :bookplate:core:player:impl:iosSimulatorArm64Test`.
+:bookplate:core:player:test:jvmTest :bookplate:core:player:impl:jvmTest :lib:documentaccess:test:jvmTest`. The iOS
+output's notification handling has simulator tests: `./gradlew :bookplate:core:player:impl:iosSimulatorArm64Test`.
 
 Checking the media panel:
 - Android: `adb shell dumpsys media_session` shows the session's state, position and metadata;
@@ -102,6 +108,13 @@ It holds `Sample Book/` by `Sample Author` (`01 - Opening.mp3` 1:05, `Disc 2/02 
   - iOS: `mv` / `rm` inside the `ios-path` folder.
 - On iOS, renaming or moving the *picked* file or folder is followed by its bookmark and stays reachable. Deleting it,
   or renaming a file inside a picked folder, makes it missing. On Android, any rename makes it missing.
+- [`scripts/relink-flows.sh`](scripts/relink-flows.sh) `android|ios [scenario...]` runs the relink flows in
+  `maestro/relink`. They are steps with host changes in between, outside `flows/` so a plain `maestro test` doesn't
+  run them: moved folder, a file renamed inside it, partial match (cancel, then relink anyway), files coming back,
+  missing at play, a file deleted while playing, and on iOS a followed rename. Each scenario resets the sample
+  library first and at the end. On iOS it copies the folder and deletes the original, because a plain move would be
+  followed. The sample files are small enough that ExoPlayer buffers a whole book, so deleting a file during
+  playback is only noticed by the 30 s check.
 - The system pickers can also be driven from the shell:
   - Android: `adb shell uiautomator dump` then `adb shell input tap`.
   - iOS: `maestro hierarchy` to see the picker's labels, then simulator taps.

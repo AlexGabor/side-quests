@@ -1,0 +1,15 @@
+# Relink, step 1: a fresh library with "Sample Book" added and left at 0:40.
+#
+# Not a flow of its own: scripts/relink-flows.sh runs it, then changes the files from the host.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/open-sample-book.yaml
+- repeat:
+    times: 4
+    commands:
+      - tapOn: "Forward 10 seconds"
+- assertVisible: "0:40"
+- tapOn: "Back"
+- assertVisible: "Search title or author"
