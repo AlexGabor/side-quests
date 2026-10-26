@@ -21,10 +21,10 @@ Targets: Android and iOS. Shared modules also build for the JVM, only so their t
 - A mini player at the bottom of Home for the last-played book: title, progress and play/pause; tapping it opens
   Player. Hidden until a book has been played.
 - Progress and speed are saved per book, and a book resumes where it was, at its speed, after a restart.
-- On Android, books play for real: the files of a book play back to back as one, at any speed without changing
-  pitch, and keep playing with the screen off or the app in the background, with a media notification. Playback
-  pauses for calls and other apps' audio, and when headphones are unplugged. On iOS playback is still simulated by a
-  clock until its engine lands.
+- Books play for real: the files of a book play back to back as one, at any speed without changing pitch, and keep
+  playing with the screen off or locked and the app in the background (on Android with a media notification).
+  Playback pauses for calls and other apps' audio (and resumes after a call on iOS), and when headphones are
+  unplugged.
 - Works offline: no network access is requested.
 - No links: the app only opens from its icon.
 
