@@ -52,6 +52,7 @@ import com.alexgabor.stamp.icon.ICON_PRINTS
 import com.alexgabor.stamp.icon.ICON_SIDE
 import com.alexgabor.stamp.icon.IconDensity
 import com.alexgabor.stamp.icon.IconLayer
+import com.alexgabor.stamp.icon.IconMark
 import com.alexgabor.stamp.icon.IconPrint
 import com.alexgabor.stamp.icon.printOf
 import kotlinx.coroutines.launch
@@ -79,7 +80,7 @@ private val InspectorSide = 240.dp
  * [IconExporter] is handed: `record` captures a single display list, and that one recording is
  * rasterized twice — once onto the screen, once offscreen into the PNG. There is no separate export
  * render that could quietly disagree with what is displayed. Exporting is just walking the stage
- * through every print in [ICON_PRINTS].
+ * through every print in [ICON_PRINTS], for the one [IconMark] selected, into that app's directory.
  *
  * Which is also why the stage is never scaled, clipped or *constrained* by anything above it. The
  * first two would only mislead — an ancestor's transform reaches the screen but not `toImageBitmap`
@@ -95,6 +96,7 @@ fun StampScreen(
     val scope = rememberCoroutineScope()
     val capture = rememberGraphicsLayer()
 
+    var mark by remember { mutableStateOf(IconMark.entries.first()) }
     var bucket by remember { mutableStateOf(IconDensity.Xxxhdpi) }
     var staged by remember { mutableStateOf(printOf(IconLayer.Foreground, IconDensity.Xxxhdpi)) }
     var inspected by remember { mutableStateOf<ImageBitmap?>(null) }
@@ -175,7 +177,7 @@ fun StampScreen(
                             drawLayer(capture)
                         },
                 ) {
-                    staged.layer.Content(Modifier.fillMaxSize())
+                    staged.layer.Content(mark, Modifier.fillMaxSize())
                 }
             }
         }
@@ -189,6 +191,17 @@ fun StampScreen(
                 modifier = Modifier.size(InspectorSide),
             )
         }
+
+        ButtonGroup(
+            selected = mark,
+            *IconMark.entries.toTypedArray(),
+            onSelect = { next ->
+                onStage {
+                    mark = next
+                    stage(staged)
+                }
+            },
+        )
 
         ButtonGroup(
             selected = staged.layer,
@@ -219,7 +232,7 @@ fun StampScreen(
         }
 
         Body(
-            text = "${staged.dir} · ${staged.sidePx} px · ${staged.fileName}",
+            text = "${mark.dir}/${staged.dir} · ${staged.sidePx} px · ${staged.fileName}",
             modifier = Modifier.risoInk(RisoTheme.colors.content),
         )
 
@@ -230,7 +243,7 @@ fun StampScreen(
                     var written = 0
                     ICON_PRINTS.forEach { print ->
                         exporter.write(
-                            dir = print.dir,
+                            dir = "${mark.dir}/${print.dir}",
                             fileName = print.fileName,
                             opaque = print.opaque,
                             image = stage(print),

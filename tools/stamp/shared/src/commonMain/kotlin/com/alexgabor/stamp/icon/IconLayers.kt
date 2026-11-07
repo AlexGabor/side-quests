@@ -109,13 +109,14 @@ enum class IconLayer(override val text: String, val fileName: String) : ButtonGr
 val ANDROID_ICON_LAYERS: List<IconLayer> =
     listOf(IconLayer.Background, IconLayer.Foreground, IconLayer.Monochrome)
 
+/** This layer of [mark]'s icon. */
 @Composable
-fun IconLayer.Content(modifier: Modifier = Modifier) {
+fun IconLayer.Content(mark: IconMark, modifier: Modifier = Modifier) {
     when (this) {
         IconLayer.Background -> IconBackground(modifier)
-        IconLayer.Foreground -> IconForeground(modifier)
-        IconLayer.Monochrome -> IconMonochrome(modifier)
-        IconLayer.Ios, IconLayer.Play -> FlatIcon(modifier)
+        IconLayer.Foreground -> IconForeground(mark, modifier)
+        IconLayer.Monochrome -> IconMonochrome(mark, modifier)
+        IconLayer.Ios, IconLayer.Play -> FlatIcon(mark, modifier)
     }
 }
 
@@ -189,22 +190,22 @@ private fun IconBackground(modifier: Modifier) {
  *
  * What that leaves is opaque: transmittance is white where no drum reached, which is correct for the
  * multiply the passes are drawn with and useless to a launcher compositing this over a background.
- * So [drawPacerMask] cuts it back to the shape the mark could have printed into.
+ * So [drawMarkMask] cuts it back to the shape the mark could have printed into.
  */
 @Composable
-private fun IconForeground(modifier: Modifier) {
+private fun IconForeground(mark: IconMark, modifier: Modifier) {
     // Where each drum lands, so the mask can follow the ink rather than the artwork. Resolved to
     // pixels out here rather than in the draw: `DrawScope.record` hands the layer the enclosing
     // scope as its own density, so that scope ends up resolving its density through itself and a
     // `toPx()` inside a record block recurses until the stack runs out.
     val press = RisoTheme.press
     val density = LocalDensity.current
-    val registration = remember(press, density) {
+    val registration = remember(mark, press, density) {
         fun of(ink: Color): Offset = press.inks[press.slotOf(ink)].let { drum ->
             with(density) { Offset(drum.offsetX.dp.toPx(), drum.offsetY.dp.toPx()) } *
                     ICON_REGISTRATION_SCALE
         }
-        of(PacerIconContour) to of(PacerIconSplash)
+        of(mark.contour) to of(mark.splash)
     }
     val mask = rememberGraphicsLayer()
 
@@ -216,7 +217,7 @@ private fun IconForeground(modifier: Modifier) {
             .drawWithContent {
                 drawContent()
                 mask.blendMode = BlendMode.DstIn
-                mask.record { drawPacerMask(registration.first, registration.second) }
+                mask.record { drawMarkMask(mark, registration.first, registration.second) }
                 drawLayer(mask)
             }
             .risoPaper(RisoPaper.None),
@@ -225,12 +226,12 @@ private fun IconForeground(modifier: Modifier) {
             Modifier
                 .fillMaxSize()
                 .risoInk(
-                    first = PacerIconContour,
-                    second = PacerIconSplash,
+                    first = mark.contour,
+                    second = mark.splash,
                     offsetScale = ICON_REGISTRATION_SCALE,
                 ),
         ) {
-            drawPacerStopwatch()
+            drawMark(mark)
         }
     }
 }
@@ -242,8 +243,8 @@ private fun IconForeground(modifier: Modifier) {
  * pixels apart would come out as holes in the mark rather than as texture.
  */
 @Composable
-private fun IconMonochrome(modifier: Modifier) {
-    Canvas(modifier) { drawPacerSilhouette() }
+private fun IconMonochrome(mark: IconMark, modifier: Modifier) {
+    Canvas(modifier) { drawMarkSilhouette(mark) }
 }
 
 /**
@@ -252,7 +253,7 @@ private fun IconMonochrome(modifier: Modifier) {
  *
  * This is [IconBackground] and [IconForeground] in one pass rather than two, and the difference is
  * not only that it saves a file. The foreground prints on [RisoPaper.None] and is then cut back by
- * [drawPacerMask] purely so that a *launcher* can lay it over the background — off a real press, ink
+ * [drawMarkMask] purely so that a *launcher* can lay it over the background — off a real press, ink
  * lands on paper and is shaded by it. With nothing left to composite, the print can be that one: the
  * mark takes the sheet's own surface, and there is no mask to cut, because what comes off the press
  * covers the canvas.
@@ -262,23 +263,23 @@ private fun IconMonochrome(modifier: Modifier) {
  * [IconPrint.opaque]. Play also wants the square left square: it rounds the corners and adds the
  * shadow itself.
  *
- * It is also fitted wider than the adaptive layers are, to [PACER_IOS_FIT_RADIUS]: there is no
+ * It is also fitted wider than the adaptive layers are, to [IOS_ICON_FIT_RADIUS]: there is no
  * circular mask here to leave room for. Play's rounded square, at a 30% corner radius, still spares
  * the whole inscribed circle, so the same fit serves it.
  */
 @Composable
-private fun FlatIcon(modifier: Modifier) {
+private fun FlatIcon(mark: IconMark, modifier: Modifier) {
     Box(modifier.risoPaper(RisoPaper())) {
         Canvas(
             Modifier
                 .fillMaxSize()
                 .risoInk(
-                    first = PacerIconContour,
-                    second = PacerIconSplash,
+                    first = mark.contour,
+                    second = mark.splash,
                     offsetScale = ICON_REGISTRATION_SCALE,
                 ),
         ) {
-            drawPacerStopwatch(fitRadius = PACER_IOS_FIT_RADIUS)
+            drawMark(mark, fitRadius = IOS_ICON_FIT_RADIUS)
         }
     }
 }

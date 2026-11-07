@@ -25,7 +25,7 @@ fun DrawScope.drawPacerStopwatch(
     contour: Color = PacerIconContour,
     splash: Color = PacerIconSplash,
     contourBlend: BlendMode = BlendMode.Multiply,
-    fitRadius: Float = PACER_ICON_SAFE_RADIUS,
+    fitRadius: Float = ADAPTIVE_ICON_SAFE_RADIUS,
 ) {
     val s = size.minDimension
     val origin = Offset((size.width - s) / 2f, (size.height - s) / 2f)
@@ -99,78 +99,11 @@ fun DrawScope.drawPacerStopwatch(
     }
 }
 
-/**
- * The same mark as a flat silhouette, for surfaces that tint it themselves — Android's themed icons
- * key off alpha alone, so grain and misregistration would only punch holes in it.
- *
- * The splash survives as a wash rather than a second colour, which keeps the mark from reading as a
- * bare outline once the system has flattened it to one hue.
- */
-fun DrawScope.drawPacerSilhouette(color: Color = Color.Black) = drawPacerStopwatch(
-    contour = color,
-    splash = color.copy(alpha = SILHOUETTE_SPLASH_ALPHA),
-    contourBlend = BlendMode.SrcOver,
-)
-
-/**
- * Where the mark's ink ends up, filled solid: each drum's share of the artwork, moved to where that
- * drum lays it down.
- *
- * This is what a print has to be cut back to before it can be composited. A press has no alpha
- * channel to hand over — a pass lays ink where the artwork calls for it and *white* everywhere else,
- * which is nothing at all under the multiply the passes are drawn with, but an opaque white square
- * the moment something asks the result to sit over a background.
- *
- * Which is also why the two shares are split and offset separately rather than the whole mark being
- * stamped once. Follow the artwork and the mask keeps the edge each pass has already moved away
- * from, leaving a rim of paper the drum never reached; follow the drums and the mask stops exactly
- * where the ink does. [contourOffset] and [splashOffset] are those two drums' registration errors,
- * in pixels, after whatever damping the caller printed with.
- */
-fun DrawScope.drawPacerMask(
-    contourOffset: Offset = Offset.Zero,
-    splashOffset: Offset = Offset.Zero,
-    color: Color = Color.Black,
-) {
-    translate(splashOffset.x, splashOffset.y) {
-        drawPacerStopwatch(
-            contour = Color.Transparent,
-            splash = color,
-            contourBlend = BlendMode.SrcOver,
-        )
-    }
-    translate(contourOffset.x, contourOffset.y) {
-        drawPacerStopwatch(
-            contour = color,
-            splash = Color.Transparent,
-            contourBlend = BlendMode.SrcOver,
-        )
-    }
-}
-
 /** The contour's colour as authored: exactly what a full pass of the vintage black drum lays down. */
 val PacerIconContour: Color = RisoColors.inks.vintageBlack
 
 /** The splash's colour as authored: a full pass of the purple drum. */
 val PacerIconSplash: Color = RisoColors.inks.purple
-
-/**
- * Radius of an adaptive icon's guaranteed-visible circle, as a fraction of the layer's side: the
- * inner 66 of 108 dp. Nothing outside it is safe from a launcher's mask.
- */
-const val PACER_ICON_SAFE_RADIUS: Float = 66f / 108f / 2f
-
-/**
- * How much of an iOS icon the mark fills, in the same fraction as [PACER_ICON_SAFE_RADIUS].
- *
- * iOS masks with a squircle, which takes only the corners — the circle inscribed in the canvas
- * survives it whole. So the allowance [PACER_ICON_SAFE_RADIUS] makes for a launcher's circular mask
- * buys nothing here and would leave the mark swimming. This is margin rather than safety: it keeps a
- * tenth of the canvas clear on every side, which is about where Apple's own marks sit in the grid.
- */
-const val PACER_IOS_FIT_RADIUS: Float = 0.40f
-
-private const val SILHOUETTE_SPLASH_ALPHA = 0.28f
 
 // The mark's own bounding circle, in the same fractions as everything below. Recompute these two if
 // any element moves outward, or the fit will crop.
